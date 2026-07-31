@@ -60,6 +60,10 @@ public struct Grid<Cell: Sendable>: Sendable {
             precondition(contains(position), "GridPosition out of bounds: \(position)")
             cells[index(of: position)] = newValue
         }
+        _modify {
+            precondition(contains(position), "GridPosition out of bounds: \(position)")
+            yield &cells[index(of: position)]
+        }
     }
 
     private func index(of position: GridPosition) -> Int {
