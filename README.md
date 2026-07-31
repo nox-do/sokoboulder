@@ -3,6 +3,8 @@
 Native macOS-App mit zwei Rasterspielen (Sokoban-artig und Boulder-Dash-artig)
 auf einer gemeinsamen, deterministischen Engine.
 
+Produktname: **SokoBoulder** (Target/Modul: `MacGameApp`)
+
 Siehe [ARCHITECTURE.md](ARCHITECTURE.md), [GAMEPLAY.md](GAMEPLAY.md) und
 [AUDIO.md](AUDIO.md).
 
@@ -11,6 +13,7 @@ Siehe [ARCHITECTURE.md](ARCHITECTURE.md), [GAMEPLAY.md](GAMEPLAY.md) und
 - macOS
 - Xcode 26.6
 - Swift 6.3.3
+- Deployment-Target: macOS 14.0
 
 ## GameCore testen
 
@@ -23,6 +26,32 @@ swift test
 
 Es gibt keine GitHub-CI; Tests laufen lokal auf der festgelegten Toolchain.
 
+## Mac-App bauen (Phase-2-Smoke)
+
+```bash
+xcodebuild \
+  -project MacGameApp.xcodeproj \
+  -scheme MacGameApp \
+  -destination 'platform=macOS,arch=arm64' \
+  -configuration Debug \
+  build
+```
+
+Session-/Revisionsvertrag (ohne SpriteKit):
+
+```bash
+xcodebuild \
+  -project MacGameApp.xcodeproj \
+  -scheme MacGameApp \
+  -destination 'platform=macOS,arch=arm64' \
+  -configuration Debug \
+  test
+```
+
+Die App importiert das lokale Package `GameCore`. Bundle-Identifier ist vorerst
+provisorisch `dev.local.SokoBoulder` und muss vor Persistenz/Signierung
+festgelegt werden.
+
 ## Verteilung
 
 Das Auslieferungsziel ist eine macOS-`.dmg` (siehe
@@ -30,5 +59,4 @@ Das Auslieferungsziel ist eine macOS-`.dmg` (siehe
 
 ## Projektstand
 
-Phase 0 (Fundament) ist der aktuelle Umsetzungsstand. Das Xcode-App-Target folgt
-in Phase 2.
+Phase 1 (Sokoban-Kern) ist abgenommen. Phase 2 (spielbare Mac-App) ist in Arbeit.

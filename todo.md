@@ -54,15 +54,26 @@ Vertragsentscheidungen:
 
 ### Reihenfolge
 
-1. [ ] Preflight: Xcode-Projekt, leere SwiftUI-App, GameCore-Abhängigkeit, `xcodebuild`-Smoke
-2. [ ] `RenderSnapshot` + Mapper (+ Index-Helper), Package-Tests
-3. [ ] Headless `GameSession` + `RenderUpdate`/`AudioUpdate`, Revisionsvertrag-Tests (ohne SpriteKit)
+1. [x] Preflight: Xcode-Projekt, leere SwiftUI-App, GameCore-Abhängigkeit, `xcodebuild`-Smoke
+2. [x] `RenderSnapshot` + Mapper (+ Index-Helper), Package-Tests
+3. [x] Headless `GameSession` + `RenderUpdate`/`AudioUpdate`, Revisionsvertrag-Tests (ohne SpriteKit)
 4. [ ] InputMapper (Repeats verwerfen) → Session-Befehle
 5. [ ] SpriteKit-Platzhalter (Rechtecke), Hard-Resync
 6. [ ] HUD, Abschlussablauf, Undo/Redo/Neustart in der App
 7. [ ] AudioDirector klein, aber vertragstreu
 8. [ ] `SokobanRunFileV1` + Wiederaufnahme (nach Bundle-ID)
 9. [ ] Drei Tutorial-Level nach GAMEPLAY.md
+
+### Preflight-Notizen
+
+- Bundle-Identifier vorerst provisorisch: `dev.local.SokoBoulder` (vor Persistenz ersetzen)
+- `MacGameApp.xcodeproj` am Repo-Root; Quellen unter `MacGameApp/`
+- Display-Name: SokoBoulder; Target-Name: MacGameApp
+- GameCore `platforms: [.macOS(.v14)]`
+- `.gitkeep` unter App-Quellen entfernt (kollidieren mit File-System-Sync-Gruppen)
+- Kein `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor` am App-Target (nur `@MainActor` an `GameSession`)
+- Session-/Revisions-Tests: Target `MacGameAppTests`
+- Session-Vertrag nachgeschärft: `.faulted` ohne Render/Audio; Bewegung nur via `enqueueMove`; Phase `.created` bis `start()`
 
 ### Bewusst nicht in Phase 2
 

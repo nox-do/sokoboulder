@@ -1,0 +1,385 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		90e8be4078ce4bb98c87491c /* GameCore in Frameworks */ = {isa = PBXBuildFile; productRef = bdd77960b18d4513bf4b3769 /* GameCore */; };
+		c11ceb1a998d434b82dbcdc1 /* GameCore in Frameworks */ = {isa = PBXBuildFile; productRef = c21ceb1a998d434b82dbcdc2 /* GameCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		c41ceb1a998d434b82dbcdc4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = a41ceb1a998d434b82dbcdb4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = b01ceb1a998d434b82dbcdb3;
+			remoteInfo = MacGameApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		e44215bd8bd04325bf711b43 /* MacGameApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacGameApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		c51ceb1a998d434b82dbcdc5 /* MacGameAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacGameAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		b5c84e20cabb418797b9d1a2 /* MacGameApp */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MacGameApp;
+			sourceTree = "<group>";
+		};
+		c61ceb1a998d434b82dbcdc6 /* MacGameAppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MacGameAppTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5a03b25316ed4d4096f8c48e /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				90e8be4078ce4bb98c87491c /* GameCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		c71ceb1a998d434b82dbcdc7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				c11ceb1a998d434b82dbcdc1 /* GameCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		949ddb169bad4722945a55f1 = {
+			isa = PBXGroup;
+			children = (
+				b5c84e20cabb418797b9d1a2 /* MacGameApp */,
+				c61ceb1a998d434b82dbcdc6 /* MacGameAppTests */,
+				65727d78be5d40ee851966ff /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		65727d78be5d40ee851966ff /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				e44215bd8bd04325bf711b43 /* MacGameApp.app */,
+				c51ceb1a998d434b82dbcdc5 /* MacGameAppTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		b01ceb1a998d434b82dbcdb3 /* MacGameApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = a11ceb1a998d434b82dbcdb1 /* Build configuration list for PBXNativeTarget "MacGameApp" */;
+			buildPhases = (
+				a21ceb1a998d434b82dbcdb2 /* Sources */,
+				5a03b25316ed4d4096f8c48e /* Frameworks */,
+				a31ceb1a998d434b82dbcdb3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				b5c84e20cabb418797b9d1a2 /* MacGameApp */,
+			);
+			name = MacGameApp;
+			packageProductDependencies = (
+				bdd77960b18d4513bf4b3769 /* GameCore */,
+			);
+			productName = MacGameApp;
+			productReference = e44215bd8bd04325bf711b43 /* MacGameApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		c81ceb1a998d434b82dbcdc8 /* MacGameAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = c91ceb1a998d434b82dbcdc9 /* Build configuration list for PBXNativeTarget "MacGameAppTests" */;
+			buildPhases = (
+				ca1ceb1a998d434b82dbcdca /* Sources */,
+				c71ceb1a998d434b82dbcdc7 /* Frameworks */,
+				cb1ceb1a998d434b82dbcdcb /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				cc1ceb1a998d434b82dbcdcc /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				c61ceb1a998d434b82dbcdc6 /* MacGameAppTests */,
+			);
+			name = MacGameAppTests;
+			packageProductDependencies = (
+				c21ceb1a998d434b82dbcdc2 /* GameCore */,
+			);
+			productName = MacGameAppTests;
+			productReference = c51ceb1a998d434b82dbcdc5 /* MacGameAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		a41ceb1a998d434b82dbcdb4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					c81ceb1a998d434b82dbcdc8 = {
+						TestTargetID = b01ceb1a998d434b82dbcdb3;
+					};
+				};
+			};
+			buildConfigurationList = a51ceb1a998d434b82dbcdb5 /* Build configuration list for PBXProject "MacGameApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 949ddb169bad4722945a55f1;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				a61ceb1a998d434b82dbcdb6 /* XCLocalSwiftPackageReference "Packages/GameCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 65727d78be5d40ee851966ff /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				b01ceb1a998d434b82dbcdb3 /* MacGameApp */,
+				c81ceb1a998d434b82dbcdc8 /* MacGameAppTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		a31ceb1a998d434b82dbcdb3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		cb1ceb1a998d434b82dbcdcb /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		a21ceb1a998d434b82dbcdb2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ca1ceb1a998d434b82dbcdca /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		cc1ceb1a998d434b82dbcdcc /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = b01ceb1a998d434b82dbcdb3 /* MacGameApp */;
+			targetProxy = c41ceb1a998d434b82dbcdc4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		a71ceb1a998d434b82dbcdb7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		a81ceb1a998d434b82dbcdb8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		a91ceb1a998d434b82dbcdb9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MacGameApp/MacGameApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SokoBoulder;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.local.SokoBoulder;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		aa1ceb1a998d434b82dbcdba /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MacGameApp/MacGameApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SokoBoulder;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.local.SokoBoulder;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		cd1ceb1a998d434b82dbcdcd /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.local.SokoBoulderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacGameApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MacGameApp";
+			};
+			name = Debug;
+		};
+		ce1ceb1a998d434b82dbcdce /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.local.SokoBoulderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MacGameApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MacGameApp";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		a51ceb1a998d434b82dbcdb5 /* Build configuration list for PBXProject "MacGameApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				a71ceb1a998d434b82dbcdb7 /* Debug */,
+				a81ceb1a998d434b82dbcdb8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		a11ceb1a998d434b82dbcdb1 /* Build configuration list for PBXNativeTarget "MacGameApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				a91ceb1a998d434b82dbcdb9 /* Debug */,
+				aa1ceb1a998d434b82dbcdba /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		c91ceb1a998d434b82dbcdc9 /* Build configuration list for PBXNativeTarget "MacGameAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				cd1ceb1a998d434b82dbcdcd /* Debug */,
+				ce1ceb1a998d434b82dbcdce /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		a61ceb1a998d434b82dbcdb6 /* XCLocalSwiftPackageReference "Packages/GameCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/GameCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		bdd77960b18d4513bf4b3769 /* GameCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GameCore;
+		};
+		c21ceb1a998d434b82dbcdc2 /* GameCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GameCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = a41ceb1a998d434b82dbcdb4 /* Project object */;
+}
