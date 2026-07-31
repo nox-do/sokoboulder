@@ -2,7 +2,8 @@ import GameCore
 
 /// Session commands that are not core rule inputs.
 ///
-/// Moves use ``GameSession/enqueueMove(_:)`` exclusively — not this enum.
+/// Moves use ``GameSession/submitMove(_:)`` (or the test-facing enqueue/process
+/// helpers) — not this enum.
 enum SessionCommand: Equatable, Sendable {
     case undo
     case redo
@@ -14,6 +15,8 @@ enum SessionPhase: Equatable, Sendable {
     /// Constructed but not yet bootstrapped via ``GameSession/start()``.
     case created
     case playing
+    /// Shell interruption; authoritative Sokoban state is unchanged.
+    case paused
     case outcomePresenting
     case faulted
 }

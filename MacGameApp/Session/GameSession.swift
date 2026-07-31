@@ -3,7 +3,7 @@ import GameCore
 /// `@MainActor` owner of Sokoban run state, history, input queue, and revision.
 ///
 /// The renderer and audio director never call ``SokobanRules`` directly.
-/// Movement enters only via ``enqueueMove`` / ``processPendingMoves``.
+/// Productive movement entry is ``submitMove(_:)``, which owns enqueue + drain.
 @MainActor
 final class GameSession {
     static let moveQueueLimit = 2
@@ -59,32 +59,65 @@ final class GameSession {
     var redoCount: Int { redoStack.count }
     var pendingMoveCount: Int { pendingMoves.count }
 
+    /// Moves are accepted only while actively playing (not paused / outcome / fault).
+    var canAcceptMove: Bool { phase == .playing }
+
+    /// Undo, redo, and restart stay available during outcome presentation.
+    var canAcceptSessionCommand: Bool {
+        switch phase {
+        case .playing, .outcomePresenting:
+            true
+        case .created, .paused, .faulted:
+            false
+        }
+    }
+
+    /// Productive movement facade: enqueue then drain the Sokoban queue immediately.
+    ///
+    /// Rejects when ``canAcceptMove`` is false. Returns every ordered apply result
+    /// from the drain. Does not wait on animation or render frames.
+    @discardableResult
+    func submitMove(_ direction: Direction) -> [SessionApplyResult] {
+        guard enqueueMove(direction) else { return [] }
+        return processPendingMoves()
+    }
+
     /// Enqueues a move when under the FIFO limit. Does not process it.
     ///
-    /// This is the only public movement entry point.
+    /// Prefer ``submitMove(_:)`` in production. Visible for tests and internal use.
     @discardableResult
     func enqueueMove(_ direction: Direction) -> Bool {
-        guard isAcceptingGameplay else { return false }
+        guard canAcceptMove else { return false }
         guard pendingMoves.count < Self.moveQueueLimit else { return false }
         pendingMoves.append(direction)
         return true
     }
 
-    /// Processes all pending moves in FIFO order. Stops after a fault.
+    /// Processes pending moves in FIFO order.
+    ///
+    /// Stops and discards the remainder after a fault or after entering
+    /// ``SessionPhase/outcomePresenting``. Prefer ``submitMove(_:)`` in production.
     func processPendingMoves() -> [SessionApplyResult] {
-        guard isAcceptingGameplay else {
-            pendingMoves.removeAll(keepingCapacity: true)
-            return []
-        }
-
         var results: [SessionApplyResult] = []
         while !pendingMoves.isEmpty {
+            guard phase == .playing else {
+                pendingMoves.removeAll(keepingCapacity: true)
+                break
+            }
+
             let direction = pendingMoves.removeFirst()
             let result = applyMove(direction)
             results.append(result)
-            if case .faulted = result {
+
+            switch result {
+            case .faulted:
                 pendingMoves.removeAll(keepingCapacity: true)
-                break
+                return results
+            case .emitted, .ignored:
+                if phase != .playing {
+                    pendingMoves.removeAll(keepingCapacity: true)
+                    return results
+                }
             }
         }
         return results
@@ -92,7 +125,7 @@ final class GameSession {
 
     /// Applies undo / redo / restart. Clears any pending move queue first.
     func apply(_ command: SessionCommand) -> SessionApplyResult {
-        guard isAcceptingGameplay else { return .ignored }
+        guard canAcceptSessionCommand else { return .ignored }
 
         pendingMoves.removeAll(keepingCapacity: true)
 
@@ -106,16 +139,23 @@ final class GameSession {
         }
     }
 
-    // MARK: - Private
-
-    private var isAcceptingGameplay: Bool {
-        switch phase {
-        case .playing, .outcomePresenting:
-            true
-        case .created, .faulted:
-            false
-        }
+    /// Shell interruption: clear the move queue and reject further moves.
+    ///
+    /// Does not mutate the authoritative Sokoban core state. Focus loss uses the
+    /// same path. Only transitions ``playing`` → ``paused``.
+    func pause() {
+        pendingMoves.removeAll(keepingCapacity: true)
+        guard phase == .playing else { return }
+        phase = .paused
     }
+
+    /// Ends a ``pause()`` interruption and accepts moves again.
+    func resume() {
+        guard phase == .paused else { return }
+        phase = .playing
+    }
+
+    // MARK: - Private
 
     /// Marks the session faulted without emitting render/audio updates (§16).
     private func fail(_ fault: EngineFault) -> SessionApplyResult {

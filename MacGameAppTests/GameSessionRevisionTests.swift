@@ -21,6 +21,7 @@ struct GameSessionRevisionTests {
     }
 
     /// Enqueue one move and process the queue; returns the single result.
+    /// Prefer ``GameSession/submitMove(_:)`` in production code.
     private func move(_ session: GameSession, _ direction: Direction) -> SessionApplyResult {
         #expect(session.enqueueMove(direction))
         let results = session.processPendingMoves()
@@ -147,13 +148,15 @@ struct GameSessionRevisionTests {
         #expect(session.undoCount == beforeUndo)
     }
 
-    @Test("empty terminal move emits nothing")
+    @Test("moves in outcomePresenting are rejected at the session boundary")
     func emptyTerminalMove() throws {
         let session = try makeSession("#@*#")
         _ = session.start()
+        #expect(session.phase == .outcomePresenting)
         let revision = session.revision
-        let result = move(session, .up)
-        #expect(result == .ignored)
+        #expect(session.enqueueMove(.up) == false)
+        #expect(session.submitMove(.up).isEmpty)
+        #expect(session.processPendingMoves().isEmpty)
         #expect(session.revision == revision)
     }
 

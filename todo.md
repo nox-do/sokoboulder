@@ -57,8 +57,8 @@ Vertragsentscheidungen:
 1. [x] Preflight: Xcode-Projekt, leere SwiftUI-App, GameCore-Abhängigkeit, `xcodebuild`-Smoke
 2. [x] `RenderSnapshot` + Mapper (+ Index-Helper), Package-Tests
 3. [x] Headless `GameSession` + `RenderUpdate`/`AudioUpdate`, Revisionsvertrag-Tests (ohne SpriteKit)
-4. [ ] InputMapper (Repeats verwerfen) → Session-Befehle
-5. [ ] SpriteKit-Platzhalter (Rechtecke), Hard-Resync
+4. [x] InputMapper (Repeats verwerfen) + Input-Router (Outcome-Gate, Modal) + App-Verdrahtung
+5. [x] SpriteKit-Platzhalter (Rechtecke), Hard-Resync, `GridGeometry` + sichtbare Spike-Integration
 6. [ ] HUD, Abschlussablauf, Undo/Redo/Neustart in der App
 7. [ ] AudioDirector klein, aber vertragstreu
 8. [ ] `SokobanRunFileV1` + Wiederaufnahme (nach Bundle-ID)
@@ -73,7 +73,20 @@ Vertragsentscheidungen:
 - `.gitkeep` unter App-Quellen entfernt (kollidieren mit File-System-Sync-Gruppen)
 - Kein `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor` am App-Target (nur `@MainActor` an `GameSession`)
 - Session-/Revisions-Tests: Target `MacGameAppTests`
-- Session-Vertrag nachgeschärft: `.faulted` ohne Render/Audio; Bewegung nur via `enqueueMove`; Phase `.created` bis `start()`
+- Session-Vertrag nachgeschärft: `.faulted` ohne Render/Audio; produktive Bewegung via `submitMove`; Phase `.created` bis `start()`
+
+### Session-/Input-/Render-Entscheidungen (Schritt 4–5)
+
+- Produktive Bewegung: `submitMove` (enqueue + sync Drain); Queue bleibt Session-Eigentum
+- `canAcceptMove` nur `.playing`; `canAcceptSessionCommand` `.playing` | `.outcomePresenting`
+- Terminaler Drain: bei `.outcomePresenting` Restqueue verwerfen
+- Pause/Fokusverlust: `session.pause()` / `resume()`; Phase `.paused`; Core-Zustand unverändert
+- `InputMapper`: zustandslos `NSEvent → GameplayIntent?`; ⌘/⌃/⌥ und `isARepeat` verwerfen
+- ⌘Z / ⇧⌘Z bleiben SwiftUI-Commands; Mapper liefert kein Redo über Gameplay-Pfad
+- `GameplayInputRouter`: Modal sperrt Input; Outcome-Gate per Key-up; Confirm nur bei frischem Return/Space (keine Repeats, Confirm-Tasten auch im Gameplay getrackt)
+- Spike-App: `SokobanSpikeController` + `SokobanSpriteView` verdrahten Session, Router und Scene; Demo-Level per Tastatur spielbar
+- SpriteKit: FIFO-Animationsqueue (ein Schritt gleichzeitig); Budget 3 → Hard-Resync; Resize/Abort setzt Counter per Generation-Token zurück
+- Kein Queue-Drain in `SKScene.update`
 
 ### Bewusst nicht in Phase 2
 
