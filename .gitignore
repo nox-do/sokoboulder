@@ -26,6 +26,8 @@ playground.xcworkspace
 # Swift Package Manager
 .build/
 .swiftpm/
+# No external package deps yet. When deps are added, revisit whether
+# Package.resolved should be committed for reproducible app/.dmg builds.
 Packages.resolved
 **/Package.resolved
 

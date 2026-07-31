@@ -1,6 +1,6 @@
 # BoulderDash – Änderungsübersicht
 
-## Phase 0 (Fundament) – erledigt
+## Phase 0 (Fundament) – abgenommen
 
 - [x] Git-Repository und `.gitignore`
 - [x] Lokales Swift-Package `GameCore`
@@ -16,3 +16,6 @@
 - Phase 1: Sokoban-Kern
 - Phase 2: Spielbare Mac-App
 - Phase 6: Signierung / Notarisierung / DMG
+- Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
+  `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
+  (derzeit ignoriert, weil keine Abhängigkeiten existieren)
