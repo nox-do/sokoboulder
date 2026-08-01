@@ -35,6 +35,16 @@ struct SokobanPlayControllerTests {
         _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.space))
     }
 
+    @Test("activation while paused bumps pause focus epoch")
+    func activationWhilePausedRequestsResumeFocus() {
+        let controller = makeController()
+        controller.togglePause()
+        #expect(controller.presentationPhase == .paused)
+        let before = controller.pauseFocusEpoch
+        controller.handleAppActivation()
+        #expect(controller.pauseFocusEpoch == before + 1)
+    }
+
     @Test("undo and redo use the shared controller/session API")
     func sharedUndoRedoAPI() throws {
         let controller = makeController()

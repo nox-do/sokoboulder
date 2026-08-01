@@ -35,7 +35,10 @@ Vertragsentscheidungen:
 - [x] P3: `.playing` + `allGoalsCompleted` als Invariantenfehler; move-Doku zu `.failed`
 - [x] Abnahme: `swift test` grün, Level lösbar nur in Tests
 
-## Phase 2 (Spielbare Mac-App) – in Arbeit
+## Phase 2 (Spielbare Mac-App) – abgenommen
+
+Schritte 1–9 umgesetzt und playtestet. Bewusst ohne Hauptmenü/Spielauswahl;
+Audio-Mixer/Settings und CC0-Assets später.
 
 ### Preflight-Entscheidungen (fest)
 
@@ -75,6 +78,7 @@ Vertragsentscheidungen:
 - Hinweis-Texte an klassischen Sokoban-Lehrmomenten: nur schieben, Umweg+Undo/Redo, Kisten blockieren
 - Undo/Redo: nur Hinweis in Level 2 (keine erzwingende Geometrie in Phase 2)
 - P2-Nachzug: Intro-Audio nach Fokusverlust fortsetzen; Return/Space bestätigt fokussierte Outcome-Aktion; Intro/Outcome-Copy nennt Space
+- Pause nach Alt-Tab: `pauseFocusEpoch` + defaultAction setzen Fokus auf „Fortsetzen“ (Return)
 
 ### Preflight-Notizen
 

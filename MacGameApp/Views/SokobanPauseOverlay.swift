@@ -28,6 +28,8 @@ struct SokobanPauseOverlay: View {
                         controller.resumeFromPauseOverlay()
                     }
                     .focused($focusedAction, equals: .resume)
+                    // Primary confirm after Alt-Tab / focus return.
+                    .keyboardShortcut(.defaultAction)
 
                     Button(AppStrings.text(.uiPauseRestart)) {
                         controller.restartFromPauseOverlay()
@@ -43,7 +45,19 @@ struct SokobanPauseOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+        .defaultFocus($focusedAction, .resume)
         .onAppear {
+            focusResumeButton()
+        }
+        .onChange(of: controller.pauseFocusEpoch) { _, _ in
+            focusResumeButton()
+        }
+    }
+
+    private func focusResumeButton() {
+        // After Alt-Tab the window becomes key asynchronously; defer so
+        // FocusState sticks once the app is active again.
+        DispatchQueue.main.async {
             focusedAction = .resume
         }
     }

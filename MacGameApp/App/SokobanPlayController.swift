@@ -43,6 +43,8 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
     /// Keyboard-confirm target while the result overlay is visible.
     @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
+    /// Bumped when the pause overlay should reclaim keyboard focus (e.g. after Alt-Tab).
+    @Published private(set) var pauseFocusEpoch: UInt64 = 0
 
     private var outcomeTimeoutItem: DispatchWorkItem?
     private var outcomeTargetRevision: UInt64?
@@ -176,12 +178,15 @@ final class SokobanPlayController: ObservableObject {
     /// Restores audible music after focus return when the shell stayed interactive
     /// without entering pause (outcome or level intro).
     ///
-    /// Pause stays interrupted until the player explicitly resumes.
+    /// Pause stays interrupted until the player explicitly resumes; the pause
+    /// overlay reclaims keyboard focus so Return can activate „Fortsetzen“.
     func handleAppActivation() {
         switch presentationPhase {
         case .outcomeAnimating, .outcomeAwaitingChoice, .levelIntro:
             audioDirector.resumePlayback()
-        case .playing, .paused, .faulted, .runRecovery:
+        case .paused:
+            requestPauseOverlayFocus()
+        case .playing, .faulted, .runRecovery:
             break
         }
     }
@@ -440,7 +445,12 @@ final class SokobanPlayController: ObservableObject {
         }
         router.enterPaused()
         presentationPhase = .paused
+        requestPauseOverlayFocus()
         refreshPublishedState()
+    }
+
+    private func requestPauseOverlayFocus() {
+        pauseFocusEpoch &+= 1
     }
 
     private func resumeFromShell() {
