@@ -37,13 +37,7 @@ final class SokobanPlayController: ObservableObject {
     private var outcomeTargetRevision: UInt64?
     private var outcomeGeneration: UInt64 = 0
 
-    private let demoASCII = """
-        #####
-        #@$.#
-        #####
-        """
-    private let demoLevelID = "spike.demo"
-    private let demoLevelTitle = "Demo 1"
+    private var currentLevelID: String = SokobanLevelCatalog.first.id
 
     init(audioDirector: AudioDirector = AudioDirector()) {
         self.audioDirector = audioDirector
@@ -53,18 +47,31 @@ final class SokobanPlayController: ObservableObject {
 
     // MARK: - Lifecycle
 
-    func startLevel() {
+    func startLevel(id: String? = nil) {
         cancelOutcomeWait()
         audioDirector.reset()
         // New GameSession restarts revisions at 0→1; clear stale settledRevision.
         scene.prepareForNewSession()
+
+        let levelID = id ?? currentLevelID
+        guard let descriptor = SokobanLevelCatalog.descriptor(id: levelID) else {
+            session = nil
+            presentationPhase = .faulted
+            faultMessage = "Unknown level: \(levelID)"
+            router.enterModalBlocked()
+            audioDirector.reset()
+            refreshPublishedState()
+            return
+        }
+
         do {
-            let level = try SokobanLevelValidator.level(fromASCII: demoASCII)
-            let newSession = try GameSession(level: level, levelID: demoLevelID)
+            let level = try descriptor.makeLevel()
+            let newSession = try GameSession(level: level, levelID: descriptor.id)
             let emission = newSession.start()
             session = newSession
+            currentLevelID = descriptor.id
             faultMessage = nil
-            levelTitle = demoLevelTitle
+            levelTitle = descriptor.title
             presentationPhase = .playing
             router.enterGameplay()
             scene.apply(emission.render)

@@ -44,7 +44,7 @@ Vertragsentscheidungen:
 - Distribution: signierte/notarisierte `.dmg` (Umsetzung erst Phase 6)
 - Target/Modul/Scheme: `MacGameApp`
 - Öffentlicher Produktname: **SokoBoulder**
-- Bundle-Identifier: **noch festlegen** (vor Persistenz/Signierung)
+- Bundle-Identifier: **`com.sokoboulder.app`** (Tests: `com.sokoboulder.app.tests`)
 - Sokoban Key-Repeat: System-Repeats verwerfen (`isARepeat`); keine eigene Hold-Wiederholung in Phase 2
 - FIFO-Limit: 2 noch nicht verarbeitete Bewegungsbefehle
 - Snapshot: flach, row-major, `(0,0)` links oben; Index `row * width + column`; Länge `width * height`; Helper am Snapshot
@@ -61,12 +61,13 @@ Vertragsentscheidungen:
 5. [x] SpriteKit-Platzhalter (Rechtecke), Hard-Resync, `GridGeometry` + sichtbare Spike-Integration
 6. [x] HUD, Abschlussablauf, Undo/Redo/Neustart, Pause-Overlay, macOS-Commands
 7. [x] AudioDirector klein, aber vertragstreu
-8. [ ] `SokobanRunFileV1` + Wiederaufnahme (nach Bundle-ID)
-9. [ ] Drei Tutorial-Level nach GAMEPLAY.md
+7b. [x] Bundle-ID + `SokobanLevelDescriptor`-Katalog (Vorlauf zu Schritt 8)
+8. [ ] `SokobanRunFileV1` + Wiederaufnahme
+9. [ ] Tutorial-UI (Hinweise, Levelwechsel, Abschlussaktion Level 3) — Geometrie/Hashes bereits im Katalog
 
 ### Preflight-Notizen
 
-- Bundle-Identifier vorerst provisorisch: `dev.local.SokoBoulder` (vor Persistenz ersetzen)
+- Bundle-Identifier: `com.sokoboulder.app`
 - `MacGameApp.xcodeproj` am Repo-Root; Quellen unter `MacGameApp/`
 - Display-Name: SokoBoulder; Target-Name: MacGameApp
 - GameCore `platforms: [.macOS(.v14)]`
@@ -112,6 +113,14 @@ Vertragsentscheidungen:
 - Cues: Schritt, blockiert, Schub, Ziel betreten/verlassen, Level abgeschlossen
 - Musik: ruhiger synthetischer Loop bei `.playing`; bei `.completed`/`.failed` stoppen
 - Spy-Backend-Tests; bestehende Controller-Tests nutzen `NoOpAudioPlaybackBackend`
+
+### Katalog-Entscheidungen (Vorlauf Schritt 8)
+
+- Bundle-ID final: `com.sokoboulder.app`
+- `SokobanLevelDescriptor`: id, title, ascii, contentHash (SHA-256), tutorialHintID
+- Canonical Hash: ASCII-Map-Zeilen mit `\n` verbunden, kein trailing newline; kein `Hasher`
+- Katalog-IDs: `sokoban.tutorial.001`–`003` (spike.demo entfernt)
+- Play-Controller startet Katalog-Level 1; Levelwechsel-UI folgt in Schritt 9
 
 ### Bewusst nicht in Phase 2
 

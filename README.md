@@ -48,9 +48,8 @@ xcodebuild \
   test
 ```
 
-Die App importiert das lokale Package `GameCore`. Bundle-Identifier ist vorerst
-provisorisch `dev.local.SokoBoulder` und muss vor Persistenz/Signierung
-festgelegt werden.
+Die App importiert das lokale Package `GameCore`. Bundle-Identifier:
+`com.sokoboulder.app` (Tests: `com.sokoboulder.app.tests`).
 
 ## Verteilung
 
