@@ -46,6 +46,15 @@ final class SokobanBoardScene: SKScene {
     private var animationGeneration: UInt64 = 0
 
     private(set) var appliedRevision: UInt64 = 0
+    /// Last revision whose presentation has visually settled (or hard-synced).
+    private(set) var settledRevision: UInt64 = 0
+
+    private struct SettlementWaiter {
+        let revision: UInt64
+        let action: @MainActor () -> Void
+    }
+
+    private var settlementWaiters: [SettlementWaiter] = []
 
     /// Queued animate steps plus the one currently running, if any.
     var pendingAnimationCount: Int {
@@ -54,6 +63,27 @@ final class SokobanBoardScene: SKScene {
 
     /// Last accepted snapshot (authoritative target, may still be animating toward).
     var currentSnapshot: RenderSnapshot? { appliedSnapshot }
+
+    /// Runs `action` once presentation has settled at least through `revision`.
+    ///
+    /// Fires immediately when already settled. Hard-resync and aborted presentation
+    /// also settle to the accepted revision.
+    func whenSettled(revision: UInt64, perform action: @escaping @MainActor () -> Void) {
+        if settledRevision >= revision {
+            action()
+            return
+        }
+        settlementWaiters.append(SettlementWaiter(revision: revision, action: action))
+    }
+
+    private func markSettled(_ revision: UInt64) {
+        settledRevision = max(settledRevision, revision)
+        let due = settlementWaiters.filter { $0.revision <= settledRevision }
+        settlementWaiters.removeAll { $0.revision <= settledRevision }
+        for waiter in due {
+            waiter.action()
+        }
+    }
 
     override init(size: CGSize) {
         super.init(size: size)
@@ -93,6 +123,7 @@ final class SokobanBoardScene: SKScene {
         geometry.gridHeight = snapshot.height
         cancelAnimationsAndPending()
         relayoutExistingNodes(using: snapshot)
+        markSettled(appliedRevision)
     }
 
     /// Aborts in-flight presentation and snaps to the last accepted snapshot.
@@ -100,10 +131,29 @@ final class SokobanBoardScene: SKScene {
     func discardPendingPresentation() {
         guard let snapshot = appliedSnapshot else {
             cancelAnimationsAndPending()
+            markSettled(appliedRevision)
             return
         }
         cancelAnimationsAndPending()
         snapEntities(to: snapshot)
+        markSettled(appliedRevision)
+    }
+
+    /// Resets revision stream, waiters, and presentation nodes for a **new** session.
+    ///
+    /// Call before bootstrapping a replacement ``GameSession``. Do **not** call for
+    /// in-session restart / undo / redo — those continue the same revision stream.
+    func prepareForNewSession() {
+        cancelAnimationsAndPending()
+        settlementWaiters.removeAll(keepingCapacity: true)
+        appliedRevision = 0
+        settledRevision = 0
+        appliedSnapshot = nil
+        terrainLayer.removeAllChildren()
+        entityLayer.removeAllChildren()
+        terrainNodes.removeAll(keepingCapacity: true)
+        entityNodes.removeAll(keepingCapacity: true)
+        playerNode = nil
     }
 
     /// Applies one ordered ``RenderUpdate`` according to the revision contract.
@@ -158,6 +208,7 @@ final class SokobanBoardScene: SKScene {
             guard generation == self.animationGeneration else { return }
             self.isAnimating = false
             self.snapEntities(to: next.snapshot)
+            self.markSettled(next.targetRevision)
             self.pumpAnimationQueue()
         }
     }
@@ -167,6 +218,7 @@ final class SokobanBoardScene: SKScene {
         rebuild(from: update.snapshot)
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
+        markSettled(update.targetRevision)
     }
 
     private func cancelAnimationsAndPending() {
@@ -342,10 +394,12 @@ final class SokobanBoardScene: SKScene {
     func settleAnimationsForTesting() {
         guard let snapshot = appliedSnapshot else {
             cancelAnimationsAndPending()
+            markSettled(appliedRevision)
             return
         }
         cancelAnimationsAndPending()
         snapEntities(to: snapshot)
+        markSettled(appliedRevision)
     }
 
     var terrainNodeCountForTesting: Int { terrainNodes.count }

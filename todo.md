@@ -59,7 +59,7 @@ Vertragsentscheidungen:
 3. [x] Headless `GameSession` + `RenderUpdate`/`AudioUpdate`, Revisionsvertrag-Tests (ohne SpriteKit)
 4. [x] InputMapper (Repeats verwerfen) + Input-Router (Outcome-Gate, Modal) + App-Verdrahtung
 5. [x] SpriteKit-Platzhalter (Rechtecke), Hard-Resync, `GridGeometry` + sichtbare Spike-Integration
-6. [ ] HUD, Abschlussablauf, Undo/Redo/Neustart in der App
+6. [x] HUD, Abschlussablauf, Undo/Redo/Neustart, Pause-Overlay, macOS-Commands
 7. [ ] AudioDirector klein, aber vertragstreu
 8. [ ] `SokobanRunFileV1` + Wiederaufnahme (nach Bundle-ID)
 9. [ ] Drei Tutorial-Level nach GAMEPLAY.md
@@ -84,9 +84,22 @@ Vertragsentscheidungen:
 - `InputMapper`: zustandslos `NSEvent → GameplayIntent?`; ⌘/⌃/⌥ und `isARepeat` verwerfen
 - ⌘Z / ⇧⌘Z bleiben SwiftUI-Commands; Mapper liefert kein Redo über Gameplay-Pfad
 - `GameplayInputRouter`: Modal sperrt Input; Outcome-Gate per Key-up; Confirm nur bei frischem Return/Space (keine Repeats, Confirm-Tasten auch im Gameplay getrackt)
-- Spike-App: `SokobanSpikeController` + `SokobanSpriteView` verdrahten Session, Router und Scene; Demo-Level per Tastatur spielbar
+- Spike-App: `SokobanPlayController` + `SokobanSpriteView` verdrahten Session, Router und Scene; Demo-Level per Tastatur spielbar
 - SpriteKit: FIFO-Animationsqueue (ein Schritt gleichzeitig); Budget 3 → Hard-Resync; Resize/Abort setzt Counter per Generation-Token zurück
 - Kein Queue-Drain in `SKScene.update`
+
+### App-Flow-Entscheidungen (Schritt 6)
+
+- `GamePresentationPhase` steuert Overlays; `SessionPhase` steuert Simulationseingaben
+- HUD: Level, Züge, Schübe, Goals, Undo/Redo-Verfügbarkeit; Goal-Zähler in `RenderSnapshot`
+- Pause-Overlay fokussierbar; Fokusverlust pausiert nur aus `.playing`
+- Outcome zweistufig: `outcomeAnimating` (Settle/Timeout/Skip) → `outcomeAwaitingChoice`
+- `SokobanBoardScene.whenSettled(revision:)` + festes Timeout (0.45s)
+- Skip-Return bestätigt nicht die Ergebnisaktion (`releaseOutcomeLocksPreservingPressedKeys`)
+- SwiftUI Commands via `FocusedValues` → dieselben Controller-Methoden
+- Fokus: SKView nur initial und beim Wechsel nach `.playing`; Overlay-Keys via Local-Monitor
+- Outcome ohne `.defaultAction`; Confirm nur über Router-Gate
+- `prepareForNewSession()` vor neuem Session-Bootstrap; In-Session-Restart behält Revisionsstrom
 
 ### Bewusst nicht in Phase 2
 

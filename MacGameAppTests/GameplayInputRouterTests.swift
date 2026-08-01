@@ -70,7 +70,29 @@ struct GameplayInputRouterTests {
             router.route(TestKeyEvent.keyDown(KeyCode.return, isARepeat: true)) == nil
         )
         #expect(
+            router.routeDecision(TestKeyEvent.keyDown(KeyCode.return, isARepeat: true))
+                == .consumed
+        )
+        #expect(
             router.route(TestKeyEvent.keyDown(KeyCode.return)) == .outcomeAction
+        )
+    }
+
+    @Test("outcome distinguishes suppressed confirm from unrelated key")
+    func outcomeRoutingDecision() {
+        let router = GameplayInputRouter()
+        router.enterGameplay()
+        router.enterOutcomePresenting()
+
+        #expect(
+            router.routeDecision(TestKeyEvent.keyDown(KeyCode.return))
+                == .routed(.outcomeAction)
+        )
+        #expect(
+            router.routeDecision(TestKeyEvent.keyDown(KeyCode.return)) == .consumed
+        )
+        #expect(
+            router.routeDecision(TestKeyEvent.keyDown(9, characters: "v")) == .unhandled
         )
     }
 

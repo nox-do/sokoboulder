@@ -227,6 +227,78 @@ struct SokobanBoardSceneTests {
         #expect(lastEmission != nil)
     }
 
+    @Test("whenSettled fires after hard-resync and after forced settle")
+    func whenSettledContract() throws {
+        let session = try startedSession(
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let scene = makeScene()
+        scene.holdAnimationsForTesting = true
+        scene.apply(session.bootstrapEmission!.render)
+
+        var settled = false
+        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+            Issue.record("expected move")
+            return
+        }
+        scene.apply(emission.render)
+        scene.whenSettled(revision: emission.render.targetRevision) {
+            settled = true
+        }
+        #expect(settled == false)
+        scene.settleAnimationsForTesting()
+        #expect(settled)
+        #expect(scene.settledRevision == emission.render.targetRevision)
+    }
+
+    @Test("prepareForNewSession clears revision stream and waiters")
+    func prepareForNewSessionResets() throws {
+        let session = try startedSession(
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let scene = makeScene()
+        scene.holdAnimationsForTesting = true
+        scene.apply(session.bootstrapEmission!.render)
+        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+            Issue.record("expected move")
+            return
+        }
+        scene.apply(emission.render)
+
+        var fired = false
+        scene.whenSettled(revision: 99) { fired = true }
+        #expect(scene.appliedRevision >= 2)
+        #expect(scene.pendingAnimationCount > 0)
+
+        scene.prepareForNewSession()
+        #expect(scene.appliedRevision == 0)
+        #expect(scene.settledRevision == 0)
+        #expect(scene.pendingAnimationCount == 0)
+        #expect(scene.currentSnapshot == nil)
+        #expect(fired == false)
+
+        let level = try SokobanLevelValidator.level(fromASCII:
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let fresh = try GameSession(level: level, levelID: "fresh")
+        let bootstrap = fresh.start()
+        scene.apply(bootstrap.render)
+        #expect(scene.appliedRevision == 1)
+        #expect(scene.settledRevision == 1)
+    }
+
     @Test("resize changes geometry only, not session state")
     func resizeDoesNotTouchSession() throws {
         let session = try startedSession(

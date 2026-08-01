@@ -42,6 +42,10 @@ public struct RenderSnapshot: Equatable, Sendable {
     public let player: RenderEntity
     public let moveCount: Int
     public let pushCount: Int
+    /// Crates currently on goal terrain.
+    public let completedGoalCount: Int
+    /// Total goal cells in the level.
+    public let totalGoalCount: Int
     public let status: PlayStatus
 
     public init(
@@ -52,6 +56,8 @@ public struct RenderSnapshot: Equatable, Sendable {
         player: RenderEntity,
         moveCount: Int,
         pushCount: Int,
+        completedGoalCount: Int,
+        totalGoalCount: Int,
         status: PlayStatus
     ) {
         precondition(width >= 0, "RenderSnapshot width must be non-negative")
@@ -60,6 +66,12 @@ public struct RenderSnapshot: Equatable, Sendable {
             cells.count == width * height,
             "RenderSnapshot cells.count must equal width * height"
         )
+        precondition(completedGoalCount >= 0, "completedGoalCount must be non-negative")
+        precondition(totalGoalCount >= 0, "totalGoalCount must be non-negative")
+        precondition(
+            completedGoalCount <= totalGoalCount,
+            "completedGoalCount must not exceed totalGoalCount"
+        )
         self.width = width
         self.height = height
         self.cells = cells
@@ -67,6 +79,8 @@ public struct RenderSnapshot: Equatable, Sendable {
         self.player = player
         self.moveCount = moveCount
         self.pushCount = pushCount
+        self.completedGoalCount = completedGoalCount
+        self.totalGoalCount = totalGoalCount
         self.status = status
     }
 
@@ -124,6 +138,8 @@ extension RenderSnapshot {
             player: RenderEntity(ref: state.playerRef, position: state.playerPosition),
             moveCount: state.moveCount,
             pushCount: state.pushCount,
+            completedGoalCount: state.completedGoalCount,
+            totalGoalCount: state.goalCount,
             status: state.status
         )
     }

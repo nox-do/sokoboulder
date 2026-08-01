@@ -9,6 +9,15 @@ enum RoutedInput: Equatable, Sendable {
     case outcomeAction
 }
 
+/// Distinguishes an irrelevant platform event from one deliberately swallowed
+/// by an input gate. Overlay event monitors must not forward `.consumed` events
+/// to SwiftUI controls.
+enum InputRoutingDecision: Equatable, Sendable {
+    case unhandled
+    case consumed
+    case routed(RoutedInput)
+}
+
 /// Shell-side input policy for Sokoban.
 ///
 /// ``InputMapper`` stays a pure event→intent map. This router applies
@@ -74,79 +83,111 @@ final class GameplayInputRouter {
         outcomeGateOpen = lockedKeyCodes.isEmpty
     }
 
+    /// Opens the outcome confirm gate while keeping currently held keys blocked.
+    ///
+    /// Used when entering ``GamePresentationPhase/outcomeAwaitingChoice`` so a
+    /// Return/Space that skipped the presentation cannot also confirm.
+    func releaseOutcomeLocksPreservingPressedKeys() {
+        guard mode == .outcomePresenting else { return }
+        lockedKeyCodes.removeAll(keepingCapacity: true)
+        outcomeGateOpen = true
+    }
+
     /// Routes a platform key event. Key-ups never produce routed input.
     func route(_ event: NSEvent) -> RoutedInput? {
+        guard case .routed(let input) = routeDecision(event) else { return nil }
+        return input
+    }
+
+    /// Routes an event while preserving whether a gate deliberately consumed it.
+    func routeDecision(_ event: NSEvent) -> InputRoutingDecision {
         switch event.type {
         case .keyDown:
-            return routeKeyDown(event)
+            return routeKeyDownDecision(event)
         case .keyUp:
+            let wasTracked = pressedKeyCodes.contains(event.keyCode)
+                || lockedKeyCodes.contains(event.keyCode)
             routeKeyUp(event)
-            return nil
+            if mode == .outcomePresenting,
+               wasTracked || isOutcomeConfirmKey(event.keyCode)
+            {
+                return .consumed
+            }
+            return .unhandled
         default:
-            return nil
+            return .unhandled
         }
     }
 
     // MARK: - Private
 
-    private func routeKeyDown(_ event: NSEvent) -> RoutedInput? {
+    private func routeKeyDownDecision(_ event: NSEvent) -> InputRoutingDecision {
         let keyCode = event.keyCode
 
         switch mode {
         case .modalBlocked:
-            return nil
+            return .unhandled
 
         case .paused:
             trackPress(keyCode, from: event)
-            guard !event.isARepeat else { return nil }
+            guard !event.isARepeat else {
+                return isPausedCommandKey(event) ? .consumed : .unhandled
+            }
             // Escape resumes; R/Z still reach the shell (session may resume first).
             if let intent = InputMapper.intent(from: event) {
                 switch intent {
                 case .pause, .restart, .undo, .redo:
-                    return .gameplay(intent)
+                    return .routed(.gameplay(intent))
                 case .move:
-                    return nil
+                    return .unhandled
                 }
             }
-            return nil
+            return .unhandled
 
         case .gameplay:
             // Track gameplay and confirm keys even when they produce no intent,
             // so a held Return/Space cannot later slip through the outcome gate.
             trackPress(keyCode, from: event)
-            guard let intent = InputMapper.intent(from: event) else { return nil }
-            return .gameplay(intent)
+            guard let intent = InputMapper.intent(from: event) else { return .unhandled }
+            return .routed(.gameplay(intent))
 
         case .outcomePresenting:
             // Repeats must never confirm or re-issue commands.
-            guard !event.isARepeat else { return nil }
+            guard !event.isARepeat else {
+                return isOutcomeOwnedKey(event) ? .consumed : .unhandled
+            }
 
             let wasAlreadyPressed = pressedKeyCodes.contains(keyCode)
-            pressedKeyCodes.insert(keyCode)
+            if isOutcomeOwnedKey(event) {
+                pressedKeyCodes.insert(keyCode)
+            }
 
             if lockedKeyCodes.contains(keyCode) {
-                return nil
+                return .consumed
             }
 
             if !outcomeGateOpen {
-                return nil
+                return isOutcomeOwnedKey(event) ? .consumed : .unhandled
             }
 
             // Session commands remain available through the same intent mapping.
             if let intent = InputMapper.intent(from: event) {
                 switch intent {
                 case .undo, .redo, .restart:
-                    return .gameplay(intent)
+                    return .routed(.gameplay(intent))
                 case .move, .pause:
-                    return nil
+                    return .unhandled
                 }
             }
 
             // Confirm only on a fresh, independent key-down of Return/Space.
             if isOutcomeConfirmKey(keyCode), !wasAlreadyPressed {
-                return .outcomeAction
+                return .routed(.outcomeAction)
             }
-            return nil
+            if isOutcomeConfirmKey(keyCode) {
+                return .consumed
+            }
+            return .unhandled
         }
     }
 
@@ -173,5 +214,24 @@ final class GameplayInputRouter {
 
     private func isOutcomeConfirmKey(_ keyCode: UInt16) -> Bool {
         keyCode == KeyCode.return || keyCode == KeyCode.space
+    }
+
+    private func isPausedCommandKey(_ event: NSEvent) -> Bool {
+        guard !hasBlockingModifiers(event) else { return false }
+        return event.keyCode == KeyCode.escape
+            || event.keyCode == KeyCode.r
+            || event.keyCode == KeyCode.z
+    }
+
+    private func isOutcomeOwnedKey(_ event: NSEvent) -> Bool {
+        guard !hasBlockingModifiers(event) else { return false }
+        return isOutcomeConfirmKey(event.keyCode)
+            || event.keyCode == KeyCode.r
+            || event.keyCode == KeyCode.z
+    }
+
+    private func hasBlockingModifiers(_ event: NSEvent) -> Bool {
+        let blocking: NSEvent.ModifierFlags = [.command, .control, .option]
+        return !event.modifierFlags.intersection(blocking).isEmpty
     }
 }

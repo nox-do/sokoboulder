@@ -20,6 +20,8 @@ struct RenderSnapshotTests {
         #expect(snapshot.cells.count == 15)
         #expect(snapshot.moveCount == 0)
         #expect(snapshot.pushCount == 0)
+        #expect(snapshot.completedGoalCount == 0)
+        #expect(snapshot.totalGoalCount == 1)
         #expect(snapshot.status == .playing)
 
         #expect(snapshot.player.ref == EntityRef(id: EntityID(1), kind: .player))
@@ -70,6 +72,8 @@ struct RenderSnapshotTests {
         #expect(snapshot.entities[0].position == GridPosition(column: 3, row: 1))
         #expect(snapshot.moveCount == 1)
         #expect(snapshot.pushCount == 1)
+        #expect(snapshot.completedGoalCount == 1)
+        #expect(snapshot.totalGoalCount == 1)
         #expect(snapshot.status == .completed)
         #expect(snapshot.cell(at: GridPosition(column: 3, row: 1))?.terrain == .goal)
     }

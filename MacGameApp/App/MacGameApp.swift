@@ -7,5 +7,8 @@ struct MacGameApp: App {
         WindowGroup {
             ContentView()
         }
+        .commands {
+            SokobanCommands()
+        }
     }
 }
