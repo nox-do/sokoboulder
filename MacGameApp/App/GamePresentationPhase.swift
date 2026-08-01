@@ -3,6 +3,8 @@ import Foundation
 /// SwiftUI-facing presentation phase. Complements ``SessionPhase``:
 /// session gates simulation input; this selects visible overlays.
 enum GamePresentationPhase: Equatable, Sendable {
+    /// Short skippable tutorial hint before the first move of a fresh level.
+    case levelIntro
     case playing
     case paused
     /// Terminal revision is animating (or waiting on settle/timeout).

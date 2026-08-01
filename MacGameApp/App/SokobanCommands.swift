@@ -17,28 +17,32 @@ struct SokobanCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .undoRedo) {
-            Button("Undo") {
+            Button(AppStrings.text(.uiMenuUndo)) {
                 controller?.undo()
             }
             .keyboardShortcut("z", modifiers: .command)
             .disabled(!(controller?.canUndo ?? false))
 
-            Button("Redo") {
+            Button(AppStrings.text(.uiMenuRedo)) {
                 controller?.redo()
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
             .disabled(!(controller?.canRedo ?? false))
         }
 
-        CommandMenu("Game") {
-            Button(controller?.canResume == true ? "Resume" : "Pause") {
+        CommandMenu(AppStrings.text(.uiMenuGame)) {
+            Button(
+                controller?.canResume == true
+                    ? AppStrings.text(.uiMenuResume)
+                    : AppStrings.text(.uiMenuPause)
+            ) {
                 controller?.togglePause()
             }
             .disabled(!((controller?.canPause ?? false) || (controller?.canResume ?? false)))
 
             Divider()
 
-            Button("Restart Level") {
+            Button(AppStrings.text(.uiMenuRestartLevel)) {
                 controller?.restart()
             }
             .keyboardShortcut("r", modifiers: [.command])

@@ -13,6 +13,7 @@ struct SokobanPlayControllerAudioTests {
             audioDirector: director,
             runPersistence: persistence
         )
+        controller.dismissLevelIntro()
         return (controller, spy)
     }
 

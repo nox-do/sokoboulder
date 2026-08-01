@@ -37,6 +37,8 @@ struct ContentView: View {
             }
 
             switch controller.presentationPhase {
+            case .levelIntro:
+                SokobanLevelIntroOverlay(controller: controller)
             case .paused:
                 SokobanPauseOverlay(controller: controller)
             case .outcomeAnimating:
@@ -116,13 +118,13 @@ struct ContentView: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 16) {
-                Text("Something went wrong")
+                Text(AppStrings.text(.uiFaultTitle))
                     .font(.title.weight(.semibold))
                 Text(controller.faultMessage ?? "Unknown fault")
                     .font(.callout)
                     .multilineTextAlignment(.center)
-                Button("Reload demo level") {
-                    controller.startLevel()
+                Button(AppStrings.text(.uiFaultReload)) {
+                    controller.startLevel(showIntro: true)
                 }
                 .buttonStyle(.borderedProminent)
             }

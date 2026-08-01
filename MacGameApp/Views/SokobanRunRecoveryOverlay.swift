@@ -8,13 +8,13 @@ struct SokobanRunRecoveryOverlay: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 16) {
-                Text("Cannot resume")
+                Text(AppStrings.text(.uiRecoveryTitle))
                     .font(.title.weight(.semibold))
-                Text(controller.recoveryMessage ?? "The saved run is not usable.")
+                Text(controller.recoveryMessage ?? AppStrings.text(.uiRecoveryFallback))
                     .font(.callout)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 360)
-                Button("Start fresh") {
+                Button(AppStrings.text(.uiRecoveryStartFresh)) {
                     controller.beginFreshRunFromRecovery()
                 }
                 .buttonStyle(.borderedProminent)

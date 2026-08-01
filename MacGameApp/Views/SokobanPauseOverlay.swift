@@ -16,20 +16,20 @@ struct SokobanPauseOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 20) {
-                Text("Paused")
+                Text(AppStrings.text(.uiPauseTitle))
                     .font(.largeTitle.weight(.semibold))
 
-                Text("Escape resumes · gameplay input is blocked")
+                Text(AppStrings.text(.uiPauseHint))
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
                 VStack(spacing: 12) {
-                    Button("Resume") {
+                    Button(AppStrings.text(.uiPauseResume)) {
                         controller.resumeFromPauseOverlay()
                     }
                     .focused($focusedAction, equals: .resume)
 
-                    Button("Restart") {
+                    Button(AppStrings.text(.uiPauseRestart)) {
                         controller.restartFromPauseOverlay()
                     }
                     .focused($focusedAction, equals: .restart)

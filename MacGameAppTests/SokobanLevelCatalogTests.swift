@@ -82,5 +82,7 @@ struct SokobanLevelCatalogTests {
         )
         #expect(controller.levelTitle == "Der erste Schub")
         #expect(controller.session != nil)
+        #expect(controller.presentationPhase == .levelIntro)
+        #expect(controller.currentLevelID == "sokoban.tutorial.001")
     }
 }

@@ -7,12 +7,12 @@ struct SokobanOutcomeAnimatingOverlay: View {
     var body: some View {
         VStack {
             Spacer()
-            Text("Level complete")
+            Text(AppStrings.text(.uiOutcomeAnimatingTitle))
                 .font(.title2.weight(.semibold))
-            Text("Finishing move… Return skips")
+            Text(AppStrings.text(.uiOutcomeAnimatingBody))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Skip") {
+            Button(AppStrings.text(.uiOutcomeSkip)) {
                 controller.skipOutcomePresentation()
             }
             .padding(.top, 8)

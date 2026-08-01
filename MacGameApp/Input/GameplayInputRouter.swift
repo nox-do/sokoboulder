@@ -7,6 +7,8 @@ enum RoutedInput: Equatable, Sendable {
     case gameplay(GameplayIntent)
     /// Outcome dialog confirmation after the key-up gate has cleared.
     case outcomeAction
+    /// Dismiss the level-intro hint overlay.
+    case dismissIntro
 }
 
 /// Distinguishes an irrelevant platform event from one deliberately swallowed
@@ -29,6 +31,7 @@ final class GameplayInputRouter {
         case gameplay
         case paused
         case outcomePresenting
+        case levelIntro
         case modalBlocked
     }
 
@@ -70,6 +73,14 @@ final class GameplayInputRouter {
 
     func enterModalBlocked() {
         mode = .modalBlocked
+        pressedKeyCodes.removeAll(keepingCapacity: true)
+        lockedKeyCodes.removeAll(keepingCapacity: true)
+        outcomeGateOpen = false
+    }
+
+    /// Blocks gameplay while a skippable level hint is visible.
+    func enterLevelIntro() {
+        mode = .levelIntro
         pressedKeyCodes.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         outcomeGateOpen = false
@@ -126,6 +137,16 @@ final class GameplayInputRouter {
 
         switch mode {
         case .modalBlocked:
+            return .unhandled
+
+        case .levelIntro:
+            trackPress(keyCode, from: event)
+            guard !event.isARepeat else {
+                return isIntroDismissKey(keyCode) ? .consumed : .unhandled
+            }
+            if isIntroDismissKey(keyCode) {
+                return .routed(.dismissIntro)
+            }
             return .unhandled
 
         case .paused:
@@ -214,6 +235,12 @@ final class GameplayInputRouter {
 
     private func isOutcomeConfirmKey(_ keyCode: UInt16) -> Bool {
         keyCode == KeyCode.return || keyCode == KeyCode.space
+    }
+
+    private func isIntroDismissKey(_ keyCode: UInt16) -> Bool {
+        keyCode == KeyCode.return
+            || keyCode == KeyCode.space
+            || keyCode == KeyCode.escape
     }
 
     private func isPausedCommandKey(_ event: NSEvent) -> Bool {

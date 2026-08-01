@@ -159,4 +159,18 @@ struct GameplayInputRouterTests {
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.return)) == .outcomeAction)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.z, characters: "z")) == .gameplay(.undo))
     }
+
+    @Test("level intro dismisses on Return Space or Escape")
+    func levelIntroDismissKeys() {
+        let router = GameplayInputRouter()
+        router.enterLevelIntro()
+        #expect(router.route(TestKeyEvent.keyDown(KeyCode.rightArrow)) == nil)
+        #expect(router.route(TestKeyEvent.keyDown(KeyCode.return)) == .dismissIntro)
+
+        router.enterLevelIntro()
+        #expect(router.route(TestKeyEvent.keyDown(KeyCode.space)) == .dismissIntro)
+
+        router.enterLevelIntro()
+        #expect(router.route(TestKeyEvent.keyDown(KeyCode.escape)) == .dismissIntro)
+    }
 }

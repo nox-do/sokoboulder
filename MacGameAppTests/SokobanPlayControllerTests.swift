@@ -12,6 +12,7 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence
         )
+        controller.dismissLevelIntro()
         controller.scene.holdAnimationsForTesting = holdAnimations
         return controller
     }
@@ -26,6 +27,12 @@ struct SokobanPlayControllerTests {
             controller.skipOutcomePresentation()
         }
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
+    }
+
+    private func releaseOutcomeConfirmKeys(_ controller: SokobanPlayController) {
+        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
+        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.return))
+        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.space))
     }
 
     @Test("undo and redo use the shared controller/session API")
@@ -127,17 +134,30 @@ struct SokobanPlayControllerTests {
         #expect(controller.session?.phase == .outcomePresenting)
     }
 
-    @Test("independent Return after awaiting choice restarts")
-    func independentReturnRestarts() throws {
+    @Test("independent Return after awaiting choice advances to next level")
+    func independentReturnAdvancesLevel() throws {
+        let controller = makeController()
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+
+        releaseOutcomeConfirmKeys(controller)
+
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
+        #expect(controller.currentLevelID == "sokoban.tutorial.002")
+        #expect(controller.presentationPhase == .levelIntro)
+        #expect(controller.levelTitle == "Umweg und Undo")
+    }
+
+    @Test("play again from outcome restarts the same level")
+    func playAgainRestartsSameLevel() throws {
         let controller = makeController()
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
 
-        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
-        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.return))
-
         let before = try #require(controller.session).revision
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
+        controller.restartFromOutcomeOverlay()
+        #expect(controller.currentLevelID == "sokoban.tutorial.001")
         #expect(controller.presentationPhase == .playing)
         #expect(controller.session?.phase == .playing)
         #expect(try #require(controller.session).revision > before)
@@ -224,7 +244,7 @@ struct SokobanPlayControllerTests {
         controller.scene.settleAnimationsForTesting()
         #expect(controller.scene.settledRevision >= 2)
 
-        controller.startLevel()
+        controller.startLevel(showIntro: false)
         #expect(controller.scene.appliedRevision == 1)
         #expect(controller.scene.settledRevision == 1)
         #expect(controller.presentationPhase == .playing)

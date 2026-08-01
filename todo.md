@@ -63,7 +63,18 @@ Vertragsentscheidungen:
 7. [x] AudioDirector klein, aber vertragstreu
 7b. [x] Bundle-ID + `SokobanLevelDescriptor`-Katalog (Vorlauf zu Schritt 8)
 8. [x] `SokobanRunFileV1` + Wiederaufnahme
-9. [ ] Tutorial-UI (Hinweise, Levelwechsel, Abschlussaktion Level 3) — Geometrie/Hashes bereits im Katalog
+9. [x] Tutorial-UI (Hinweise, Levelwechsel, Abschlussaktion Level 3) — Geometrie/Hashes bereits im Katalog
+
+### Tutorial-/Levelwechsel-Entscheidungen (Schritt 9)
+
+- Kurzes `levelIntro`-Overlay vor dem ersten Zug eines frischen Levels (überspringbar: Return/Space/Escape)
+- Wiederaufnahme mitten im Level: kein Intro
+- Outcome Level 1–2: Primäraktion „Nächstes Level“ (ersetzt Run-Datei); Level 3: „Tutorial von vorn“
+- Keine Levelauswahl-UI in Phase 2
+- UI-Texte DE über `AppStringID` / `AppStrings` (i18n-ready Keys, inkl. `tutorialHintID`)
+- Hinweis-Texte an klassischen Sokoban-Lehrmomenten: nur schieben, Umweg+Undo/Redo, Kisten blockieren
+- Undo/Redo: nur Hinweis in Level 2 (keine erzwingende Geometrie in Phase 2)
+- P2-Nachzug: Intro-Audio nach Fokusverlust fortsetzen; Return/Space bestätigt fokussierte Outcome-Aktion; Intro/Outcome-Copy nennt Space
 
 ### Preflight-Notizen
 
@@ -131,7 +142,7 @@ Vertragsentscheidungen:
 - Kompaktion bei >1000 Befehlen: ältesten Befehl in Checkpoint einrechnen, Undo-Stack mitkürzen
 - Pfad: Application Support/SokoBoulder/sokoban-run-v1.json (injizierbar); 256 KiB Limit; atomarer Write; Flush bei Deaktivierung/Beenden
 - Fehlende Datei = Erststart; ungültig → `.invalid-<timestamp>` Backup (außer neuer Schemaversion/Lesefehler) + Recovery-Overlay; Schreibfehler nichtterminal
-- Abgeschlossener Lauf bleibt speicherbar/undo-fähig bis Restart (Nächstes Level = Schritt 9)
+- Abgeschlossener Lauf bleibt speicherbar/undo-fähig bis Restart oder „Nächstes Level“ / „Tutorial von vorn“
 - Beenden: `applicationShouldTerminate` → `.terminateLater` + `flush()` enqueued zuerst das gecachte DTO (Generation N), dann `writer.flush()` (kein Sync-Write vor In-flight-Writes)
 - Phase 2: einzelnes `Window` (kein `WindowGroup`), eine appweite Persistenz-Instanz
 - Nur `schemaVersion > current` unangetastet; ältere Schemas werden quarantänisiert

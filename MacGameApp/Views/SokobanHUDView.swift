@@ -11,16 +11,16 @@ struct SokobanHUDView: View {
 
             Spacer()
 
-            labeled("Moves", value: "\(controller.moveCount)")
-            labeled("Pushes", value: "\(controller.pushCount)")
+            labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
+            labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
             labeled(
-                "Goals",
+                AppStrings.text(.uiHudGoals),
                 value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
             )
 
             HStack(spacing: 8) {
-                availability("Undo", enabled: controller.canUndo)
-                availability("Redo", enabled: controller.canRedo)
+                availability(AppStrings.text(.uiHudUndo), enabled: controller.canUndo)
+                availability(AppStrings.text(.uiHudRedo), enabled: controller.canRedo)
             }
         }
         .padding(.horizontal, 14)
@@ -48,6 +48,8 @@ struct SokobanHUDView: View {
             .padding(.vertical, 4)
             .foregroundStyle(enabled ? Color.primary : Color.secondary)
             .opacity(enabled ? 1 : 0.45)
-            .accessibilityLabel("\(title) \(enabled ? "available" : "unavailable")")
+            .accessibilityLabel(
+                "\(title) \(enabled ? AppStrings.text(.uiHudAvailable) : AppStrings.text(.uiHudUnavailable))"
+            )
     }
 }

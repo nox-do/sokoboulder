@@ -21,7 +21,8 @@ final class SokobanPlayController: ObservableObject {
     private(set) var session: GameSession?
 
     @Published private(set) var presentationPhase: GamePresentationPhase = .playing
-    @Published private(set) var levelTitle = "Demo"
+    @Published private(set) var levelTitle = ""
+    @Published private(set) var tutorialHintText = ""
     @Published private(set) var moveCount = 0
     @Published private(set) var pushCount = 0
     @Published private(set) var completedGoalCount = 0
@@ -36,13 +37,18 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var recoveryMessage: String?
     /// Non-blocking persistence warning; gameplay continues.
     @Published private(set) var persistenceDiagnostic: String?
-    @Published private(set) var outcomeHint = "Press Return when ready"
+    @Published private(set) var outcomeHint = ""
+    @Published private(set) var outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+    @Published private(set) var outcomePrimaryAction: OutcomePrimaryAction = .finishTutorial
+    @Published private(set) var outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
+    /// Keyboard-confirm target while the result overlay is visible.
+    @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
 
     private var outcomeTimeoutItem: DispatchWorkItem?
     private var outcomeTargetRevision: UInt64?
     private var outcomeGeneration: UInt64 = 0
 
-    private var currentLevelID: String = SokobanLevelCatalog.first.id
+    private(set) var currentLevelID: String = SokobanLevelCatalog.first.id
 
     init(
         audioDirector: AudioDirector = AudioDirector(),
@@ -62,8 +68,11 @@ final class SokobanPlayController: ObservableObject {
 
     // MARK: - Lifecycle
 
-    /// Loads a catalog level without consulting the run file (explicit restart / recovery).
-    func startLevel(id: String? = nil) {
+    /// Loads a catalog level without consulting the run file (explicit next / recovery).
+    ///
+    /// Shows the level intro for a fresh catalog entry. In-session restart keeps
+    /// the existing session and does not call this path.
+    func startLevel(id: String? = nil, showIntro: Bool = true) {
         cancelOutcomeWait()
         audioDirector.reset()
         scene.prepareForNewSession()
@@ -94,7 +103,7 @@ final class SokobanPlayController: ObservableObject {
                 contentHash: descriptor.contentHash,
                 saveSink: runPersistence
             )
-            bootstrapSession(newSession, descriptor: descriptor)
+            bootstrapSession(newSession, descriptor: descriptor, showIntro: showIntro)
         } catch {
             session = nil
             presentationPhase = .faulted
@@ -110,7 +119,17 @@ final class SokobanPlayController: ObservableObject {
         runPersistence.removeRunFile()
         recoveryMessage = nil
         currentLevelID = SokobanLevelCatalog.first.id
-        startLevel(id: SokobanLevelCatalog.first.id)
+        startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
+    }
+
+    /// Dismisses the level-intro overlay and begins accepting moves.
+    func dismissLevelIntro() {
+        guard presentationPhase == .levelIntro else { return }
+        presentationPhase = .playing
+        router.enterGameplay()
+        // Focus may have been lost during intro; ensure playback is audible again.
+        audioDirector.resumePlayback()
+        refreshPublishedState()
     }
 
     // MARK: - Input
@@ -132,6 +151,8 @@ final class SokobanPlayController: ObservableObject {
                 handleGameplay(intent)
             case .outcomeAction:
                 handleOutcomeAction()
+            case .dismissIntro:
+                dismissLevelIntro()
             }
             return true
         }
@@ -143,20 +164,22 @@ final class SokobanPlayController: ObservableObject {
         Task { await runPersistence.flush() }
         guard let session else { return }
 
-        switch session.phase {
-        case .playing:
+        // Only pause when the player is actively playing — not during intro.
+        switch (session.phase, presentationPhase) {
+        case (.playing, .playing):
             pauseFromShell(alreadyInterrupted: true)
-        case .outcomePresenting, .paused, .created, .faulted:
+        default:
             break
         }
     }
 
-    /// Restores audible music after focus return when the shell stayed in outcome.
+    /// Restores audible music after focus return when the shell stayed interactive
+    /// without entering pause (outcome or level intro).
     ///
     /// Pause stays interrupted until the player explicitly resumes.
     func handleAppActivation() {
         switch presentationPhase {
-        case .outcomeAnimating, .outcomeAwaitingChoice:
+        case .outcomeAnimating, .outcomeAwaitingChoice, .levelIntro:
             audioDirector.resumePlayback()
         case .playing, .paused, .faulted, .runRecovery:
             break
@@ -183,6 +206,9 @@ final class SokobanPlayController: ObservableObject {
         if presentationPhase == .outcomeAnimating || presentationPhase == .outcomeAwaitingChoice {
             cancelOutcomeWait()
         }
+        if presentationPhase == .levelIntro {
+            dismissLevelIntro()
+        }
         applySessionCommand(.restart)
     }
 
@@ -206,6 +232,35 @@ final class SokobanPlayController: ObservableObject {
         restart()
     }
 
+    func performOutcomePrimaryAction() {
+        guard presentationPhase == .outcomeAwaitingChoice else { return }
+        switch outcomePrimaryAction {
+        case .nextLevel(let id):
+            startLevel(id: id, showIntro: true)
+        case .finishTutorial:
+            runPersistence.removeRunFile()
+            startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
+        }
+    }
+
+    /// Confirms the currently focused result-overlay action (Return / Space).
+    func performFocusedOutcomeAction() {
+        guard presentationPhase == .outcomeAwaitingChoice else { return }
+        switch focusedOutcomeAction {
+        case .primary:
+            performOutcomePrimaryAction()
+        case .again:
+            restartFromOutcomeOverlay()
+        case .undo:
+            undoFromOutcomeOverlay()
+        }
+    }
+
+    /// Keeps router confirm and overlay Tab-focus aligned.
+    func setFocusedOutcomeAction(_ action: OutcomeFocusedAction) {
+        focusedOutcomeAction = action
+    }
+
     func restartFromOutcomeOverlay() {
         restart()
     }
@@ -226,7 +281,7 @@ final class SokobanPlayController: ObservableObject {
     private func bootstrapFromPersistence() {
         switch runPersistence.load() {
         case .absent:
-            startLevel(id: SokobanLevelCatalog.first.id)
+            startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
 
         case .loaded(let file):
             do {
@@ -239,7 +294,8 @@ final class SokobanPlayController: ObservableObject {
                 cancelOutcomeWait()
                 audioDirector.reset()
                 scene.prepareForNewSession()
-                bootstrapSession(newSession, descriptor: descriptor)
+                // Mid-run restore skips the intro; the player already knows the level.
+                bootstrapSession(newSession, descriptor: descriptor, showIntro: false)
             } catch {
                 let message = restoreFailureMessage(error)
                 _ = runPersistence.quarantineLoadedInvalidFile(message: message)
@@ -255,14 +311,19 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    private func bootstrapSession(_ newSession: GameSession, descriptor: SokobanLevelDescriptor) {
+    private func bootstrapSession(
+        _ newSession: GameSession,
+        descriptor: SokobanLevelDescriptor,
+        showIntro: Bool
+    ) {
         let emission = newSession.start()
         session = newSession
         currentLevelID = descriptor.id
         faultMessage = nil
         recoveryMessage = nil
         levelTitle = descriptor.title
-        router.enterGameplay()
+        tutorialHintText = AppStrings.text(id: descriptor.tutorialHintID)
+        configureOutcomeActions(for: descriptor.id)
         scene.apply(emission.render)
         audioDirector.apply(emission.audio)
         applyEmissionSideEffects(emission)
@@ -270,10 +331,32 @@ final class SokobanPlayController: ObservableObject {
         if newSession.phase == .outcomePresenting {
             // Hard-resync has no animation; land on the choice overlay promptly.
             enterOutcomeAwaitingChoice()
+        } else if showIntro {
+            enterLevelIntro()
         } else {
             presentationPhase = .playing
+            router.enterGameplay()
         }
         refreshPublishedState()
+    }
+
+    private func enterLevelIntro() {
+        presentationPhase = .levelIntro
+        router.enterLevelIntro()
+    }
+
+    private func configureOutcomeActions(for levelID: String) {
+        if let next = SokobanLevelCatalog.descriptor(after: levelID) {
+            outcomePrimaryAction = .nextLevel(id: next.id)
+            outcomePrimaryTitle = AppStrings.text(.uiOutcomeNextLevel)
+            outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+            outcomeHint = AppStrings.text(.uiOutcomeHintNext)
+        } else {
+            outcomePrimaryAction = .finishTutorial
+            outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
+            outcomeTitle = AppStrings.text(.uiOutcomeTutorialComplete)
+            outcomeHint = AppStrings.text(.uiOutcomeHintBack)
+        }
     }
 
     private func enterRunRecovery(message: String) {
@@ -343,7 +426,7 @@ final class SokobanPlayController: ObservableObject {
         case .outcomeAnimating:
             skipOutcomePresentation()
         case .outcomeAwaitingChoice:
-            restartFromOutcomeOverlay()
+            performFocusedOutcomeAction()
         default:
             break
         }
@@ -418,9 +501,12 @@ final class SokobanPlayController: ObservableObject {
         case nil:
             guard let session else { return }
             if session.phase == .playing {
-                presentationPhase = .playing
-                if router.mode != .gameplay {
-                    router.enterGameplay()
+                // Keep intro until the player dismisses it; restart from intro dismisses first.
+                if presentationPhase != .levelIntro {
+                    presentationPhase = .playing
+                    if router.mode != .gameplay {
+                        router.enterGameplay()
+                    }
                 }
             }
         }
@@ -465,7 +551,8 @@ final class SokobanPlayController: ObservableObject {
             router.enterOutcomePresenting()
         }
         router.releaseOutcomeLocksPreservingPressedKeys()
-        outcomeHint = "Return: play again · Z: undo"
+        focusedOutcomeAction = .primary
+        configureOutcomeActions(for: currentLevelID)
         refreshPublishedState()
     }
 
