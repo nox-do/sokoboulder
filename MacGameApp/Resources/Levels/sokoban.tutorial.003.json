@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "sokoban.tutorial.003",
+  "game": "sokoban",
+  "titleID": "level.sokoban.tutorial.003.title",
+  "tutorialHintID": "hint.sokoban.crate_blocking",
+  "width": 6,
+  "height": 5,
+  "rows": [
+    "######",
+    "#@   #",
+    "# $$ #",
+    "#  ..#",
+    "######"
+  ],
+  "rules": {}
+}

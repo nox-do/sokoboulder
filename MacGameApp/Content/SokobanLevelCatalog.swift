@@ -1,74 +1,54 @@
+import Foundation
 import GameCore
 
-/// Built-in Sokoban tutorial catalog with stable IDs and content hashes.
+/// Built-in Sokoban tutorial catalog loaded from bundled JSON + manifest.
 ///
-/// Level geometry matches the Phase-2 tutorial cuts (GAMEPLAY §4.2 / step 9).
-/// Hashes are fixed once ASCII is final — do not casually edit rows.
+/// Prefer injecting ``SokobanContentCatalog`` into controllers. This facade
+/// keeps existing call sites working against the default app/test bundle.
 enum SokobanLevelCatalog {
-    static let tutorial: [SokobanLevelDescriptor] = {
+    /// Lazily loads from the app/test bundle once. Fatally fails only when the
+    /// suite cannot start; production paths should use ``BundleContentLoader``
+    /// and surface ``ContentLoadError``.
+    static let shared: SokobanContentCatalog = {
         do {
-            return [
-                try SokobanLevelDescriptor(
-                    id: "sokoban.tutorial.001",
-                    title: "Der erste Schub",
-                    ascii: """
-                        #####
-                        #@$.#
-                        #####
-                        """,
-                    tutorialHintID: "hint.sokoban.move_and_push"
-                ),
-                try SokobanLevelDescriptor(
-                    id: "sokoban.tutorial.002",
-                    title: "Umweg und Undo",
-                    ascii: """
-                        #######
-                        #     #
-                        # # $ #
-                        # @ . #
-                        #######
-                        """,
-                    tutorialHintID: "hint.sokoban.walk_around_and_undo"
-                ),
-                try SokobanLevelDescriptor(
-                    id: "sokoban.tutorial.003",
-                    title: "Zwei Kisten",
-                    ascii: """
-                        ######
-                        #@   #
-                        # $$ #
-                        #  ..#
-                        ######
-                        """,
-                    tutorialHintID: "hint.sokoban.crate_blocking"
-                ),
-            ]
+            return try BundleContentLoader.loadSokobanCatalog(
+                from: Bundle(for: SokobanPlayController.self)
+            )
         } catch {
-            preconditionFailure("Built-in Sokoban catalog must be valid: \(error)")
+            preconditionFailure("Bundled Sokoban content must load: \(error)")
         }
     }()
 
+    static var tutorial: [SokobanLevelDescriptor] {
+        shared.levels
+    }
+
     static var first: SokobanLevelDescriptor {
-        tutorial[0]
+        shared.first
     }
 
     static func descriptor(id: String) -> SokobanLevelDescriptor? {
-        tutorial.first { $0.id == id }
+        shared.descriptor(id: id)
     }
 
     static func index(of id: String) -> Int? {
-        tutorial.firstIndex { $0.id == id }
+        shared.index(of: id)
     }
 
     static func descriptor(after id: String) -> SokobanLevelDescriptor? {
-        guard let index = index(of: id), index + 1 < tutorial.count else {
-            return nil
-        }
-        return tutorial[index + 1]
+        shared.descriptor(after: id)
+    }
+
+    static func title(for descriptor: SokobanLevelDescriptor) -> String {
+        shared.title(for: descriptor)
+    }
+
+    static func tutorialHint(for descriptor: SokobanLevelDescriptor) -> String {
+        shared.tutorialHint(for: descriptor)
     }
 }
 
-/// Golden move sequences for catalog levels (tests / step-9 acceptance).
+/// Golden move sequences for catalog levels (tests / acceptance).
 enum SokobanTutorialSolutions {
     static let level001: [Direction] = [.right]
 

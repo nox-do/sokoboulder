@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import GameCore
 @testable import MacGameApp
@@ -7,9 +8,15 @@ import Testing
 struct SokobanTutorialFlowTests {
     private func makeController() -> SokobanPlayController {
         let persistence = try! SokobanRunPersistence.ephemeral()
+        let catalog = try! BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try! ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         return SokobanPlayController(
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
-            runPersistence: persistence
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog
         )
     }
 
@@ -36,11 +43,12 @@ struct SokobanTutorialFlowTests {
     }
 
     @Test("fresh boot shows level intro with localized hint")
-    func freshBootShowsIntro() {
+    func freshBootShowsIntro() throws {
         let controller = makeController()
         #expect(controller.presentationPhase == .levelIntro)
         #expect(controller.currentLevelID == "sokoban.tutorial.001")
-        #expect(controller.tutorialHintText == AppStrings.text(.hintSokobanMoveAndPush))
+        let level1 = try #require(controller.catalog.descriptor(id: "sokoban.tutorial.001"))
+        #expect(controller.tutorialHintText == controller.catalog.tutorialHint(for: level1))
         #expect(controller.router.mode == .levelIntro)
 
         // Moves are blocked until the intro is dismissed.
@@ -62,15 +70,18 @@ struct SokobanTutorialFlowTests {
     }
 
     @Test("all tutorial hint IDs resolve to German copy")
-    func hintIDsResolve() {
-        for descriptor in SokobanLevelCatalog.tutorial {
-            let text = AppStrings.text(id: descriptor.tutorialHintID)
+    func hintIDsResolve() throws {
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        for descriptor in catalog.levels {
+            let text = catalog.tutorialHint(for: descriptor)
             #expect(text != descriptor.tutorialHintID)
             #expect(!text.isEmpty)
         }
     }
 
-    @Test("levels 1 and 2 primary action advances; level 3 returns to start")
+    @Test("levels 1 and 2 primary action advances; level 3 opens launch menu")
     func outcomePrimaryActionsAcrossTutorial() throws {
         let controller = makeController()
         controller.dismissLevelIntro()
@@ -83,7 +94,9 @@ struct SokobanTutorialFlowTests {
         controller.performOutcomePrimaryAction()
         #expect(controller.currentLevelID == "sokoban.tutorial.002")
         #expect(controller.presentationPhase == .levelIntro)
-        #expect(controller.tutorialHintText == AppStrings.text(.hintSokobanWalkAroundAndUndo))
+        #expect(controller.tutorialHintText == controller.catalog.tutorialHint(
+            for: try #require(controller.catalog.descriptor(id: "sokoban.tutorial.002"))
+        ))
         controller.dismissLevelIntro()
 
         // Level 2 → next
@@ -94,16 +107,14 @@ struct SokobanTutorialFlowTests {
         #expect(controller.currentLevelID == "sokoban.tutorial.003")
         controller.dismissLevelIntro()
 
-        // Level 3 → Zurück to tutorial start
+        // Level 3 → Zurück to campaign overview
         playMoves(controller, SokobanTutorialSolutions.level003)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .finishTutorial)
+        #expect(controller.outcomePrimaryAction == .openLaunchMenu)
         #expect(controller.outcomeTitle == AppStrings.text(.uiOutcomeTutorialComplete))
         #expect(controller.outcomePrimaryTitle == AppStrings.text(.uiOutcomeBack))
         controller.performOutcomePrimaryAction()
-        #expect(controller.currentLevelID == "sokoban.tutorial.001")
-        #expect(controller.presentationPhase == .levelIntro)
-        #expect(controller.moveCount == 0)
+        #expect(controller.presentationPhase == .launchMenu)
     }
 
     @Test("Return confirms the focused outcome button, not always primary")
@@ -128,9 +139,15 @@ struct SokobanTutorialFlowTests {
     func introFocusLossResumesAudioOnActivation() {
         let spy = SpyAudioPlaybackBackend()
         let persistence = try! SokobanRunPersistence.ephemeral()
+        let catalog = try! BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try! ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         let controller = SokobanPlayController(
             audioDirector: AudioDirector(backend: spy),
-            runPersistence: persistence
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog
         )
         #expect(controller.presentationPhase == .levelIntro)
         #expect(spy.musicStates.contains(.sokobanLoop))
@@ -151,9 +168,15 @@ struct SokobanTutorialFlowTests {
     @Test("next level replaces the persisted run file")
     func nextLevelReplacesRunFile() async throws {
         let persistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         let controller = SokobanPlayController(
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
-            runPersistence: persistence
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog
         )
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)

@@ -14,7 +14,7 @@ struct SokobanRunWriterTests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
         let checkpoint = try SokobanCheckpointV1(
             semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: try descriptor.makeLevel())
+                from: try SokobanRules().start(level: descriptor.makeLevel())
             )
         )
         let newer = SokobanRunFileV1(
@@ -52,7 +52,7 @@ struct SokobanRunWriterTests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
         let checkpoint = try SokobanCheckpointV1(
             semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: try descriptor.makeLevel())
+                from: try SokobanRules().start(level: descriptor.makeLevel())
             )
         )
         let valid = SokobanRunFileV1(
@@ -175,7 +175,7 @@ struct SokobanRunWriterTests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
         let checkpoint = try SokobanCheckpointV1(
             semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: try descriptor.makeLevel())
+                from: try SokobanRules().start(level: descriptor.makeLevel())
             )
         )
 
@@ -208,7 +208,7 @@ struct SokobanRunWriterTests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
         let checkpoint = try SokobanCheckpointV1(
             semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: try descriptor.makeLevel())
+                from: try SokobanRules().start(level: descriptor.makeLevel())
             )
         )
         let file = SokobanRunFileV1(
@@ -234,7 +234,7 @@ struct SokobanRunWriterTests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
         let checkpoint = try SokobanCheckpointV1(
             semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: try descriptor.makeLevel())
+                from: try SokobanRules().start(level: descriptor.makeLevel())
             )
         )
 

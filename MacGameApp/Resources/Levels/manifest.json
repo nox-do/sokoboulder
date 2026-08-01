@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "campaigns": [
+    {
+      "id": "campaign.sokoban.tutorial",
+      "levels": [
+        "Levels/sokoban.tutorial.001.json",
+        "Levels/sokoban.tutorial.002.json",
+        "Levels/sokoban.tutorial.003.json"
+      ]
+    }
+  ]
+}

@@ -166,9 +166,65 @@ Audio-Mixer/Settings und CC0-Assets später.
 - Lautstärke-/Mute-UI, UI-Sounds, Menü-Audio ohne Revision (später)
 - CC0-Bundle-Assets inkl. Lizenznachweis (erst nach Hörprobe laut AUDIO.md)
 
+## Phase 3 (Gemeinsame Plattform) – in Arbeit
+
+Stabilisierung der Plattformverträge (nicht Feature-Sammlung).
+Reihenfolge: Inhalt/Identität → Fortschritt/UI → Präsentation/Replay.
+
+### 3.1 Content-Vertrag und Loader – abgenommen
+
+Vertragsentscheidungen:
+- Level-JSON V1 ist spielerisch autoritativ: `id`, `game`, `schemaVersion`, Raster, `rules`, String-IDs (`titleID`, optional `goalTextID`/`tutorialHintID`)
+- Manifest V1: genau eine Kampagne + Dateipfade + Freischaltreihenfolge; keine doppelten Level-Metadaten
+- Bundle behält `Levels/` und `Localization/` (Xcode `explicitFolders`); Pfade relativ zur Resources-Wurzel
+- Kein Basename-Fallback bei Ressourcenauflösung (`ContentResourceProvider`)
+- `contentHash` = SHA-256 über kanonisch `game` + `schemaVersion` + Zeilen + `rules` (ohne Titel/Assets)
+- Striktes JSON: unbekannte Keys und `rules`-Felder abgelehnt; `rules` Pflicht (`{}` in V1)
+- Semantik in GameCore (`SokobanLevelJSONCodec`); Bundle-Finden in App (`BundleContentLoader`)
+- Level-Titel/Hinweise in `ContentStrings.de.json` (nicht leer); UI-Chrome bleibt in `AppStrings`
+- Katalog wird in `SokobanPlayController` injiziert; Load-Fehler → faulted UI statt Crash
+- Abnahme: neues Level nur JSON + Manifest + ContentStrings (kein Swift)
+
+Zukunft (nicht blockierend): Bei Schema-Evolution zuerst `schemaVersion` lesen, danach den
+passenden Key-Validator anwenden — sonst meldet eine V2-Datei mit neuen Feldern
+`unknownKeys` statt `unsupportedSchemaVersion`.
+
+- [x] JSON Level V1 + Manifest V1 + Hashgrenzen
+- [x] GameCore Codec/Validierung + Tests
+- [x] Bundle-Loader, drei Tutorials als Ressourcen, ContentStrings
+- [x] Controller/Restorer auf injizierten Katalog
+- [x] GameCore- und App-Tests grün
+- [x] Nachzug: Bundle-Ordnerstruktur, eine Kampagne, echte Negativtests, striktes JSON
+
+### 3.2 Fortschritt und Levelnavigation – abgenommen
+
+Vertragsentscheidungen:
+- Freischaltung / „jemals abgeschlossen“ an stabiler Level-ID
+- Bestwerte an Level-ID + contentHash + ruleVersion (Züge und Schübe getrennt)
+- Persistenz bei terminalem Kernübergang; Undo/Restart erlauben erneute Bestwert-Bewertung
+- `ProgressFileV1` atomar neben `SokobanRunFileV1`
+- Erststart (frisch) → Tutorial 1; nicht frisch → immer Launch-Menü; Fortsetzen restauriert Run
+- Neuere Progress-Schemaversion: Original erhalten, Writes disabled
+- `firstLevelID` aus Katalog-Reihenfolge; Progress-Diagnosen sichtbar
+
+- [x] ProgressFileV1, Codec, Writer, Fehlerbehandlung
+- [x] Abschluss/Rekorde/Unlock verdrahten
+- [x] Launch-Menü, Levelauswahl, Fortsetzen
+- [x] Tests
+- [x] Nachzug P1/P2: Re-complete, Launch vor Restore, V2 read-only, Katalog-Anker, Diagnosen, lastSelected
+
+### Als Nächstes (3.3)
+
+- Gemeinsame Intro-/Hilfe-/Pause-/Ergebnis-UI mit Präsentationsmodellen
+- Intro-Wiederholungsregeln (bereits `seenTutorialHintIDs` vorhanden)
+- Einstellungen: Bewegung reduzieren, Lautstärken (verbindlich in Phase 3)
+
 ## Später
 
-- Phase 3+: JSON, Fortschritt, Themes, Cave, …
+- Phase 3.4: Theme + Renderer-Härtung
+- Phase 3.5: Audio-Manifest + Einstellungen
+- Phase 3.6: Replay-Grundlage
+- Phase 3.5 (Höhlen-Spike) / Phase 4+: Cave…
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "sokoban.tutorial.001",
+  "game": "sokoban",
+  "titleID": "level.sokoban.tutorial.001.title",
+  "tutorialHintID": "hint.sokoban.move_and_push",
+  "width": 5,
+  "height": 3,
+  "rows": [
+    "#####",
+    "#@$.#",
+    "#####"
+  ],
+  "rules": {}
+}

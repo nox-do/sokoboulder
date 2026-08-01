@@ -17,7 +17,7 @@
   "commands" : [
     "right"
   ],
-  "contentHash" : "d64cfb9a722ee1300ebfd1147186324bf7a38f6246f0e9b7356b3dbd02aef4e9",
+  "contentHash" : "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585",
   "cursor" : 1,
   "levelID" : "sokoban.tutorial.001",
   "ruleVersion" : 1,

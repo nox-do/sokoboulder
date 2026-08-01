@@ -22,13 +22,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		e44215bd8bd04325bf711b43 /* MacGameApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacGameApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		c51ceb1a998d434b82dbcdc5 /* MacGameAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacGameAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		e44215bd8bd04325bf711b43 /* MacGameApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacGameApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		b5c84e20cabb418797b9d1a2 /* MacGameApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFolders = (
+				Resources/Levels,
+				Resources/Localization,
+			);
 			path = MacGameApp;
 			sourceTree = "<group>";
 		};
@@ -59,15 +63,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		949ddb169bad4722945a55f1 = {
-			isa = PBXGroup;
-			children = (
-				b5c84e20cabb418797b9d1a2 /* MacGameApp */,
-				c61ceb1a998d434b82dbcdc6 /* MacGameAppTests */,
-				65727d78be5d40ee851966ff /* Products */,
-			);
-			sourceTree = "<group>";
-		};
 		65727d78be5d40ee851966ff /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -75,6 +70,15 @@
 				c51ceb1a998d434b82dbcdc5 /* MacGameAppTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		949ddb169bad4722945a55f1 = {
+			isa = PBXGroup;
+			children = (
+				b5c84e20cabb418797b9d1a2 /* MacGameApp */,
+				c61ceb1a998d434b82dbcdc6 /* MacGameAppTests */,
+				65727d78be5d40ee851966ff /* Products */,
+			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -334,20 +338,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		a51ceb1a998d434b82dbcdb5 /* Build configuration list for PBXProject "MacGameApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				a71ceb1a998d434b82dbcdb7 /* Debug */,
-				a81ceb1a998d434b82dbcdb8 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		a11ceb1a998d434b82dbcdb1 /* Build configuration list for PBXNativeTarget "MacGameApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				a91ceb1a998d434b82dbcdb9 /* Debug */,
 				aa1ceb1a998d434b82dbcdba /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		a51ceb1a998d434b82dbcdb5 /* Build configuration list for PBXProject "MacGameApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				a71ceb1a998d434b82dbcdb7 /* Debug */,
+				a81ceb1a998d434b82dbcdb8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -8,6 +8,7 @@ struct SokobanPauseOverlay: View {
     private enum PauseAction: Hashable {
         case resume
         case restart
+        case levelSelection
     }
 
     var body: some View {
@@ -35,6 +36,11 @@ struct SokobanPauseOverlay: View {
                         controller.restartFromPauseOverlay()
                     }
                     .focused($focusedAction, equals: .restart)
+
+                    Button(AppStrings.text(.uiPauseLevelSelect)) {
+                        controller.openLevelSelectionFromPauseOverlay()
+                    }
+                    .focused($focusedAction, equals: .levelSelection)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)

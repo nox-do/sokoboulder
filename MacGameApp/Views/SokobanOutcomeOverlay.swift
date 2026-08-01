@@ -23,6 +23,28 @@ struct SokobanOutcomeOverlay: View {
                 )
                 .font(.body.monospacedDigit())
 
+                if controller.outcomeBestMoveCount != nil || controller.outcomeBestPushCount != nil {
+                    VStack(spacing: 4) {
+                        if let bestMoves = controller.outcomeBestMoveCount {
+                            recordLine(
+                                title: AppStrings.text(.uiOutcomeBestMoves),
+                                value: bestMoves,
+                                isNew: controller.outcomeNewBestMoves,
+                                newTitle: AppStrings.text(.uiOutcomeNewRecordMoves)
+                            )
+                        }
+                        if let bestPushes = controller.outcomeBestPushCount {
+                            recordLine(
+                                title: AppStrings.text(.uiOutcomeBestPushes),
+                                value: bestPushes,
+                                isNew: controller.outcomeNewBestPushes,
+                                newTitle: AppStrings.text(.uiOutcomeNewRecordPushes)
+                            )
+                        }
+                    }
+                    .font(.callout.monospacedDigit())
+                }
+
                 Text(controller.outcomeHint)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -62,6 +84,17 @@ struct SokobanOutcomeOverlay: View {
         .onChange(of: focusedAction) { _, newValue in
             if let newValue {
                 controller.setFocusedOutcomeAction(newValue)
+            }
+        }
+    }
+
+    private func recordLine(title: String, value: Int, isNew: Bool, newTitle: String) -> some View {
+        HStack(spacing: 8) {
+            Text("\(title): \(value)")
+            if isNew {
+                Text(newTitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tint)
             }
         }
     }

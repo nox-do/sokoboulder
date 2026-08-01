@@ -17,6 +17,8 @@ final class SokobanPlayController: ObservableObject {
     let router = GameplayInputRouter()
     let audioDirector: AudioDirector
     let runPersistence: SokobanRunPersistence
+    let progressPersistence: ProgressPersistence
+    let catalog: SokobanContentCatalog
 
     private(set) var session: GameSession?
 
@@ -39,8 +41,12 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var persistenceDiagnostic: String?
     @Published private(set) var outcomeHint = ""
     @Published private(set) var outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
-    @Published private(set) var outcomePrimaryAction: OutcomePrimaryAction = .finishTutorial
+    @Published private(set) var outcomePrimaryAction: OutcomePrimaryAction = .openLaunchMenu
     @Published private(set) var outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
+    @Published private(set) var outcomeNewBestMoves = false
+    @Published private(set) var outcomeNewBestPushes = false
+    @Published private(set) var outcomeBestMoveCount: Int?
+    @Published private(set) var outcomeBestPushCount: Int?
     /// Keyboard-confirm target while the result overlay is visible.
     @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
     /// Bumped when the pause overlay should reclaim keyboard focus (e.g. after Alt-Tab).
@@ -49,23 +55,80 @@ final class SokobanPlayController: ObservableObject {
     private var outcomeTimeoutItem: DispatchWorkItem?
     private var outcomeTargetRevision: UInt64?
     private var outcomeGeneration: UInt64 = 0
+    private var recordedCompletionForSession = false
 
-    private(set) var currentLevelID: String = SokobanLevelCatalog.first.id
+    private(set) var currentLevelID: String
 
     init(
         audioDirector: AudioDirector = AudioDirector(),
-        runPersistence: SokobanRunPersistence
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        catalog: SokobanContentCatalog
     ) {
         self.audioDirector = audioDirector
         self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         self.runPersistence = runPersistence
+        self.progressPersistence = progressPersistence
+        self.catalog = catalog
+        self.currentLevelID = catalog.first.id
         self.runPersistence.onSaveFailure = { [weak self] message in
-            self?.persistenceDiagnostic = "Could not save progress: \(message)"
+            self?.persistenceDiagnostic = message
         }
-        if let reason = runPersistence.disabledReason {
-            self.persistenceDiagnostic = reason
+        self.progressPersistence.onSaveFailure = { [weak self] message in
+            self?.persistenceDiagnostic = message
         }
+        refreshPersistenceDiagnostic()
         bootstrapFromPersistence()
+    }
+
+    /// Loads bundled content; on failure enters a faulted presentation with no session.
+    convenience init(
+        audioDirector: AudioDirector = AudioDirector(),
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        bundle: Bundle = Bundle(for: SokobanPlayController.self)
+    ) {
+        do {
+            let catalog = try BundleContentLoader.loadSokobanCatalog(from: bundle)
+            self.init(
+                audioDirector: audioDirector,
+                runPersistence: runPersistence,
+                progressPersistence: progressPersistence,
+                catalog: catalog
+            )
+        } catch {
+            self.init(
+                audioDirector: audioDirector,
+                runPersistence: runPersistence,
+                progressPersistence: progressPersistence,
+                contentLoadFailureMessage: "Failed to load game content: \(error)"
+            )
+        }
+    }
+
+    init(
+        audioDirector: AudioDirector,
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        contentLoadFailureMessage: String
+    ) {
+        self.audioDirector = audioDirector
+        self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        self.runPersistence = runPersistence
+        self.progressPersistence = progressPersistence
+        self.catalog = SokobanContentCatalog(
+            campaignID: "",
+            levels: [],
+            strings: ContentStringTable(values: [:]),
+            defaultThemeID: nil,
+            defaultAudioThemeID: nil
+        )
+        self.currentLevelID = ""
+        self.session = nil
+        self.presentationPhase = .faulted
+        self.faultMessage = contentLoadFailureMessage
+        self.router.enterModalBlocked()
+        self.audioDirector.reset()
     }
 
     // MARK: - Lifecycle
@@ -74,20 +137,15 @@ final class SokobanPlayController: ObservableObject {
     ///
     /// Shows the level intro for a fresh catalog entry. In-session restart keeps
     /// the existing session and does not call this path.
-    func startLevel(id: String? = nil, showIntro: Bool = true) {
+    func startLevel(id: String? = nil, showIntro: Bool? = nil) {
         cancelOutcomeWait()
         audioDirector.reset()
         scene.prepareForNewSession()
         recoveryMessage = nil
-        // Keep a disabled-store warning visible; clear transient write errors.
-        if let reason = runPersistence.disabledReason {
-            persistenceDiagnostic = reason
-        } else {
-            persistenceDiagnostic = nil
-        }
+        refreshPersistenceDiagnostic()
 
         let levelID = id ?? currentLevelID
-        guard let descriptor = SokobanLevelCatalog.descriptor(id: levelID) else {
+        guard let descriptor = catalog.descriptor(id: levelID) else {
             session = nil
             presentationPhase = .faulted
             faultMessage = "Unknown level: \(levelID)"
@@ -98,14 +156,16 @@ final class SokobanPlayController: ObservableObject {
         }
 
         do {
-            let level = try descriptor.makeLevel()
+            let level = descriptor.makeLevel()
             let newSession = try GameSession(
                 level: level,
                 levelID: descriptor.id,
                 contentHash: descriptor.contentHash,
                 saveSink: runPersistence
             )
-            bootstrapSession(newSession, descriptor: descriptor, showIntro: showIntro)
+            let resolvedShowIntro = showIntro
+                ?? !progressPersistence.file.hasSeenHint(descriptor.tutorialHintID ?? "")
+            bootstrapSession(newSession, descriptor: descriptor, showIntro: resolvedShowIntro)
         } catch {
             session = nil
             presentationPhase = .faulted
@@ -120,13 +180,22 @@ final class SokobanPlayController: ObservableObject {
     func beginFreshRunFromRecovery() {
         runPersistence.removeRunFile()
         recoveryMessage = nil
-        currentLevelID = SokobanLevelCatalog.first.id
-        startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
+        guard let first = catalog.levels.first else {
+            presentationPhase = .faulted
+            faultMessage = "No levels available."
+            router.enterModalBlocked()
+            return
+        }
+        currentLevelID = first.id
+        startLevel(id: first.id, showIntro: true)
     }
 
     /// Dismisses the level-intro overlay and begins accepting moves.
     func dismissLevelIntro() {
         guard presentationPhase == .levelIntro else { return }
+        if let hintID = catalog.descriptor(id: currentLevelID)?.tutorialHintID {
+            progressPersistence.markHintSeen(hintID)
+        }
         presentationPhase = .playing
         router.enterGameplay()
         // Focus may have been lost during intro; ensure playback is audible again.
@@ -186,7 +255,7 @@ final class SokobanPlayController: ObservableObject {
             audioDirector.resumePlayback()
         case .paused:
             requestPauseOverlayFocus()
-        case .playing, .faulted, .runRecovery:
+        case .playing, .launchMenu, .levelSelection, .faulted, .runRecovery:
             break
         }
     }
@@ -208,6 +277,7 @@ final class SokobanPlayController: ObservableObject {
     func restart() {
         guard canRestart else { return }
         resumeIfPaused()
+        clearCompletionRecordingState()
         if presentationPhase == .outcomeAnimating || presentationPhase == .outcomeAwaitingChoice {
             cancelOutcomeWait()
         }
@@ -237,14 +307,61 @@ final class SokobanPlayController: ObservableObject {
         restart()
     }
 
+    func openLevelSelectionFromPauseOverlay() {
+        guard presentationPhase == .paused else { return }
+        teardownSessionForNavigation(phase: .levelSelection)
+    }
+
+    func openLaunchMenu() {
+        teardownSessionForNavigation(phase: .launchMenu)
+    }
+
+    func openLevelSelection() {
+        teardownSessionForNavigation(phase: .levelSelection)
+    }
+
+    func returnToLaunchMenu() {
+        guard presentationPhase == .levelSelection else { return }
+        presentationPhase = .launchMenu
+        router.enterModalBlocked()
+        refreshPublishedState()
+    }
+
+    func continueCampaign() {
+        switch runPersistence.load() {
+        case .loaded(let file):
+            restoreRun(file)
+        case .absent:
+            let levelID = progressPersistence.file.lastSelectedLevelID
+                .flatMap { progressPersistence.file.isUnlocked($0) ? $0 : nil }
+                ?? catalog.levels.first(where: { progressPersistence.file.isUnlocked($0.id) })?.id
+                ?? catalog.first.id
+            startSelectedLevel(id: levelID)
+        case .invalid(let message, _):
+            enterRunRecovery(message: message)
+        case .readFailed(let message):
+            enterRunRecovery(message: message)
+        }
+    }
+
+    func startSelectedLevel(id: String, showIntro: Bool? = nil) {
+        guard progressPersistence.availability(for: id, in: catalog) != .locked else { return }
+        progressPersistence.selectLevel(id)
+        startLevel(id: id, showIntro: showIntro)
+    }
+
+    func levelAvailability(for descriptor: SokobanLevelDescriptor) -> LevelAvailability {
+        progressPersistence.availability(for: descriptor.id, in: catalog)
+    }
+
     func performOutcomePrimaryAction() {
         guard presentationPhase == .outcomeAwaitingChoice else { return }
         switch outcomePrimaryAction {
         case .nextLevel(let id):
-            startLevel(id: id, showIntro: true)
-        case .finishTutorial:
+            startSelectedLevel(id: id, showIntro: true)
+        case .openLaunchMenu:
             runPersistence.removeRunFile()
-            startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
+            openLaunchMenu()
         }
     }
 
@@ -286,25 +403,19 @@ final class SokobanPlayController: ObservableObject {
     private func bootstrapFromPersistence() {
         switch runPersistence.load() {
         case .absent:
-            startLevel(id: SokobanLevelCatalog.first.id, showIntro: true)
+            if progressPersistence.file.isFreshCampaign {
+                startLevel(id: catalog.first.id, showIntro: true)
+            } else {
+                openLaunchMenu()
+            }
 
         case .loaded(let file):
-            do {
-                let restored = try SokobanRunRestorer.restore(file)
-                let newSession = GameSession(restored: restored, saveSink: runPersistence)
-                guard let descriptor = SokobanLevelCatalog.descriptor(id: restored.levelID) else {
-                    enterRunRecovery(message: "Saved level is no longer in the catalog.")
-                    return
-                }
-                cancelOutcomeWait()
-                audioDirector.reset()
-                scene.prepareForNewSession()
-                // Mid-run restore skips the intro; the player already knows the level.
-                bootstrapSession(newSession, descriptor: descriptor, showIntro: false)
-            } catch {
-                let message = restoreFailureMessage(error)
-                _ = runPersistence.quarantineLoadedInvalidFile(message: message)
-                enterRunRecovery(message: message)
+            if progressPersistence.file.isFreshCampaign {
+                // Mid-first-tutorial resume: still a fresh campaign, restore directly.
+                restoreRun(file)
+            } else {
+                // Non-fresh campaigns always land on the launch menu; Continue restores.
+                openLaunchMenu()
             }
 
         case .invalid(let message, _):
@@ -316,6 +427,29 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    private func restoreRun(_ file: SokobanRunFileV1) {
+        do {
+            let restored = try SokobanRunRestorer.restore(
+                file,
+                catalogLookup: { [catalog] in catalog.descriptor(id: $0) }
+            )
+            let newSession = GameSession(restored: restored, saveSink: runPersistence)
+            guard let descriptor = catalog.descriptor(id: restored.levelID) else {
+                enterRunRecovery(message: "Saved level is no longer in the catalog.")
+                return
+            }
+            cancelOutcomeWait()
+            audioDirector.reset()
+            scene.prepareForNewSession()
+            // Mid-run restore skips the intro; the player already knows the level.
+            bootstrapSession(newSession, descriptor: descriptor, showIntro: false)
+        } catch {
+            let message = restoreFailureMessage(error)
+            _ = runPersistence.quarantineLoadedInvalidFile(message: message)
+            enterRunRecovery(message: message)
+        }
+    }
+
     private func bootstrapSession(
         _ newSession: GameSession,
         descriptor: SokobanLevelDescriptor,
@@ -323,11 +457,12 @@ final class SokobanPlayController: ObservableObject {
     ) {
         let emission = newSession.start()
         session = newSession
+        clearCompletionRecordingState()
         currentLevelID = descriptor.id
         faultMessage = nil
         recoveryMessage = nil
-        levelTitle = descriptor.title
-        tutorialHintText = AppStrings.text(id: descriptor.tutorialHintID)
+        levelTitle = catalog.title(for: descriptor)
+        tutorialHintText = catalog.tutorialHint(for: descriptor)
         configureOutcomeActions(for: descriptor.id)
         scene.apply(emission.render)
         audioDirector.apply(emission.audio)
@@ -351,13 +486,13 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func configureOutcomeActions(for levelID: String) {
-        if let next = SokobanLevelCatalog.descriptor(after: levelID) {
+        if let next = catalog.descriptor(after: levelID) {
             outcomePrimaryAction = .nextLevel(id: next.id)
             outcomePrimaryTitle = AppStrings.text(.uiOutcomeNextLevel)
             outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
             outcomeHint = AppStrings.text(.uiOutcomeHintNext)
         } else {
-            outcomePrimaryAction = .finishTutorial
+            outcomePrimaryAction = .openLaunchMenu
             outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
             outcomeTitle = AppStrings.text(.uiOutcomeTutorialComplete)
             outcomeHint = AppStrings.text(.uiOutcomeHintBack)
@@ -371,6 +506,16 @@ final class SokobanPlayController: ObservableObject {
         faultMessage = nil
         router.enterModalBlocked()
         audioDirector.reset()
+        refreshPublishedState()
+    }
+
+    private func teardownSessionForNavigation(phase: GamePresentationPhase) {
+        cancelOutcomeWait()
+        session = nil
+        scene.prepareForNewSession()
+        audioDirector.reset()
+        presentationPhase = phase
+        router.enterModalBlocked()
         refreshPublishedState()
     }
 
@@ -503,8 +648,10 @@ final class SokobanPlayController: ObservableObject {
     private func applyEmissionSideEffects(_ emission: SessionEmission) {
         switch emission.appTransition {
         case .enterOutcomePresenting:
+            recordCompletionIfNeeded(snapshot: emission.render.snapshot)
             beginOutcomeAnimating(targetRevision: emission.render.targetRevision)
         case .returnToPlaying:
+            clearCompletionRecordingState()
             cancelOutcomeWait()
             presentationPhase = .playing
             router.enterGameplay()
@@ -519,6 +666,46 @@ final class SokobanPlayController: ObservableObject {
                     }
                 }
             }
+        }
+    }
+
+    private func recordCompletionIfNeeded(snapshot: RenderSnapshot) {
+        guard !recordedCompletionForSession,
+              let descriptor = catalog.descriptor(id: currentLevelID)
+        else { return }
+
+        let delta = progressPersistence.recordCompletion(
+            levelID: descriptor.id,
+            contentHash: descriptor.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            moveCount: snapshot.moveCount,
+            pushCount: snapshot.pushCount,
+            nextLevelID: catalog.descriptor(after: descriptor.id)?.id
+        )
+        recordedCompletionForSession = true
+        outcomeNewBestMoves = delta.newBestMoves
+        outcomeNewBestPushes = delta.newBestPushes
+        outcomeBestMoveCount = delta.bestMoveCount
+        outcomeBestPushCount = delta.bestPushCount
+    }
+
+    private func clearCompletionRecordingState() {
+        recordedCompletionForSession = false
+        outcomeNewBestMoves = false
+        outcomeNewBestPushes = false
+        outcomeBestMoveCount = nil
+        outcomeBestPushCount = nil
+    }
+
+    private func refreshPersistenceDiagnostic() {
+        if let reason = runPersistence.disabledReason {
+            persistenceDiagnostic = reason
+        } else if let reason = progressPersistence.disabledReason {
+            persistenceDiagnostic = reason
+        } else if let diagnostic = progressPersistence.loadDiagnostic {
+            persistenceDiagnostic = diagnostic
+        } else {
+            persistenceDiagnostic = nil
         }
     }
 

@@ -68,12 +68,7 @@ enum SokobanRunRestorer {
             throw SokobanRunRestoreFailure.contentHashMismatch
         }
 
-        let level: SokobanLevel
-        do {
-            level = try descriptor.makeLevel()
-        } catch {
-            throw SokobanRunRestoreFailure.engineFault(String(describing: error))
-        }
+        let level = descriptor.makeLevel()
 
         let initialState: SokobanState
         do {

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import GameCore
 @testable import MacGameApp
@@ -9,9 +10,15 @@ struct SokobanPlayControllerAudioTests {
         let spy = SpyAudioPlaybackBackend()
         let director = AudioDirector(backend: spy)
         let persistence = try! SokobanRunPersistence.ephemeral()
+        let catalog = try! BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try! ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         let controller = SokobanPlayController(
             audioDirector: director,
-            runPersistence: persistence
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog
         )
         controller.dismissLevelIntro()
         return (controller, spy)

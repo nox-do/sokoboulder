@@ -3,6 +3,10 @@ import Foundation
 /// SwiftUI-facing presentation phase. Complements ``SessionPhase``:
 /// session gates simulation input; this selects visible overlays.
 enum GamePresentationPhase: Equatable, Sendable {
+    /// Continue / level-select hub after the first session.
+    case launchMenu
+    /// Minimal campaign level list.
+    case levelSelection
     /// Short skippable tutorial hint before the first move of a fresh level.
     case levelIntro
     case playing

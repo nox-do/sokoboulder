@@ -63,7 +63,7 @@ struct SokobanRunFileV1Tests {
         let descriptor = try level001Descriptor()
         let sink = RecordingSaveSink()
         let session = try GameSession(
-            level: try descriptor.makeLevel(),
+            level: descriptor.makeLevel(),
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             saveSink: sink
@@ -81,7 +81,7 @@ struct SokobanRunFileV1Tests {
         let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002"))
         let sink = RecordingSaveSink()
         let session = try GameSession(
-            level: try descriptor.makeLevel(),
+            level: descriptor.makeLevel(),
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             saveSink: sink
@@ -140,7 +140,7 @@ struct SokobanRunFileV1Tests {
             if $0 == "wide" {
                 return try? SokobanLevelDescriptor(
                     id: "wide",
-                    title: "Wide",
+                    titleID: "title.wide",
                     ascii: ascii,
                     tutorialHintID: "hint.test"
                 )
@@ -172,7 +172,7 @@ struct SokobanRunFileV1Tests {
         let descriptor = try level001Descriptor()
         let sink = RecordingSaveSink()
         let session = try GameSession(
-            level: try descriptor.makeLevel(),
+            level: descriptor.makeLevel(),
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             saveSink: sink
@@ -249,7 +249,7 @@ struct SokobanRunFileV1Tests {
             guard id == "long" else { return nil }
             return try? SokobanLevelDescriptor(
                 id: "long",
-                title: "Long",
+                titleID: "title.long",
                 ascii: ascii,
                 tutorialHintID: "hint.long"
             )
@@ -267,7 +267,7 @@ struct SokobanRunFileV1Tests {
             contentHash: descriptor.contentHash,
             ruleVersion: SokobanRules.ruleVersion,
             checkpoint: try SokobanCheckpointV1(
-                semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: try descriptor.makeLevel()))
+                semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: descriptor.makeLevel()))
             ),
             commands: [.right],
             cursor: 2
@@ -294,7 +294,7 @@ struct SokobanRunFileV1Tests {
     func rejectsHashAndRuleVersion() throws {
         let descriptor = try level001Descriptor()
         let checkpoint = try SokobanCheckpointV1(
-            semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: try descriptor.makeLevel()))
+            semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: descriptor.makeLevel()))
         )
         let badHash = SokobanRunFileV1(
             schemaVersion: 1,
@@ -332,7 +332,7 @@ struct SokobanRunFileV1Tests {
             contentHash: descriptor.contentHash,
             ruleVersion: SokobanRules.ruleVersion,
             checkpoint: try SokobanCheckpointV1(
-                semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: try descriptor.makeLevel()))
+                semantic: SokobanRules().checkpoint(from: try SokobanRules().start(level: descriptor.makeLevel()))
             ),
             commands: [],
             cursor: 0

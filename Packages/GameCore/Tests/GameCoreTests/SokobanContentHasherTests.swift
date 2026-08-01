@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Sokoban content hash")
 struct SokobanContentHasherTests {
-    @Test("canonical encoding is rows joined by newline without trailing newline")
+    @Test("canonical encoding includes game, schema, rows, and rules")
     func canonicalEncoding() throws {
         let ascii = """
             #####
@@ -11,8 +11,15 @@ struct SokobanContentHasherTests {
             #####
             """
         let map = try SokobanASCIIParser.parse(ascii)
-        let expected = "#####\n#@$.#\n#####"
-        #expect(map.rows.joined(separator: "\n") == expected)
+        let expected = "sokoban\n1\n#####\n#@$.#\n#####\n{}"
+        #expect(
+            SokobanContentHasher.canonicalString(
+                game: .sokoban,
+                schemaVersion: 1,
+                rows: map.rows,
+                rules: SokobanLevelRulesV1()
+            ) == expected
+        )
 
         let hash = SokobanContentHasher.sha256Hex(map: map)
         #expect(hash == SokobanContentHasher.sha256Hex(utf8: expected))

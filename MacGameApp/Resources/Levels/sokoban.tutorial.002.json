@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "sokoban.tutorial.002",
+  "game": "sokoban",
+  "titleID": "level.sokoban.tutorial.002.title",
+  "tutorialHintID": "hint.sokoban.walk_around_and_undo",
+  "width": 7,
+  "height": 5,
+  "rows": [
+    "#######",
+    "#     #",
+    "# # $ #",
+    "# @ . #",
+    "#######"
+  ],
+  "rules": {}
+}

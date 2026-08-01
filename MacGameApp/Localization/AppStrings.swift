@@ -1,15 +1,10 @@
 import Foundation
 
-/// Stable string IDs for UI and tutorial copy.
+/// Stable string IDs for UI chrome (menus, HUD, overlays).
 ///
-/// German is the current locale table. Keys match catalog `tutorialHintID`s and
-/// are ready to migrate into a String Catalog later without renaming call sites.
+/// Level titles and tutorial hints live in
+/// `Resources/Localization/ContentStrings.de.json` via ``ContentStringTable``.
 enum AppStringID: String, CaseIterable, Sendable {
-    // Tutorial hints (also used as `SokobanLevelDescriptor.tutorialHintID`)
-    case hintSokobanMoveAndPush = "hint.sokoban.move_and_push"
-    case hintSokobanWalkAroundAndUndo = "hint.sokoban.walk_around_and_undo"
-    case hintSokobanCrateBlocking = "hint.sokoban.crate_blocking"
-
     // Level intro
     case uiIntroContinue = "ui.intro.continue"
     case uiIntroSkipHint = "ui.intro.skip_hint"
@@ -21,12 +16,27 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiOutcomePlayAgain = "ui.outcome.play_again"
     case uiOutcomeUndo = "ui.outcome.undo"
     case uiOutcomeBack = "ui.outcome.back"
+    case uiOutcomeMenu = "ui.outcome.menu"
     case uiOutcomeHintNext = "ui.outcome.hint_next"
     case uiOutcomeHintAgain = "ui.outcome.hint_again"
     case uiOutcomeHintBack = "ui.outcome.hint_back"
+    case uiOutcomeNewRecordMoves = "ui.outcome.new_record_moves"
+    case uiOutcomeNewRecordPushes = "ui.outcome.new_record_pushes"
+    case uiOutcomeBestMoves = "ui.outcome.best_moves"
+    case uiOutcomeBestPushes = "ui.outcome.best_pushes"
     case uiOutcomeAnimatingTitle = "ui.outcome.animating_title"
     case uiOutcomeAnimatingBody = "ui.outcome.animating_body"
     case uiOutcomeSkip = "ui.outcome.skip"
+
+    // Launch / level select
+    case uiLaunchTitle = "ui.launch.title"
+    case uiLaunchContinue = "ui.launch.continue"
+    case uiLaunchSelectLevel = "ui.launch.select_level"
+    case uiLevelSelectTitle = "ui.level_select.title"
+    case uiLevelSelectBack = "ui.level_select.back"
+    case uiLevelSelectLocked = "ui.level_select.locked"
+    case uiLevelSelectAvailable = "ui.level_select.available"
+    case uiLevelSelectCompleted = "ui.level_select.completed"
 
     // HUD
     case uiHudMoves = "ui.hud.moves"
@@ -42,6 +52,7 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiPauseHint = "ui.pause.hint"
     case uiPauseResume = "ui.pause.resume"
     case uiPauseRestart = "ui.pause.restart"
+    case uiPauseLevelSelect = "ui.pause.level_select"
 
     // Recovery / fault
     case uiRecoveryTitle = "ui.recovery.title"
@@ -62,13 +73,6 @@ enum AppStringID: String, CaseIterable, Sendable {
 /// Lookup table for ``AppStringID``. Missing dynamic IDs fall back to the raw key.
 enum AppStrings {
     private static let german: [String: String] = [
-        AppStringID.hintSokobanMoveAndPush.rawValue:
-            "Pfeiltasten bewegen. In eine Kiste laufen schiebt sie — ziehen geht nicht. Stelle sie auf das Ziel.",
-        AppStringID.hintSokobanWalkAroundAndUndo.rawValue:
-            "Lauf um Hindernisse herum, bevor du schiebst. Falscher Schub? Z = Undo, ⇧⌘Z = Redo.",
-        AppStringID.hintSokobanCrateBlocking.rawValue:
-            "Zwei Kisten blockieren einander. Plane die Schübe — sonst klemmen sie sich fest.",
-
         AppStringID.uiIntroContinue.rawValue: "Weiter",
         AppStringID.uiIntroSkipHint.rawValue: "Return, Space oder Escape startet",
 
@@ -77,13 +81,27 @@ enum AppStrings {
         AppStringID.uiOutcomeNextLevel.rawValue: "Nächstes Level",
         AppStringID.uiOutcomePlayAgain.rawValue: "Noch einmal",
         AppStringID.uiOutcomeUndo.rawValue: "Letzten Zug rückgängig",
-        AppStringID.uiOutcomeBack.rawValue: "Tutorial von vorn",
+        AppStringID.uiOutcomeBack.rawValue: "Zur Übersicht",
+        AppStringID.uiOutcomeMenu.rawValue: "Zur Übersicht",
         AppStringID.uiOutcomeHintNext.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
         AppStringID.uiOutcomeHintAgain.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
         AppStringID.uiOutcomeHintBack.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
+        AppStringID.uiOutcomeNewRecordMoves.rawValue: "Neuer Zugrekord",
+        AppStringID.uiOutcomeNewRecordPushes.rawValue: "Neuer Schubrekord",
+        AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
+        AppStringID.uiOutcomeBestPushes.rawValue: "Beste Schübe",
         AppStringID.uiOutcomeAnimatingTitle.rawValue: "Level geschafft",
         AppStringID.uiOutcomeAnimatingBody.rawValue: "Zug wird beendet… Return oder Space überspringt",
         AppStringID.uiOutcomeSkip.rawValue: "Überspringen",
+
+        AppStringID.uiLaunchTitle.rawValue: "SokoBoulder",
+        AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
+        AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
+        AppStringID.uiLevelSelectTitle.rawValue: "Levelauswahl",
+        AppStringID.uiLevelSelectBack.rawValue: "Zurück",
+        AppStringID.uiLevelSelectLocked.rawValue: "Gesperrt",
+        AppStringID.uiLevelSelectAvailable.rawValue: "Verfügbar",
+        AppStringID.uiLevelSelectCompleted.rawValue: "Geschafft",
 
         AppStringID.uiHudMoves.rawValue: "Züge",
         AppStringID.uiHudPushes.rawValue: "Schübe",
@@ -97,6 +115,7 @@ enum AppStrings {
         AppStringID.uiPauseHint.rawValue: "Escape setzt fort · Spielzug-Eingabe gesperrt",
         AppStringID.uiPauseResume.rawValue: "Fortsetzen",
         AppStringID.uiPauseRestart.rawValue: "Neu starten",
+        AppStringID.uiPauseLevelSelect.rawValue: "Levelauswahl",
 
         AppStringID.uiRecoveryTitle.rawValue: "Spielstand nicht ladbar",
         AppStringID.uiRecoveryFallback.rawValue: "Der gespeicherte Lauf ist nicht nutzbar.",
@@ -116,7 +135,9 @@ enum AppStrings {
         text(id: id.rawValue)
     }
 
-    /// Resolves a raw localization key (e.g. catalog `tutorialHintID`).
+    /// Resolves a raw localization key for UI chrome.
+    ///
+    /// Level titles and hints use ``ContentStringTable`` instead.
     static func text(id: String) -> String {
         german[id] ?? id
     }

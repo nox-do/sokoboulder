@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import GameCore
 @testable import MacGameApp
@@ -8,9 +9,15 @@ import Testing
 struct SokobanPlayControllerTests {
     private func makeController(holdAnimations: Bool = false) -> SokobanPlayController {
         let persistence = try! SokobanRunPersistence.ephemeral()
+        let catalog = try! BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try! ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         let controller = SokobanPlayController(
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
-            runPersistence: persistence
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog
         )
         controller.dismissLevelIntro()
         controller.scene.holdAnimationsForTesting = holdAnimations
@@ -35,6 +42,23 @@ struct SokobanPlayControllerTests {
         _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.space))
     }
 
+    @Test("content bootstrap failure enters faulted UI without a synthetic level")
+    func contentBootstrapFailureIsFaulted() throws {
+        let progress = ProgressPersistence.unavailable(reason: "Content unavailable")
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: try SokobanRunPersistence.ephemeral(),
+            progressPersistence: progress,
+            contentLoadFailureMessage: "Failed to load game content: missing manifest"
+        )
+
+        #expect(controller.presentationPhase == .faulted)
+        #expect(controller.session == nil)
+        #expect(controller.currentLevelID.isEmpty)
+        #expect(progress.file.unlockedLevelIDs.isEmpty)
+        #expect(controller.faultMessage == "Failed to load game content: missing manifest")
+    }
+
     @Test("activation while paused bumps pause focus epoch")
     func activationWhilePausedRequestsResumeFocus() {
         let controller = makeController()
@@ -43,6 +67,179 @@ struct SokobanPlayControllerTests {
         let before = controller.pauseFocusEpoch
         controller.handleAppActivation()
         #expect(controller.pauseFocusEpoch == before + 1)
+    }
+
+    @Test("completed campaign progress without a run opens launch menu")
+    func nonFreshProgressBootsToLaunchMenu() throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        _ = progress.recordCompletion(
+            levelID: catalog.first.id,
+            contentHash: catalog.first.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            moveCount: 1,
+            pushCount: 1,
+            nextLevelID: catalog.descriptor(after: catalog.first.id)?.id
+        )
+
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog
+        )
+
+        #expect(controller.presentationPhase == .launchMenu)
+        #expect(controller.session == nil)
+    }
+
+    @Test("non-fresh campaign with a saved run still opens launch menu")
+    func nonFreshProgressWithRunBootsToLaunchMenu() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SokoBoulder-launch-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let runPersistence = SokobanRunPersistence(
+            configuration: SokobanRunStoreConfiguration(
+                directoryURL: directory,
+                fileName: SokobanRunStoreConfiguration.defaultFileName
+            )
+        )
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(
+            directoryURL: directory,
+            firstLevelID: catalog.first.id
+        )
+
+        let priming = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog
+        )
+        priming.dismissLevelIntro()
+        completeDemoLevel(priming)
+        awaitOutcomeChoice(priming)
+        await runPersistence.flush()
+        #expect(runPersistence.load() != .absent)
+
+        // Reload progress from disk so the second controller sees the same campaign state.
+        let reloadedProgress = ProgressPersistence(
+            configuration: ProgressPersistence.Configuration(
+                directoryURL: directory,
+                fileName: ProgressPersistence.Configuration.defaultFileName
+            ),
+            firstLevelID: catalog.first.id
+        )
+        #expect(!reloadedProgress.file.isFreshCampaign)
+
+        let relaunch = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: reloadedProgress,
+            catalog: catalog
+        )
+        #expect(relaunch.presentationPhase == .launchMenu)
+        #expect(relaunch.session == nil)
+
+        relaunch.continueCampaign()
+        #expect(relaunch.session != nil)
+        #expect(
+            relaunch.presentationPhase == .playing
+                || relaunch.presentationPhase == .outcomeAwaitingChoice
+                || relaunch.presentationPhase == .levelIntro
+        )
+    }
+
+    @Test("better second completion after undo updates records")
+    func betterCompletionAfterUndoUpdatesRecords() throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog
+        )
+        controller.dismissLevelIntro()
+
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+        #expect(controller.outcomeNewBestMoves)
+        #expect(controller.outcomeNewBestPushes)
+        #expect(
+            progress.file.record(
+                levelID: catalog.first.id,
+                contentHash: catalog.first.contentHash,
+                ruleVersion: SokobanRules.ruleVersion
+            )?.bestMoveCount == 1
+        )
+
+        controller.undoFromOutcomeOverlay()
+        #expect(controller.presentationPhase == .playing)
+        #expect(controller.outcomeNewBestMoves == false)
+        #expect(controller.outcomeBestMoveCount == nil)
+
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+
+        let record = progress.file.record(
+            levelID: catalog.first.id,
+            contentHash: catalog.first.contentHash,
+            ruleVersion: SokobanRules.ruleVersion
+        )
+        #expect(record?.bestMoveCount == 1)
+        // Second terminal transition must run after undo cleared the session gate.
+        #expect(controller.outcomeBestMoveCount == 1)
+        #expect(controller.outcomeNewBestMoves == false)
+    }
+
+    @Test("better completion after restart updates records")
+    func betterCompletionAfterRestartUpdatesRecords() throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog
+        )
+        controller.dismissLevelIntro()
+
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+        controller.restartFromOutcomeOverlay()
+        #expect(controller.presentationPhase == .playing)
+        #expect(controller.outcomeBestMoveCount == nil)
+
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+        #expect(controller.outcomeBestMoveCount == 1)
+    }
+
+    @Test("next level updates lastSelectedLevelID")
+    func nextLevelUpdatesLastSelected() throws {
+        let controller = makeController()
+        completeDemoLevel(controller)
+        awaitOutcomeChoice(controller)
+        releaseOutcomeConfirmKeys(controller)
+        controller.performOutcomePrimaryAction()
+
+        #expect(controller.currentLevelID == "sokoban.tutorial.002")
+        #expect(
+            controller.progressPersistence.file.lastSelectedLevelID
+                == "sokoban.tutorial.002"
+        )
     }
 
     @Test("undo and redo use the shared controller/session API")

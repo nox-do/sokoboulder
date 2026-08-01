@@ -908,14 +908,16 @@ ASCII ist ein Importformat, nicht zwingend das dauerhafte Versandformat.
 
 ### 12.2 Kanonisches Format
 
-JSON mit Versionsnummer:
+JSON mit Versionsnummer. Das Level-JSON ist spielerisch autoritativ:
 
 ```json
 {
   "schemaVersion": 1,
   "id": "sokoban.intro.001",
   "game": "sokoban",
-  "title": "Der erste Schritt",
+  "titleID": "level.sokoban.intro.001.title",
+  "goalTextID": "level.sokoban.intro.001.goal",
+  "tutorialHintID": "hint.sokoban.move_and_push",
   "width": 7,
   "height": 5,
   "rows": [
@@ -928,6 +930,16 @@ JSON mit Versionsnummer:
   "rules": {}
 }
 ```
+
+Titel, Zieltext und Tutorialhinweise sind stabile String-IDs (datenbasierte
+Lokalisierung). Das Kampagnen-Manifest referenziert nur Dateipfade relativ zur
+Bundle-`Resources`-Wurzel (z. B. `Levels/…`) und die Freischaltreihenfolge; es
+wiederholt weder ID noch Titel noch Spieltyp. Unbekannte JSON-Keys und
+unbekannte Felder in `rules` werden abgelehnt; `rules` ist Pflicht.
+
+Der `contentHash` umfasst ausschließlich kanonische, gameplayrelevante Bytes:
+Spieltyp, Schema-Version, Rasterzeilen und Regeln. Präsentationstexte, Themes
+und Audio ändern den Hash nicht.
 
 Für Boulder Dash enthält `rules` unter anderem benötigte Diamanten, Zeitlimit,
 Werte und optionalen Simulationstakt.
@@ -1381,19 +1393,29 @@ Abnahme:
 
 ### Phase 3: Gemeinsame Plattform
 
-- JSON-Level und Manifest.
-- Fortschrittsspeicherung.
-- Theme- und Texture-Mapping.
-- Audio-Manifest und Audio-Theme-Mapping.
+Stabilisierung der Plattformverträge in fester Reihenfolge:
+Inhalt/Identität → Fortschritt/Navigation → gemeinsame Präsentations-UI →
+Theme/Renderer → Audio/Einstellungen → Replay-Grundlage.
+
+- JSON-Level und Manifest (V1); `contentHash` nur gameplayrelevant.
+- Fortschrittsspeicherung (`ProgressFileV1`); Freischaltung ≠ Bestwerte.
+- Minimale Levelauswahl und Fortsetzen.
+- Theme- und Texture-Mapping; Renderer endet immer im Ziel-Snapshot.
+- Audio-Manifest und Audio-Theme-Mapping; fehlende Assets blockieren nicht.
 - Gemeinsame Levelintro-, Hilfe- und Ergebnisansichten nach
   [GAMEPLAY.md](GAMEPLAY.md).
-- Render-Snapshots und Eventanimationen härten.
-- Replay-Grundlage.
+- Einstellungen: Bewegung reduzieren, Musik-/Effektlautstärke, Mute.
+- Replay-Grundlage (`ReplayFileV1`, Digest, Runner ohne Renderer).
 
 Abnahme:
 
-- Neue Level benötigen keine Codeänderung.
+- Neue Level benötigen keine Swift-Codeänderung (JSON, Manifest, Lokalisierung).
+- Alle gebündelten Inhalte und Manifeste werden automatisiert geladen und validiert.
 - Renderer kann jederzeit aus einem Snapshot neu aufgebaut werden.
+- GameCore- und App-Tests bleiben grün.
+
+Explizit nicht in Phase 3: `CaveState`, Tick-Loop, Gravitation, Gegner, Kamera
+oder ein gemeinsames `GameRules`-Protokoll.
 
 ### Phase 3.5: Höhlenregel-Spike
 

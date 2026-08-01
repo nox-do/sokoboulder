@@ -7,9 +7,32 @@ struct ContentView: View {
     @State private var overlayKeyMonitor: Any?
     @State private var owningWindowNumber: Int?
 
-    init(runPersistence: SokobanRunPersistence) {
+    init(
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        catalog: SokobanContentCatalog
+    ) {
         _controller = StateObject(
-            wrappedValue: SokobanPlayController(runPersistence: runPersistence)
+            wrappedValue: SokobanPlayController(
+                runPersistence: runPersistence,
+                progressPersistence: progressPersistence,
+                catalog: catalog
+            )
+        )
+    }
+
+    init(
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        contentLoadFailureMessage: String
+    ) {
+        _controller = StateObject(
+            wrappedValue: SokobanPlayController(
+                audioDirector: AudioDirector(),
+                runPersistence: runPersistence,
+                progressPersistence: progressPersistence,
+                contentLoadFailureMessage: contentLoadFailureMessage
+            )
         )
     }
 
@@ -31,9 +54,13 @@ struct ContentView: View {
             .frame(minWidth: 520, minHeight: 400)
             .accessibilityIdentifier("app.root")
 
-            VStack(spacing: 0) {
-                SokobanHUDView(controller: controller)
-                Spacer(minLength: 0)
+            if controller.presentationPhase != .launchMenu,
+               controller.presentationPhase != .levelSelection
+            {
+                VStack(spacing: 0) {
+                    SokobanHUDView(controller: controller)
+                    Spacer(minLength: 0)
+                }
             }
 
             switch controller.presentationPhase {
@@ -50,6 +77,10 @@ struct ContentView: View {
                 SokobanOutcomeOverlay(controller: controller)
             case .runRecovery:
                 SokobanRunRecoveryOverlay(controller: controller)
+            case .launchMenu:
+                SokobanLaunchMenuOverlay(controller: controller)
+            case .levelSelection:
+                SokobanLevelSelectionOverlay(controller: controller)
             case .faulted:
                 faultOverlay
             case .playing:
@@ -135,5 +166,22 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(runPersistence: SokobanRunPersistence.disabled(reason: "Preview"))
+    if let catalog = try? BundleContentLoader.loadSokobanCatalog(
+        from: Bundle(for: SokobanPlayController.self)
+    ) {
+        ContentView(
+            runPersistence: SokobanRunPersistence.disabled(reason: "Preview"),
+            progressPersistence: ProgressPersistence.disabled(
+                reason: "Preview",
+                firstLevelID: catalog.first.id
+            ),
+            catalog: catalog
+        )
+    } else {
+        ContentView(
+            runPersistence: SokobanRunPersistence.disabled(reason: "Preview"),
+            progressPersistence: ProgressPersistence.unavailable(reason: "Preview"),
+            contentLoadFailureMessage: "Preview content is unavailable."
+        )
+    }
 }
