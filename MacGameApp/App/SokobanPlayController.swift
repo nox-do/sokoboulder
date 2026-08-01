@@ -15,6 +15,7 @@ final class SokobanPlayController: ObservableObject {
 
     let scene: SokobanBoardScene
     let router = GameplayInputRouter()
+    let audioDirector: AudioDirector
 
     private(set) var session: GameSession?
 
@@ -44,7 +45,8 @@ final class SokobanPlayController: ObservableObject {
     private let demoLevelID = "spike.demo"
     private let demoLevelTitle = "Demo 1"
 
-    init() {
+    init(audioDirector: AudioDirector = AudioDirector()) {
+        self.audioDirector = audioDirector
         scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         startLevel()
     }
@@ -53,6 +55,7 @@ final class SokobanPlayController: ObservableObject {
 
     func startLevel() {
         cancelOutcomeWait()
+        audioDirector.reset()
         // New GameSession restarts revisions at 0→1; clear stale settledRevision.
         scene.prepareForNewSession()
         do {
@@ -65,6 +68,7 @@ final class SokobanPlayController: ObservableObject {
             presentationPhase = .playing
             router.enterGameplay()
             scene.apply(emission.render)
+            audioDirector.apply(emission.audio)
             applyEmissionSideEffects(emission)
             refreshPublishedState()
         } catch {
@@ -72,6 +76,7 @@ final class SokobanPlayController: ObservableObject {
             presentationPhase = .faulted
             faultMessage = "Failed to load level: \(error)"
             router.enterModalBlocked()
+            audioDirector.reset()
             refreshPublishedState()
         }
     }
@@ -100,12 +105,26 @@ final class SokobanPlayController: ObservableObject {
 
     func handleAppDeactivation() {
         router.clearPendingInputs()
+        // Always cut voices on focus loss — including during outcome presentation.
+        audioDirector.interrupt()
         guard let session else { return }
 
         switch session.phase {
         case .playing:
-            pauseFromShell()
+            pauseFromShell(alreadyInterrupted: true)
         case .outcomePresenting, .paused, .created, .faulted:
+            break
+        }
+    }
+
+    /// Restores audible music after focus return when the shell stayed in outcome.
+    ///
+    /// Pause stays interrupted until the player explicitly resumes.
+    func handleAppActivation() {
+        switch presentationPhase {
+        case .outcomeAnimating, .outcomeAwaitingChoice:
+            audioDirector.resumePlayback()
+        case .playing, .paused, .faulted:
             break
         }
     }
@@ -202,9 +221,12 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    private func pauseFromShell() {
+    private func pauseFromShell(alreadyInterrupted: Bool = false) {
         guard let session, session.phase == .playing else { return }
         session.pause()
+        if !alreadyInterrupted {
+            audioDirector.interrupt()
+        }
         router.enterPaused()
         presentationPhase = .paused
         refreshPublishedState()
@@ -213,6 +235,7 @@ final class SokobanPlayController: ObservableObject {
     private func resumeFromShell() {
         guard let session, session.phase == .paused else { return }
         session.resume()
+        audioDirector.resumePlayback()
         router.enterGameplay()
         presentationPhase = .playing
         refreshPublishedState()
@@ -221,6 +244,7 @@ final class SokobanPlayController: ObservableObject {
     private func resumeIfPaused() {
         guard let session, session.phase == .paused else { return }
         session.resume()
+        audioDirector.resumePlayback()
         // Caller continues with a command; router mode is set by applyResults.
     }
 
@@ -238,6 +262,7 @@ final class SokobanPlayController: ObservableObject {
 
             case .emitted(let emission):
                 scene.apply(emission.render)
+                audioDirector.apply(emission.audio)
                 applyEmissionSideEffects(emission)
 
             case .faulted(let message):
@@ -246,6 +271,7 @@ final class SokobanPlayController: ObservableObject {
                 faultMessage = message
                 router.enterModalBlocked()
                 scene.discardPendingPresentation()
+                audioDirector.reset()
                 session = nil
                 refreshPublishedState()
                 return

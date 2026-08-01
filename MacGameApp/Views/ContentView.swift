@@ -57,6 +57,11 @@ struct ContentView: View {
         ) { _ in
             controller.handleAppDeactivation()
         }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+        ) { _ in
+            controller.handleAppActivation()
+        }
     }
 
     /// While overlays own first-responder focus, forward keys through the router.

@@ -60,7 +60,7 @@ Vertragsentscheidungen:
 4. [x] InputMapper (Repeats verwerfen) + Input-Router (Outcome-Gate, Modal) + App-Verdrahtung
 5. [x] SpriteKit-Platzhalter (Rechtecke), Hard-Resync, `GridGeometry` + sichtbare Spike-Integration
 6. [x] HUD, Abschlussablauf, Undo/Redo/Neustart, Pause-Overlay, macOS-Commands
-7. [ ] AudioDirector klein, aber vertragstreu
+7. [x] AudioDirector klein, aber vertragstreu
 8. [ ] `SokobanRunFileV1` + Wiederaufnahme (nach Bundle-ID)
 9. [ ] Drei Tutorial-Level nach GAMEPLAY.md
 
@@ -101,6 +101,18 @@ Vertragsentscheidungen:
 - Outcome ohne `.defaultAction`; Confirm nur über Router-Gate
 - `prepareForNewSession()` vor neuem Session-Bootstrap; In-Session-Restart behält Revisionsstrom
 
+### Audio-Entscheidungen (Schritt 7)
+
+- `AudioDirector` + injizierbares `AudioPlaybackBackend`; Produktion: prozedurale AVFAudio-Töne (keine Fremd-Assets)
+- Lifecycle getrennt vom Revisionsvertrag: `interrupt()` / `resumePlayback()` / `reset()`
+- Pause/Fokusverlust emittieren kein `AudioUpdate`; Controller ruft Lifecycle direkt
+- `.perform` → Cues einmal; `.synchronize` / Vorwärtslücke → `stopAllEffects` + Musik angleichen; Duplikat/veraltet (`<= last`) verwerfen
+- Fokusverlust: immer `interrupt()` (auch Outcome); Aktivierung: `resumePlayback()` nur im Outcome (Pause bleibt bis explizitem Resume)
+- Schub: nur `cratePushed` (kein zusätzlicher Schritt-Cue)
+- Cues: Schritt, blockiert, Schub, Ziel betreten/verlassen, Level abgeschlossen
+- Musik: ruhiger synthetischer Loop bei `.playing`; bei `.completed`/`.failed` stoppen
+- Spy-Backend-Tests; bestehende Controller-Tests nutzen `NoOpAudioPlaybackBackend`
+
 ### Bewusst nicht in Phase 2
 
 - gemeinsames `GameRules`-Protokoll
@@ -111,6 +123,8 @@ Vertragsentscheidungen:
 - Asset-/Audiopolishing vor Hard-Resync
 - `ObservableObject` pro Tile/Entity (Session-weit ok)
 - eigene Hold-Wiederholung unabhängig von macOS-Repeat
+- Lautstärke-/Mute-UI, UI-Sounds, Menü-Audio ohne Revision (später)
+- CC0-Bundle-Assets inkl. Lizenznachweis (erst nach Hörprobe laut AUDIO.md)
 
 ## Später
 

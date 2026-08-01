@@ -7,7 +7,9 @@ import Testing
 @MainActor
 struct SokobanPlayControllerTests {
     private func makeController(holdAnimations: Bool = false) -> SokobanPlayController {
-        let controller = SokobanPlayController()
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend())
+        )
         controller.scene.holdAnimationsForTesting = holdAnimations
         return controller
     }
