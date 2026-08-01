@@ -7,8 +7,10 @@ import Testing
 @MainActor
 struct SokobanPlayControllerTests {
     private func makeController(holdAnimations: Bool = false) -> SokobanPlayController {
+        let persistence = try! SokobanRunPersistence.ephemeral()
         let controller = SokobanPlayController(
-            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend())
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: persistence
         )
         controller.scene.holdAnimationsForTesting = holdAnimations
         return controller

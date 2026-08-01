@@ -4,6 +4,10 @@
 /// are assigned in ``start(level:)`` so two starts of the same level produce
 /// identical states. Public transitions check essential invariants in all builds.
 public struct SokobanRules: Sendable {
+    /// Bump only when replay or checkpoint semantics change — not for refactors,
+    /// UI, or rendering.
+    public static let ruleVersion: Int = 1
+
     public init() {}
 
     /// Builds the initial run state. Crate IDs are assigned in row-major order
@@ -50,6 +54,74 @@ public struct SokobanRules: Sendable {
             state.status = .completed
         }
 
+        try state.validateEssentials()
+        return state
+    }
+
+    /// Extracts a semantic checkpoint from an authoritative state.
+    ///
+    /// Crates are sorted by ascending entity ID. Does not validate against a level;
+    /// pair with ``restore(level:checkpoint:)`` for that.
+    public func checkpoint(from state: SokobanState) -> SokobanCheckpoint {
+        var crates: [SokobanCratePlacement] = []
+        for row in 0..<state.grid.height {
+            for column in 0..<state.grid.width {
+                let position = GridPosition(column: column, row: row)
+                if case .crate(let id)? = state.grid[position].occupant {
+                    crates.append(SokobanCratePlacement(id: id, position: position))
+                }
+            }
+        }
+        crates.sort { $0.id.rawValue < $1.id.rawValue }
+        return SokobanCheckpoint(
+            playerPosition: state.playerPosition,
+            crates: crates,
+            moveCount: state.moveCount,
+            pushCount: state.pushCount,
+            status: state.status
+        )
+    }
+
+    /// Rebuilds a ``SokobanState`` from level terrain and a semantic checkpoint.
+    ///
+    /// Validates crate IDs against the canonical set `2...(crateCount+1)`,
+    /// uniqueness, walkability, counters, and status/goal consistency.
+    public func restore(
+        level: SokobanLevel,
+        checkpoint: SokobanCheckpoint
+    ) throws(EngineFault) -> SokobanState {
+        try validateLevel(level)
+        try validateCheckpoint(checkpoint, against: level)
+
+        var cells: [SokobanCell] = []
+        cells.reserveCapacity(level.width * level.height)
+        var occupantByPosition: [GridPosition: EntityID] = [:]
+        for crate in checkpoint.crates {
+            occupantByPosition[crate.position] = crate.id
+        }
+
+        for row in 0..<level.height {
+            for column in 0..<level.width {
+                let position = GridPosition(column: column, row: row)
+                let terrain = level.terrain[position]
+                let occupant: SokobanOccupant?
+                if let id = occupantByPosition[position] {
+                    occupant = .crate(id)
+                } else {
+                    occupant = nil
+                }
+                cells.append(SokobanCell(terrain: terrain, occupant: occupant))
+            }
+        }
+
+        let state = SokobanState(
+            grid: Grid(width: level.width, height: level.height, cells: cells),
+            playerPosition: checkpoint.playerPosition,
+            playerID: EntityID(1),
+            status: checkpoint.status,
+            moveCount: checkpoint.moveCount,
+            pushCount: checkpoint.pushCount
+        )
         try state.validateEssentials()
         return state
     }
@@ -104,6 +176,85 @@ public struct SokobanRules: Sendable {
 
         try transition.state.validateEssentials()
         return transition
+    }
+
+    private func validateCheckpoint(
+        _ checkpoint: SokobanCheckpoint,
+        against level: SokobanLevel
+    ) throws(EngineFault) {
+        guard checkpoint.moveCount >= 0, checkpoint.pushCount >= 0 else {
+            throw .invariantViolated("Checkpoint counters must be non-negative")
+        }
+        guard checkpoint.pushCount <= checkpoint.moveCount else {
+            throw .invariantViolated("Checkpoint pushCount cannot exceed moveCount")
+        }
+
+        switch checkpoint.status {
+        case .playing, .completed:
+            break
+        case .failed:
+            throw .invariantViolated("Sokoban checkpoints do not use failed status")
+        }
+
+        let expectedIDs: [UInt64] = (0..<level.crateStarts.count).map { UInt64($0 + 2) }
+        let sortedCrates = checkpoint.crates.sorted { $0.id.rawValue < $1.id.rawValue }
+        guard sortedCrates.map(\.id.rawValue) == checkpoint.crates.map(\.id.rawValue) else {
+            throw .invariantViolated("Checkpoint crates must be sorted by ascending ID")
+        }
+        guard sortedCrates.map(\.id.rawValue) == expectedIDs else {
+            throw .invariantViolated(
+                "Checkpoint crate IDs must be exactly the canonical set 2...\(level.crateStarts.count + 1)"
+            )
+        }
+
+        guard level.terrain.contains(checkpoint.playerPosition) else {
+            throw .invariantViolated("Checkpoint player outside grid")
+        }
+        let playerTerrain = level.terrain[checkpoint.playerPosition]
+        guard playerTerrain == .floor || playerTerrain == .goal else {
+            throw .invariantViolated("Checkpoint player on non-walkable terrain")
+        }
+
+        var seenPositions: Set<GridPosition> = [checkpoint.playerPosition]
+        var cratesOnGoals = 0
+        var goalCount = 0
+        for row in 0..<level.height {
+            for column in 0..<level.width {
+                if level.terrain[GridPosition(column: column, row: row)] == .goal {
+                    goalCount += 1
+                }
+            }
+        }
+
+        for crate in sortedCrates {
+            guard level.terrain.contains(crate.position) else {
+                throw .invariantViolated("Checkpoint crate outside grid at \(crate.position)")
+            }
+            let terrain = level.terrain[crate.position]
+            guard terrain == .floor || terrain == .goal else {
+                throw .invariantViolated("Checkpoint crate on non-walkable terrain at \(crate.position)")
+            }
+            guard seenPositions.insert(crate.position).inserted else {
+                throw .invariantViolated("Checkpoint has overlapping entities at \(crate.position)")
+            }
+            if terrain == .goal {
+                cratesOnGoals += 1
+            }
+        }
+
+        let allGoalsFilled = goalCount > 0 && cratesOnGoals == goalCount
+        switch checkpoint.status {
+        case .playing:
+            guard !allGoalsFilled else {
+                throw .invariantViolated("Playing checkpoint with all goals filled")
+            }
+        case .completed:
+            guard allGoalsFilled else {
+                throw .invariantViolated("Completed checkpoint without all goals filled")
+            }
+        case .failed:
+            throw .invariantViolated("Sokoban checkpoints do not use failed status")
+        }
     }
 
     private func validateLevel(_ level: SokobanLevel) throws(EngineFault) {

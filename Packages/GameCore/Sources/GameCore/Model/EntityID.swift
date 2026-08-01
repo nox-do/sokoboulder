@@ -1,7 +1,8 @@
 /// Stable identity for a movable entity within one level run.
 ///
 /// IDs are assigned deterministically at ``SokobanRules/start(level:)`` (and later
-/// cave start) and are not persisted across runs or save formats.
+/// cave start). Within a run they may appear in semantic checkpoints; they are not
+/// a cross-run progress key.
 public struct EntityID: Hashable, Codable, Sendable {
     public let rawValue: UInt64
 

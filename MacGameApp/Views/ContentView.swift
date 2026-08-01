@@ -3,9 +3,15 @@ import SwiftUI
 
 /// Main play surface: board, HUD, pause / outcome overlays, focus wiring.
 struct ContentView: View {
-    @StateObject private var controller = SokobanPlayController()
+    @StateObject private var controller: SokobanPlayController
     @State private var overlayKeyMonitor: Any?
     @State private var owningWindowNumber: Int?
+
+    init(runPersistence: SokobanRunPersistence) {
+        _controller = StateObject(
+            wrappedValue: SokobanPlayController(runPersistence: runPersistence)
+        )
+    }
 
     private var boardClaimsKeyboardFocus: Bool {
         controller.presentationPhase == .playing
@@ -40,10 +46,27 @@ struct ContentView: View {
                 }
             case .outcomeAwaitingChoice:
                 SokobanOutcomeOverlay(controller: controller)
+            case .runRecovery:
+                SokobanRunRecoveryOverlay(controller: controller)
             case .faulted:
                 faultOverlay
             case .playing:
                 EmptyView()
+            }
+
+            if let diagnostic = controller.persistenceDiagnostic,
+               controller.presentationPhase != .runRecovery,
+               controller.presentationPhase != .faulted
+            {
+                VStack {
+                    Spacer()
+                    Text(diagnostic)
+                        .font(.caption)
+                        .padding(10)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .padding()
+                }
+                .allowsHitTesting(false)
             }
         }
         .focusedValue(\.sokobanPlayController, controller)
@@ -110,5 +133,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(runPersistence: SokobanRunPersistence.disabled(reason: "Preview"))
 }

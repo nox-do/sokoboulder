@@ -1,19 +1,33 @@
 import GameCore
 
+/// Narrow sink used by ``GameSession``; write generations live in persistence.
+@MainActor
+protocol SokobanRunSaveSink: AnyObject {
+    func scheduleSave(_ file: SokobanRunFileV1)
+}
+
 /// `@MainActor` owner of Sokoban run state, history, input queue, and revision.
 ///
 /// The renderer and audio director never call ``SokobanRules`` directly.
 /// Productive movement entry is ``submitMove(_:)``, which owns enqueue + drain.
+/// Persistable journal lives here; the controller must not infer saves from render.
 @MainActor
 final class GameSession {
     static let moveQueueLimit = 2
-    static let historyLimit = 1_000
+    static let historyLimit = SokobanRunRestorer.commandLimit
 
     private let rules = SokobanRules()
+    private let level: SokobanLevel
     private let levelID: String
+    private let contentHash: String
+    private weak var saveSink: SokobanRunSaveSink?
 
     private var state: SokobanState
+    /// True level start — restart returns here even after checkpoint compaction.
     private var initialState: SokobanState
+    private var checkpoint: SokobanCheckpoint
+    private var journalCommands: [Direction] = []
+    private var journalCursor: Int = 0
     private var undoStack: [SokobanState] = []
     private var redoStack: [SokobanState] = []
     private var pendingMoves: [Direction] = []
@@ -24,11 +38,39 @@ final class GameSession {
     /// Emission produced by ``start()`` — always a hard-resync, optionally outcome.
     private(set) var bootstrapEmission: SessionEmission?
 
-    init(level: SokobanLevel, levelID: String = "untitled") throws {
+    /// Fresh run at level start.
+    init(
+        level: SokobanLevel,
+        levelID: String = "untitled",
+        contentHash: String = "",
+        saveSink: SokobanRunSaveSink? = nil
+    ) throws {
+        self.level = level
         self.levelID = levelID
+        self.contentHash = contentHash
+        self.saveSink = saveSink
         let started = try SokobanRules().start(level: level)
         self.state = started
         self.initialState = started
+        self.checkpoint = SokobanRules().checkpoint(from: started)
+    }
+
+    /// Restored run after successful ``SokobanRunRestorer`` replay.
+    init(
+        restored: SokobanRunRestoreResult,
+        saveSink: SokobanRunSaveSink? = nil
+    ) {
+        self.level = restored.level
+        self.levelID = restored.levelID
+        self.contentHash = restored.contentHash
+        self.saveSink = saveSink
+        self.state = restored.currentState
+        self.initialState = restored.initialState
+        self.checkpoint = restored.checkpoint
+        self.journalCommands = restored.commands
+        self.journalCursor = restored.cursor
+        self.undoStack = restored.undoStack
+        self.redoStack = restored.redoStack
     }
 
     /// Emits the initial hard-resync (revision 0 → 1). Call once after construction.
@@ -52,12 +94,15 @@ final class GameSession {
             appTransition: transition
         )
         bootstrapEmission = emission
+        persistRun()
         return emission
     }
 
     var undoCount: Int { undoStack.count }
     var redoCount: Int { redoStack.count }
     var pendingMoveCount: Int { pendingMoves.count }
+    var journalCommandCount: Int { journalCommands.count }
+    var journalCursorValue: Int { journalCursor }
 
     /// Moves are accepted only while actively playing (not paused / outcome / fault).
     var canAcceptMove: Bool { phase == .playing }
@@ -70,6 +115,19 @@ final class GameSession {
         case .created, .paused, .faulted:
             false
         }
+    }
+
+    /// Immutable run snapshot for the current journal / checkpoint.
+    func makeRunFile() throws -> SokobanRunFileV1 {
+        SokobanRunFileV1(
+            schemaVersion: SokobanRunFileV1.currentSchemaVersion,
+            levelID: levelID,
+            contentHash: contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            checkpoint: try SokobanCheckpointV1(semantic: checkpoint),
+            commands: journalCommands.map(SokobanDirectionV1.init),
+            cursor: journalCursor
+        )
     }
 
     /// Productive movement facade: enqueue then drain the Sokoban queue immediately.
@@ -188,8 +246,7 @@ final class GameSession {
 
         switch transition.outcome {
         case .changed, .terminal:
-            pushUndo(previous)
-            redoStack.removeAll(keepingCapacity: true)
+            recordChangingMove(direction, previous: previous)
         case .blocked:
             break
         }
@@ -212,11 +269,28 @@ final class GameSession {
         )
     }
 
+    private func recordChangingMove(_ direction: Direction, previous: SokobanState) {
+        if journalCursor < journalCommands.count {
+            journalCommands.removeSubrange(journalCursor...)
+        }
+        journalCommands.append(direction)
+        journalCursor = journalCommands.count
+
+        undoStack.append(previous)
+        redoStack.removeAll(keepingCapacity: true)
+
+        compactJournalIfNeeded()
+        persistRun()
+    }
+
     private func applyUndo() -> SessionApplyResult {
         guard let restored = undoStack.popLast() else { return .ignored }
+        guard journalCursor > 0 else { return .ignored }
+
         redoStack.append(state)
-        trimHistory(&redoStack)
+        journalCursor -= 1
         state = restored
+        persistRun()
 
         let transition: SessionAppTransition?
         if phase == .outcomePresenting, state.status == .playing {
@@ -238,9 +312,12 @@ final class GameSession {
 
     private func applyRedo() -> SessionApplyResult {
         guard let restored = redoStack.popLast() else { return .ignored }
+        guard journalCursor < journalCommands.count else { return .ignored }
+
         undoStack.append(state)
-        trimHistory(&undoStack)
+        journalCursor += 1
         state = restored
+        persistRun()
 
         var appTransition: SessionAppTransition?
         if state.status == .completed, phase != .outcomePresenting {
@@ -262,7 +339,11 @@ final class GameSession {
         let wasOutcome = phase == .outcomePresenting
         undoStack.removeAll(keepingCapacity: true)
         redoStack.removeAll(keepingCapacity: true)
+        journalCommands.removeAll(keepingCapacity: true)
+        journalCursor = 0
+        checkpoint = rules.checkpoint(from: initialState)
         state = initialState
+        persistRun()
 
         let transition: SessionAppTransition?
         if state.status == .completed {
@@ -283,14 +364,39 @@ final class GameSession {
         )
     }
 
-    private func pushUndo(_ previous: SokobanState) {
-        undoStack.append(previous)
-        trimHistory(&undoStack)
+    /// Advances the checkpoint by the oldest command when the journal exceeds the limit.
+    private func compactJournalIfNeeded() {
+        while journalCommands.count > Self.historyLimit {
+            let oldest = journalCommands.removeFirst()
+            do {
+                let before = try rules.restore(level: level, checkpoint: checkpoint)
+                let transition = try rules.move(oldest, in: before)
+                switch transition.outcome {
+                case .changed, .terminal:
+                    checkpoint = rules.checkpoint(from: transition.state)
+                case .blocked:
+                    // Should be unreachable for a journal of applied commands.
+                    phase = .faulted
+                    return
+                }
+            } catch {
+                phase = .faulted
+                return
+            }
+
+            if !undoStack.isEmpty {
+                undoStack.removeFirst()
+            }
+            journalCursor = max(0, journalCursor - 1)
+        }
     }
 
-    private func trimHistory(_ stack: inout [SokobanState]) {
-        if stack.count > Self.historyLimit {
-            stack.removeFirst(stack.count - Self.historyLimit)
+    private func persistRun() {
+        guard let saveSink else { return }
+        do {
+            try saveSink.scheduleSave(makeRunFile())
+        } catch {
+            // Encoding failure is a persistence diagnosis, not a session fault.
         }
     }
 
@@ -325,5 +431,8 @@ final class GameSession {
     func replaceStateForTesting(_ newState: SokobanState) {
         state = newState
     }
+
+    /// Test-only: inspect checkpoint after compaction.
+    var checkpointForTesting: SokobanCheckpoint { checkpoint }
     #endif
 }

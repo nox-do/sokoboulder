@@ -74,9 +74,11 @@ struct SokobanLevelCatalogTests {
     }
 
     @Test("play controller boots the first catalog level")
-    func playControllerUsesCatalog() {
+    func playControllerUsesCatalog() throws {
+        let persistence = try SokobanRunPersistence.ephemeral()
         let controller = SokobanPlayController(
-            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend())
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: persistence
         )
         #expect(controller.levelTitle == "Der erste Schub")
         #expect(controller.session != nil)

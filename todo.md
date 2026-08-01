@@ -62,7 +62,7 @@ Vertragsentscheidungen:
 6. [x] HUD, Abschlussablauf, Undo/Redo/Neustart, Pause-Overlay, macOS-Commands
 7. [x] AudioDirector klein, aber vertragstreu
 7b. [x] Bundle-ID + `SokobanLevelDescriptor`-Katalog (Vorlauf zu Schritt 8)
-8. [ ] `SokobanRunFileV1` + Wiederaufnahme
+8. [x] `SokobanRunFileV1` + Wiederaufnahme
 9. [ ] Tutorial-UI (Hinweise, Levelwechsel, Abschlussaktion Level 3) — Geometrie/Hashes bereits im Katalog
 
 ### Preflight-Notizen
@@ -121,6 +121,22 @@ Vertragsentscheidungen:
 - Canonical Hash: ASCII-Map-Zeilen mit `\n` verbunden, kein trailing newline; kein `Hasher`
 - Katalog-IDs: `sokoban.tutorial.001`–`003` (spike.demo entfernt)
 - Play-Controller startet Katalog-Level 1; Levelwechsel-UI folgt in Schritt 9
+
+### Persistenz-Entscheidungen (Schritt 8)
+
+- GameCore: `SokobanRules.ruleVersion = 1`, semantisches `SokobanCheckpoint` + `checkpoint(from:)` / `restore(level:checkpoint:)` (kein JSON/I/O)
+- App-DTO `SokobanRunFileV1` unter `MacGameApp/Persistence/`; Richtungen/Status mit expliziten String-Raw-Values
+- Journal + Cursor in `GameSession`; Speichern über `SokobanRunSaveSink`; Schreibgeneration im Persistence-Coordinator/Writer
+- Restore ausschließlich per Replay; Undo-/Redo-Stacks aus Zwischenzuständen (`redoStack` so, dass `popLast()` den Zustand direkt nach dem Cursor liefert)
+- Kompaktion bei >1000 Befehlen: ältesten Befehl in Checkpoint einrechnen, Undo-Stack mitkürzen
+- Pfad: Application Support/SokoBoulder/sokoban-run-v1.json (injizierbar); 256 KiB Limit; atomarer Write; Flush bei Deaktivierung/Beenden
+- Fehlende Datei = Erststart; ungültig → `.invalid-<timestamp>` Backup (außer neuer Schemaversion/Lesefehler) + Recovery-Overlay; Schreibfehler nichtterminal
+- Abgeschlossener Lauf bleibt speicherbar/undo-fähig bis Restart (Nächstes Level = Schritt 9)
+- Beenden: `applicationShouldTerminate` → `.terminateLater` + `flush()` enqueued zuerst das gecachte DTO (Generation N), dann `writer.flush()` (kein Sync-Write vor In-flight-Writes)
+- Phase 2: einzelnes `Window` (kein `WindowGroup`), eine appweite Persistenz-Instanz
+- Nur `schemaVersion > current` unangetastet; ältere Schemas werden quarantänisiert
+- Fehlender Application-Support-Pfad → disabled/no-op Store + sichtbare Diagnose (kein stilles Ephemeral)
+- Writer: enqueue ersetzt nur `pending`, ein Drain-Worker coalesct und schreibt I/O off-actor
 
 ### Bewusst nicht in Phase 2
 

@@ -9,5 +9,7 @@ enum GamePresentationPhase: Equatable, Sendable {
     case outcomeAnimating
     /// Result overlay is interactive.
     case outcomeAwaitingChoice
+    /// Blocking recovery when a run file exists but cannot be restored.
+    case runRecovery
     case faulted
 }

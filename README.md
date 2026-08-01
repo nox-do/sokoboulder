@@ -58,4 +58,6 @@ Das Auslieferungsziel ist eine macOS-`.dmg` (siehe
 
 ## Projektstand
 
-Phase 1 (Sokoban-Kern) ist abgenommen. Phase 2 (spielbare Mac-App) ist in Arbeit.
+Phase 1 (Sokoban-Kern) ist abgenommen. Phase 2 (spielbare Mac-App) ist in Arbeit:
+Schritte 1–8 (inkl. `SokobanRunFileV1`-Wiederaufnahme) sind umgesetzt; Schritt 9
+(Tutorial-UI / Levelwechsel) steht noch aus.

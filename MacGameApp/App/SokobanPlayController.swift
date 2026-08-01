@@ -16,6 +16,7 @@ final class SokobanPlayController: ObservableObject {
     let scene: SokobanBoardScene
     let router = GameplayInputRouter()
     let audioDirector: AudioDirector
+    let runPersistence: SokobanRunPersistence
 
     private(set) var session: GameSession?
 
@@ -31,6 +32,10 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var canResume = false
     @Published private(set) var canRestart = false
     @Published private(set) var faultMessage: String?
+    /// Blocking recovery copy when a run file cannot be restored.
+    @Published private(set) var recoveryMessage: String?
+    /// Non-blocking persistence warning; gameplay continues.
+    @Published private(set) var persistenceDiagnostic: String?
     @Published private(set) var outcomeHint = "Press Return when ready"
 
     private var outcomeTimeoutItem: DispatchWorkItem?
@@ -39,19 +44,36 @@ final class SokobanPlayController: ObservableObject {
 
     private var currentLevelID: String = SokobanLevelCatalog.first.id
 
-    init(audioDirector: AudioDirector = AudioDirector()) {
+    init(
+        audioDirector: AudioDirector = AudioDirector(),
+        runPersistence: SokobanRunPersistence
+    ) {
         self.audioDirector = audioDirector
-        scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
-        startLevel()
+        self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        self.runPersistence = runPersistence
+        self.runPersistence.onSaveFailure = { [weak self] message in
+            self?.persistenceDiagnostic = "Could not save progress: \(message)"
+        }
+        if let reason = runPersistence.disabledReason {
+            self.persistenceDiagnostic = reason
+        }
+        bootstrapFromPersistence()
     }
 
     // MARK: - Lifecycle
 
+    /// Loads a catalog level without consulting the run file (explicit restart / recovery).
     func startLevel(id: String? = nil) {
         cancelOutcomeWait()
         audioDirector.reset()
-        // New GameSession restarts revisions at 0→1; clear stale settledRevision.
         scene.prepareForNewSession()
+        recoveryMessage = nil
+        // Keep a disabled-store warning visible; clear transient write errors.
+        if let reason = runPersistence.disabledReason {
+            persistenceDiagnostic = reason
+        } else {
+            persistenceDiagnostic = nil
+        }
 
         let levelID = id ?? currentLevelID
         guard let descriptor = SokobanLevelCatalog.descriptor(id: levelID) else {
@@ -66,18 +88,13 @@ final class SokobanPlayController: ObservableObject {
 
         do {
             let level = try descriptor.makeLevel()
-            let newSession = try GameSession(level: level, levelID: descriptor.id)
-            let emission = newSession.start()
-            session = newSession
-            currentLevelID = descriptor.id
-            faultMessage = nil
-            levelTitle = descriptor.title
-            presentationPhase = .playing
-            router.enterGameplay()
-            scene.apply(emission.render)
-            audioDirector.apply(emission.audio)
-            applyEmissionSideEffects(emission)
-            refreshPublishedState()
+            let newSession = try GameSession(
+                level: level,
+                levelID: descriptor.id,
+                contentHash: descriptor.contentHash,
+                saveSink: runPersistence
+            )
+            bootstrapSession(newSession, descriptor: descriptor)
         } catch {
             session = nil
             presentationPhase = .faulted
@@ -88,12 +105,22 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    /// Clears a bad run and starts catalog level 1.
+    func beginFreshRunFromRecovery() {
+        runPersistence.removeRunFile()
+        recoveryMessage = nil
+        currentLevelID = SokobanLevelCatalog.first.id
+        startLevel(id: SokobanLevelCatalog.first.id)
+    }
+
     // MARK: - Input
 
     /// Routes a platform key event. Returns `true` when the event was consumed.
     @discardableResult
     func handleKeyEvent(_ event: NSEvent) -> Bool {
-        guard presentationPhase != .faulted else { return false }
+        guard presentationPhase != .faulted, presentationPhase != .runRecovery else {
+            return false
+        }
         switch router.routeDecision(event) {
         case .unhandled:
             return false
@@ -112,8 +139,8 @@ final class SokobanPlayController: ObservableObject {
 
     func handleAppDeactivation() {
         router.clearPendingInputs()
-        // Always cut voices on focus loss — including during outcome presentation.
         audioDirector.interrupt()
+        Task { await runPersistence.flush() }
         guard let session else { return }
 
         switch session.phase {
@@ -131,7 +158,7 @@ final class SokobanPlayController: ObservableObject {
         switch presentationPhase {
         case .outcomeAnimating, .outcomeAwaitingChoice:
             audioDirector.resumePlayback()
-        case .playing, .paused, .faulted:
+        case .playing, .paused, .faulted, .runRecovery:
             break
         }
     }
@@ -194,6 +221,101 @@ final class SokobanPlayController: ObservableObject {
         enterOutcomeAwaitingChoice()
     }
 
+    // MARK: - Private bootstrap
+
+    private func bootstrapFromPersistence() {
+        switch runPersistence.load() {
+        case .absent:
+            startLevel(id: SokobanLevelCatalog.first.id)
+
+        case .loaded(let file):
+            do {
+                let restored = try SokobanRunRestorer.restore(file)
+                let newSession = GameSession(restored: restored, saveSink: runPersistence)
+                guard let descriptor = SokobanLevelCatalog.descriptor(id: restored.levelID) else {
+                    enterRunRecovery(message: "Saved level is no longer in the catalog.")
+                    return
+                }
+                cancelOutcomeWait()
+                audioDirector.reset()
+                scene.prepareForNewSession()
+                bootstrapSession(newSession, descriptor: descriptor)
+            } catch {
+                let message = restoreFailureMessage(error)
+                _ = runPersistence.quarantineLoadedInvalidFile(message: message)
+                enterRunRecovery(message: message)
+            }
+
+        case .invalid(let message, _):
+            enterRunRecovery(message: message)
+
+        case .readFailed(let message):
+            // Do not move the file; still allow a fresh start via recovery UI.
+            enterRunRecovery(message: message)
+        }
+    }
+
+    private func bootstrapSession(_ newSession: GameSession, descriptor: SokobanLevelDescriptor) {
+        let emission = newSession.start()
+        session = newSession
+        currentLevelID = descriptor.id
+        faultMessage = nil
+        recoveryMessage = nil
+        levelTitle = descriptor.title
+        router.enterGameplay()
+        scene.apply(emission.render)
+        audioDirector.apply(emission.audio)
+        applyEmissionSideEffects(emission)
+        // Restored/completed runs use synchronize (no completion jingle).
+        if newSession.phase == .outcomePresenting {
+            // Hard-resync has no animation; land on the choice overlay promptly.
+            enterOutcomeAwaitingChoice()
+        } else {
+            presentationPhase = .playing
+        }
+        refreshPublishedState()
+    }
+
+    private func enterRunRecovery(message: String) {
+        session = nil
+        presentationPhase = .runRecovery
+        recoveryMessage = message
+        faultMessage = nil
+        router.enterModalBlocked()
+        audioDirector.reset()
+        refreshPublishedState()
+    }
+
+    private func restoreFailureMessage(_ error: Error) -> String {
+        if let failure = error as? SokobanRunRestoreFailure {
+            switch failure {
+            case .unknownSchemaVersion(let version):
+                return "Run file schema version \(version) is not supported."
+            case .unknownCheckpointSchemaVersion(let version):
+                return "Checkpoint schema version \(version) is not supported."
+            case .unknownLevelID(let id):
+                return "Saved level “\(id)” is unknown."
+            case .contentHashMismatch:
+                return "Saved level content no longer matches this build."
+            case .ruleVersionMismatch(let found, let expected):
+                return "Rule version \(found) is incompatible (expected \(expected))."
+            case .tooManyCommands(let count):
+                return "Run file has too many commands (\(count))."
+            case .cursorOutOfRange(let cursor, let count):
+                return "Run file cursor \(cursor) is outside 0...\(count)."
+            case .checkpointInvalid(let detail):
+                return "Saved checkpoint is invalid: \(detail)"
+            case .commandBlockedDuringReplay(let index):
+                return "Saved move \(index) is blocked and cannot be replayed."
+            case .commandAfterTerminal(let index):
+                return "Saved move \(index) appears after the level already finished."
+            case .engineFault(let detail):
+                return "Could not restore run: \(detail)"
+            }
+        }
+        return "Could not restore run: \(error.localizedDescription)"
+    }
+
     // MARK: - Private gameplay
 
     private func handleGameplay(_ intent: GameplayIntent) {
@@ -219,7 +341,6 @@ final class SokobanPlayController: ObservableObject {
     private func handleOutcomeAction() {
         switch presentationPhase {
         case .outcomeAnimating:
-            // Same physical confirm key must not also activate the result action.
             skipOutcomePresentation()
         case .outcomeAwaitingChoice:
             restartFromOutcomeOverlay()
@@ -252,7 +373,6 @@ final class SokobanPlayController: ObservableObject {
         guard let session, session.phase == .paused else { return }
         session.resume()
         audioDirector.resumePlayback()
-        // Caller continues with a command; router mode is set by applyResults.
     }
 
     private func applySessionCommand(_ command: SessionCommand) {
@@ -298,7 +418,6 @@ final class SokobanPlayController: ObservableObject {
         case nil:
             guard let session else { return }
             if session.phase == .playing {
-                // Covers restart/undo from pause as well as normal moves.
                 presentationPhase = .playing
                 if router.mode != .gameplay {
                     router.enterGameplay()
@@ -365,7 +484,7 @@ final class SokobanPlayController: ObservableObject {
             canRedo = false
             canPause = false
             canResume = false
-            canRestart = false
+            canRestart = presentationPhase == .runRecovery
             return
         }
 

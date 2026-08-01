@@ -8,7 +8,11 @@ struct SokobanPlayControllerAudioTests {
     private func makeController() -> (SokobanPlayController, SpyAudioPlaybackBackend) {
         let spy = SpyAudioPlaybackBackend()
         let director = AudioDirector(backend: spy)
-        let controller = SokobanPlayController(audioDirector: director)
+        let persistence = try! SokobanRunPersistence.ephemeral()
+        let controller = SokobanPlayController(
+            audioDirector: director,
+            runPersistence: persistence
+        )
         return (controller, spy)
     }
 
