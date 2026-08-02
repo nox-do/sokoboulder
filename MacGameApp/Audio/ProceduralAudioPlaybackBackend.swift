@@ -12,6 +12,9 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     private let format: AVAudioFormat
     private var engineRunning = false
     private var currentMusic: MusicPlaybackState = .stopped
+    private var outputSettings: AudioOutputSettings = .default
+    /// True after a looping music buffer was scheduled; cleared by ``stop()``.
+    private var musicLoopScheduled = false
 
     private lazy var cueBuffers: [AudioCue: AVAudioPCMBuffer] = [
         .step: Self.toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
@@ -47,7 +50,9 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     }
 
     func playEffect(_ cue: AudioCue) {
+        guard outputSettings.effectiveEffectsGain > 0 else { return }
         guard startEngineIfNeeded(), let buffer = cueBuffers[cue] else { return }
+        effectPlayer.volume = outputSettings.effectiveEffectsGain
         effectPlayer.scheduleBuffer(buffer, completionHandler: nil)
         if !effectPlayer.isPlaying {
             effectPlayer.play()
@@ -55,12 +60,18 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     }
 
     func setMusic(_ state: MusicPlaybackState) {
-        guard state != currentMusic else { return }
+        guard state != currentMusic else {
+            applyGains()
+            return
+        }
         currentMusic = state
-        musicPlayer.stop()
+        stopMusicPlayback()
         guard state == .sokobanLoop, startEngineIfNeeded() else { return }
-        musicPlayer.scheduleBuffer(musicBuffer, at: nil, options: .loops, completionHandler: nil)
-        musicPlayer.play()
+        scheduleMusicLoopIfNeeded()
+        musicPlayer.volume = outputSettings.effectiveMusicGain
+        if outputSettings.effectiveMusicGain > 0 {
+            musicPlayer.play()
+        }
     }
 
     func stopAllEffects() {
@@ -69,8 +80,42 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
 
     func stopAll() {
         effectPlayer.stop()
-        musicPlayer.stop()
+        stopMusicPlayback()
         currentMusic = .stopped
+    }
+
+    func applyOutputSettings(_ settings: AudioOutputSettings) {
+        outputSettings = settings
+        applyGains()
+    }
+
+    private func applyGains() {
+        effectPlayer.volume = outputSettings.effectiveEffectsGain
+        musicPlayer.volume = outputSettings.effectiveMusicGain
+        guard currentMusic == .sokobanLoop else { return }
+
+        if outputSettings.effectiveMusicGain > 0 {
+            guard startEngineIfNeeded() else { return }
+            // Mute used stop(), which clears the schedule — plan exactly once, then play.
+            scheduleMusicLoopIfNeeded()
+            if !musicPlayer.isPlaying {
+                musicPlayer.play()
+            }
+        } else {
+            // stop() clears scheduled buffers so unmute cannot stack endless loops.
+            stopMusicPlayback()
+        }
+    }
+
+    private func scheduleMusicLoopIfNeeded() {
+        guard !musicLoopScheduled else { return }
+        musicPlayer.scheduleBuffer(musicBuffer, at: nil, options: .loops, completionHandler: nil)
+        musicLoopScheduled = true
+    }
+
+    private func stopMusicPlayback() {
+        musicPlayer.stop()
+        musicLoopScheduled = false
     }
 
     @discardableResult

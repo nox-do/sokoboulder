@@ -11,6 +11,10 @@ enum GamePresentationPhase: Equatable, Sendable {
     case levelIntro
     case playing
     case paused
+    /// Shared help / controls overview (returns to ``OverlayReturnOrigin``).
+    case help
+    /// Shared settings overlay (returns to ``OverlayReturnOrigin``).
+    case settings
     /// Terminal revision is animating (or waiting on settle/timeout).
     case outcomeAnimating
     /// Result overlay is interactive.

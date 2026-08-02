@@ -15,6 +15,12 @@ final class SokobanBoardScene: SKScene {
     /// Max queued + in-flight animate steps before forcing a hard catch-up.
     static let animationBudget = 3
     static let moveAnimationDuration: TimeInterval = 0.12
+    /// Near-instant duration when effective reduce motion is on (Phase 3.3 wiring;
+    /// fuller renderer hardening remains Phase 3.4).
+    static let reducedMoveAnimationDuration: TimeInterval = 0.01
+
+    /// Effective reduce motion from settings / accessibility. Presentation only.
+    var prefersReducedMotion = false
 
     #if DEBUG
     /// When true, the in-flight animate step never settles on its own.
@@ -314,7 +320,9 @@ final class SokobanBoardScene: SKScene {
         }
         #endif
 
-        let duration = Self.moveAnimationDuration
+        let duration = prefersReducedMotion
+            ? Self.reducedMoveAnimationDuration
+            : Self.moveAnimationDuration
         let group = DispatchGroup()
         var scheduled = false
 

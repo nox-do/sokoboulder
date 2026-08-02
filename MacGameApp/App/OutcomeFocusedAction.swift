@@ -8,4 +8,5 @@ enum OutcomeFocusedAction: Equatable, Sendable {
     case primary
     case again
     case undo
+    case levelSelection
 }

@@ -10,13 +10,15 @@ struct ContentView: View {
     init(
         runPersistence: SokobanRunPersistence,
         progressPersistence: ProgressPersistence,
-        catalog: SokobanContentCatalog
+        catalog: SokobanContentCatalog,
+        settingsStore: AppSettingsStore = AppSettingsStore()
     ) {
         _controller = StateObject(
             wrappedValue: SokobanPlayController(
                 runPersistence: runPersistence,
                 progressPersistence: progressPersistence,
-                catalog: catalog
+                catalog: catalog,
+                settingsStore: settingsStore
             )
         )
     }
@@ -24,14 +26,16 @@ struct ContentView: View {
     init(
         runPersistence: SokobanRunPersistence,
         progressPersistence: ProgressPersistence,
-        contentLoadFailureMessage: String
+        contentLoadFailureMessage: String,
+        settingsStore: AppSettingsStore = AppSettingsStore()
     ) {
         _controller = StateObject(
             wrappedValue: SokobanPlayController(
                 audioDirector: AudioDirector(),
                 runPersistence: runPersistence,
                 progressPersistence: progressPersistence,
-                contentLoadFailureMessage: contentLoadFailureMessage
+                contentLoadFailureMessage: contentLoadFailureMessage,
+                settingsStore: settingsStore
             )
         )
     }
@@ -55,7 +59,9 @@ struct ContentView: View {
             .accessibilityIdentifier("app.root")
 
             if controller.presentationPhase != .launchMenu,
-               controller.presentationPhase != .levelSelection
+               controller.presentationPhase != .levelSelection,
+               controller.presentationPhase != .help,
+               controller.presentationPhase != .settings
             {
                 VStack(spacing: 0) {
                     SokobanHUDView(controller: controller)
@@ -65,16 +71,47 @@ struct ContentView: View {
 
             switch controller.presentationPhase {
             case .levelIntro:
-                SokobanLevelIntroOverlay(controller: controller)
+                LevelIntroOverlay(model: controller.levelIntroPresentation) {
+                    controller.dismissLevelIntro()
+                }
             case .paused:
-                SokobanPauseOverlay(controller: controller)
+                PauseOverlay(
+                    model: controller.pausePresentation,
+                    pauseFocusEpoch: controller.pauseFocusEpoch,
+                    onResume: { controller.resumeFromPauseOverlay() },
+                    onRestart: { controller.restartFromPauseOverlay() },
+                    onSettings: { controller.openSettingsFromPause() },
+                    onLevelSelection: { controller.openLevelSelectionFromPauseOverlay() },
+                    onHelp: { controller.openHelpFromPause() }
+                )
+            case .help:
+                HelpOverlay(model: controller.helpPresentation) {
+                    controller.dismissHelpOrSettings()
+                }
+            case .settings:
+                SettingsOverlay(
+                    model: controller.settingsPresentation,
+                    onReduceMotionChange: { controller.updateReduceMotionEnabled($0) },
+                    onMusicVolumeChange: { controller.updateMusicVolume($0) },
+                    onEffectsVolumeChange: { controller.updateEffectsVolume($0) },
+                    onMuteChange: { controller.updateMuted($0) },
+                    onBack: { controller.dismissHelpOrSettings() }
+                )
             case .outcomeAnimating:
                 VStack {
                     Spacer()
                     SokobanOutcomeAnimatingOverlay(controller: controller)
                 }
             case .outcomeAwaitingChoice:
-                SokobanOutcomeOverlay(controller: controller)
+                OutcomeOverlay(
+                    model: controller.outcomePresentation,
+                    focusedAction: controller.focusedOutcomeAction,
+                    onFocusChange: { controller.setFocusedOutcomeAction($0) },
+                    onPrimary: { controller.performOutcomePrimaryAction() },
+                    onPlayAgain: { controller.restartFromOutcomeOverlay() },
+                    onUndo: { controller.undoFromOutcomeOverlay() },
+                    onLevelSelection: { controller.openLevelSelectionFromOutcome() }
+                )
             case .runRecovery:
                 SokobanRunRecoveryOverlay(controller: controller)
             case .launchMenu:
@@ -175,13 +212,15 @@ struct ContentView: View {
                 reason: "Preview",
                 firstLevelID: catalog.first.id
             ),
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral()
         )
     } else {
         ContentView(
             runPersistence: SokobanRunPersistence.disabled(reason: "Preview"),
             progressPersistence: ProgressPersistence.unavailable(reason: "Preview"),
-            contentLoadFailureMessage: "Preview content is unavailable."
+            contentLoadFailureMessage: "Preview content is unavailable.",
+            settingsStore: AppSettingsStore.ephemeral()
         )
     }
 }

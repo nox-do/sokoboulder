@@ -1,14 +1,22 @@
 import SwiftUI
 
-/// Focusable pause overlay. Keyboard Escape still reaches the board via SKView.
-struct SokobanPauseOverlay: View {
-    @ObservedObject var controller: SokobanPlayController
+/// Shared pause overlay driven by ``PausePresentation``.
+struct PauseOverlay: View {
+    let model: PausePresentation
+    let pauseFocusEpoch: UInt64
+    let onResume: () -> Void
+    let onRestart: () -> Void
+    let onSettings: () -> Void
+    let onLevelSelection: () -> Void
+    let onHelp: () -> Void
     @FocusState private var focusedAction: PauseAction?
 
     private enum PauseAction: Hashable {
         case resume
         case restart
+        case settings
         case levelSelection
+        case help
     }
 
     var body: some View {
@@ -17,30 +25,39 @@ struct SokobanPauseOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 20) {
-                Text(AppStrings.text(.uiPauseTitle))
+                Text(model.title)
                     .font(.largeTitle.weight(.semibold))
 
-                Text(AppStrings.text(.uiPauseHint))
+                Text(model.hint)
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
                 VStack(spacing: 12) {
-                    Button(AppStrings.text(.uiPauseResume)) {
-                        controller.resumeFromPauseOverlay()
+                    Button(model.resumeTitle) {
+                        onResume()
                     }
                     .focused($focusedAction, equals: .resume)
-                    // Primary confirm after Alt-Tab / focus return.
                     .keyboardShortcut(.defaultAction)
 
-                    Button(AppStrings.text(.uiPauseRestart)) {
-                        controller.restartFromPauseOverlay()
+                    Button(model.restartTitle) {
+                        onRestart()
                     }
                     .focused($focusedAction, equals: .restart)
 
-                    Button(AppStrings.text(.uiPauseLevelSelect)) {
-                        controller.openLevelSelectionFromPauseOverlay()
+                    Button(model.settingsTitle) {
+                        onSettings()
+                    }
+                    .focused($focusedAction, equals: .settings)
+
+                    Button(model.levelSelectTitle) {
+                        onLevelSelection()
                     }
                     .focused($focusedAction, equals: .levelSelection)
+
+                    Button(model.helpTitle) {
+                        onHelp()
+                    }
+                    .focused($focusedAction, equals: .help)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -55,14 +72,12 @@ struct SokobanPauseOverlay: View {
         .onAppear {
             focusResumeButton()
         }
-        .onChange(of: controller.pauseFocusEpoch) { _, _ in
+        .onChange(of: pauseFocusEpoch) { _, _ in
             focusResumeButton()
         }
     }
 
     private func focusResumeButton() {
-        // After Alt-Tab the window becomes key asynchronously; defer so
-        // FocusState sticks once the app is active again.
         DispatchQueue.main.async {
             focusedAction = .resume
         }

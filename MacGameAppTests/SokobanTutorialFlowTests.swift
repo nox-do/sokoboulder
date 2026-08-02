@@ -16,7 +16,10 @@ struct SokobanTutorialFlowTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
     }
 
@@ -147,7 +150,10 @@ struct SokobanTutorialFlowTests {
             audioDirector: AudioDirector(backend: spy),
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         #expect(controller.presentationPhase == .levelIntro)
         #expect(spy.musicStates.contains(.sokobanLoop))
@@ -176,7 +182,10 @@ struct SokobanTutorialFlowTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)

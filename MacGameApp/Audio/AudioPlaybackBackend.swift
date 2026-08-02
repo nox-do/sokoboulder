@@ -9,6 +9,8 @@ protocol AudioPlaybackBackend: AnyObject {
     func setMusic(_ state: MusicPlaybackState)
     func stopAllEffects()
     func stopAll()
+    /// Applies user music / effects gain and mute. Live updates are expected.
+    func applyOutputSettings(_ settings: AudioOutputSettings)
 }
 
 /// Silent backend for tests that do not assert audio.
@@ -18,4 +20,5 @@ final class NoOpAudioPlaybackBackend: AudioPlaybackBackend {
     func setMusic(_ state: MusicPlaybackState) {}
     func stopAllEffects() {}
     func stopAll() {}
+    func applyOutputSettings(_ settings: AudioOutputSettings) {}
 }

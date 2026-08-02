@@ -17,7 +17,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         controller.dismissLevelIntro()
         controller.scene.holdAnimationsForTesting = holdAnimations
@@ -49,7 +52,8 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: try SokobanRunPersistence.ephemeral(),
             progressPersistence: progress,
-            contentLoadFailureMessage: "Failed to load game content: missing manifest"
+            contentLoadFailureMessage: "Failed to load game content: missing manifest",
+            settingsStore: AppSettingsStore.ephemeral()
         )
 
         #expect(controller.presentationPhase == .faulted)
@@ -89,7 +93,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: runPersistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
 
         #expect(controller.presentationPhase == .launchMenu)
@@ -119,7 +126,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: runPersistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         priming.dismissLevelIntro()
         completeDemoLevel(priming)
@@ -141,7 +151,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: runPersistence,
             progressPersistence: reloadedProgress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         #expect(relaunch.presentationPhase == .launchMenu)
         #expect(relaunch.session == nil)
@@ -166,7 +179,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: runPersistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         controller.dismissLevelIntro()
 
@@ -212,7 +228,10 @@ struct SokobanPlayControllerTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: runPersistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         controller.dismissLevelIntro()
 

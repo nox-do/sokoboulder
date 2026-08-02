@@ -105,7 +105,10 @@ struct SokobanLevelCatalogTests {
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         #expect(controller.levelTitle == "Der erste Schub")
         #expect(controller.session != nil)

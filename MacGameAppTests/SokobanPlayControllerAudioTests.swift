@@ -18,7 +18,10 @@ struct SokobanPlayControllerAudioTests {
             audioDirector: director,
             runPersistence: persistence,
             progressPersistence: progress,
-            catalog: catalog
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral(),
+            assistiveReadingProbe: ManualAssistiveReadingProbe(),
+            delayedActionScheduler: ManualDelayedActionScheduler()
         )
         controller.dismissLevelIntro()
         return (controller, spy)

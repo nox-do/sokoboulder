@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Short skippable tutorial hint shown before the first move of a fresh level.
-struct SokobanLevelIntroOverlay: View {
-    @ObservedObject var controller: SokobanPlayController
+/// Shared level-intro overlay driven by ``LevelIntroPresentation``.
+struct LevelIntroOverlay: View {
+    let model: LevelIntroPresentation
+    let onDismiss: () -> Void
     @FocusState private var continueFocused: Bool
 
     var body: some View {
@@ -11,25 +12,26 @@ struct SokobanLevelIntroOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 18) {
-                Text(controller.levelTitle)
+                Text(model.title)
                     .font(.title.weight(.semibold))
 
-                Text(controller.tutorialHintText)
+                Text(model.body)
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: 360)
 
-                Text(AppStrings.text(.uiIntroSkipHint))
+                Text(model.skipHint)
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
-                Button(AppStrings.text(.uiIntroContinue)) {
-                    controller.dismissLevelIntro()
+                Button(model.continueTitle) {
+                    onDismiss()
                 }
                 .focused($continueFocused)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityLabel(AppStrings.text(.uiIntroClose))
             }
             .padding(32)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))

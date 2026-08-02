@@ -4,16 +4,27 @@ import GameCore
 ///
 /// Pause / focus loss / fault use ``interrupt()`` / ``resumePlayback()`` /
 /// ``reset()`` — they are not revisioned ``AudioUpdate``s.
+///
+/// User volumes / mute (Phase 3.3) are applied via ``applyOutputSettings(_:)``
+/// and reused later by Phase 3.5 audio themes.
 @MainActor
 final class AudioDirector {
     private let backend: any AudioPlaybackBackend
 
     private(set) var lastAppliedRevision: UInt64?
+    private(set) var outputSettings: AudioOutputSettings = .default
     private var desiredMusic: MusicPlaybackState = .stopped
     private var interrupted = false
 
     init(backend: any AudioPlaybackBackend = ProceduralAudioPlaybackBackend()) {
         self.backend = backend
+        backend.applyOutputSettings(outputSettings)
+    }
+
+    /// Live user settings from the Phase 3.3 store. Does not affect revisions.
+    func applyOutputSettings(_ settings: AudioOutputSettings) {
+        outputSettings = settings
+        backend.applyOutputSettings(settings)
     }
 
     /// Applies one session audio emission. Never blocks presentation.

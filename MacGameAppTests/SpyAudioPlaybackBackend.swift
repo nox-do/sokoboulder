@@ -9,9 +9,11 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
         case setMusic(MusicPlaybackState)
         case stopAllEffects
         case stopAll
+        case applyOutputSettings(AudioOutputSettings)
     }
 
     private(set) var calls: [Call] = []
+    private(set) var lastOutputSettings: AudioOutputSettings?
 
     func playEffect(_ cue: AudioCue) {
         calls.append(.playEffect(cue))
@@ -27,6 +29,11 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
 
     func stopAll() {
         calls.append(.stopAll)
+    }
+
+    func applyOutputSettings(_ settings: AudioOutputSettings) {
+        lastOutputSettings = settings
+        calls.append(.applyOutputSettings(settings))
     }
 
     func resetCalls() {
