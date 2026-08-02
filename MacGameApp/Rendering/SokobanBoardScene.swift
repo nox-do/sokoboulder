@@ -23,18 +23,20 @@ final class SokobanBoardScene: SKScene {
     var prefersReducedMotion = false
 
     #if DEBUG
-    /// When true, the in-flight animate step never settles on its own.
-    var holdAnimationsForTesting = false
+        /// When true, the in-flight animate step never settles on its own.
+        var holdAnimationsForTesting = false
     #endif
 
     private struct QueuedAnimate {
         let snapshot: RenderSnapshot
+        let events: [GameEvent]
         let targetRevision: UInt64
     }
 
     private let boardRoot = SKNode()
     private let terrainLayer = SKNode()
     private let entityLayer = SKNode()
+    private let effectLayer = SKNode()
 
     private var geometry = GridGeometry(
         availableSize: .zero,
@@ -108,9 +110,11 @@ final class SokobanBoardScene: SKScene {
         boardRoot.name = "boardRoot"
         terrainLayer.name = "terrainLayer"
         entityLayer.name = "entityLayer"
+        effectLayer.name = "effectLayer"
         addChild(boardRoot)
         boardRoot.addChild(terrainLayer)
         boardRoot.addChild(entityLayer)
+        boardRoot.addChild(effectLayer)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -157,6 +161,7 @@ final class SokobanBoardScene: SKScene {
         appliedSnapshot = nil
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
+        effectLayer.removeAllChildren()
         terrainNodes.removeAll(keepingCapacity: true)
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
@@ -196,8 +201,15 @@ final class SokobanBoardScene: SKScene {
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
         animationQueue.append(
-            QueuedAnimate(snapshot: update.snapshot, targetRevision: update.targetRevision)
+            QueuedAnimate(
+                snapshot: update.snapshot,
+                events: update.events,
+                targetRevision: update.targetRevision
+            )
         )
+        #if DEBUG
+            lastEventsForTesting = update.events
+        #endif
         pumpAnimationQueue()
     }
 
@@ -209,7 +221,7 @@ final class SokobanBoardScene: SKScene {
         isAnimating = true
         let generation = animationGeneration
 
-        animate(toward: next.snapshot) { [weak self] in
+        animate(toward: next.snapshot, events: next.events) { [weak self] in
             guard let self else { return }
             guard generation == self.animationGeneration else { return }
             self.isAnimating = false
@@ -237,6 +249,8 @@ final class SokobanBoardScene: SKScene {
         for node in entityNodes.values {
             node.removeAllActions()
         }
+        effectLayer.removeAllActions()
+        effectLayer.removeAllChildren()
     }
 
     // MARK: - Node build / layout
@@ -244,6 +258,7 @@ final class SokobanBoardScene: SKScene {
     private func rebuild(from snapshot: RenderSnapshot) {
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
+        effectLayer.removeAllChildren()
         terrainNodes.removeAll(keepingCapacity: true)
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
@@ -262,6 +277,7 @@ final class SokobanBoardScene: SKScene {
                 let node = makeTerrainNode(cell.terrain)
                 node.position = geometry.center(for: position)
                 node.size = CGSize(width: geometry.tileSize, height: geometry.tileSize)
+                resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
                 terrainLayer.addChild(node)
                 terrainNodes.append(node)
             }
@@ -271,6 +287,7 @@ final class SokobanBoardScene: SKScene {
             let node = makeEntityNode(kind: entity.ref.kind)
             node.position = geometry.center(for: entity.position)
             node.size = entitySize()
+            resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
             entityLayer.addChild(node)
             entityNodes[entity.ref.id] = node
         }
@@ -278,8 +295,10 @@ final class SokobanBoardScene: SKScene {
         let player = makeEntityNode(kind: .player)
         player.position = geometry.center(for: snapshot.player.position)
         player.size = entitySize()
+        resizeSemanticMarkers(in: player, tileSize: geometry.tileSize)
         entityLayer.addChild(player)
         playerNode = player
+        updateGoalStateMarkers(using: snapshot)
     }
 
     private func relayoutExistingNodes(using snapshot: RenderSnapshot) {
@@ -291,6 +310,7 @@ final class SokobanBoardScene: SKScene {
                 let node = terrainNodes[index]
                 node.position = geometry.center(for: position)
                 node.size = CGSize(width: geometry.tileSize, height: geometry.tileSize)
+                resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
                 index += 1
             }
         }
@@ -299,10 +319,15 @@ final class SokobanBoardScene: SKScene {
             guard let node = entityNodes[entity.ref.id] else { continue }
             node.position = geometry.center(for: entity.position)
             node.size = entitySize()
+            resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
         }
 
         playerNode?.position = geometry.center(for: snapshot.player.position)
         playerNode?.size = entitySize()
+        if let playerNode {
+            resizeSemanticMarkers(in: playerNode, tileSize: geometry.tileSize)
+        }
+        updateGoalStateMarkers(using: snapshot)
     }
 
     private func snapEntities(to snapshot: RenderSnapshot) {
@@ -311,16 +336,22 @@ final class SokobanBoardScene: SKScene {
             node.position = geometry.center(for: entity.position)
         }
         playerNode?.position = geometry.center(for: snapshot.player.position)
+        updateGoalStateMarkers(using: snapshot)
     }
 
-    private func animate(toward snapshot: RenderSnapshot, completion: @escaping () -> Void) {
+    private func animate(
+        toward snapshot: RenderSnapshot,
+        events: [GameEvent],
+        completion: @escaping () -> Void
+    ) {
         #if DEBUG
-        if holdAnimationsForTesting {
-            return
-        }
+            if holdAnimationsForTesting {
+                return
+            }
         #endif
 
-        let duration = prefersReducedMotion
+        let duration =
+            prefersReducedMotion
             ? Self.reducedMoveAnimationDuration
             : Self.moveAnimationDuration
         let group = DispatchGroup()
@@ -348,6 +379,37 @@ final class SokobanBoardScene: SKScene {
             }
         }
 
+        for event in events {
+            switch event {
+            case .movementBlocked(let position):
+                scheduleFeedbackSymbol(
+                    "×",
+                    at: position,
+                    color: .systemRed,
+                    group: group
+                )
+                scheduled = true
+            case .crateEnteredGoal(_, let position, _, _):
+                scheduleFeedbackSymbol(
+                    "✓",
+                    at: position,
+                    color: .systemGreen,
+                    group: group
+                )
+                scheduled = true
+            case .crateLeftGoal(_, let position, _, _):
+                scheduleFeedbackSymbol(
+                    "↶",
+                    at: position,
+                    color: .systemOrange,
+                    group: group
+                )
+                scheduled = true
+            default:
+                break
+            }
+        }
+
         if scheduled {
             group.notify(queue: .main, execute: completion)
         } else {
@@ -365,6 +427,14 @@ final class SokobanBoardScene: SKScene {
         let node = SKSpriteNode(color: color(for: terrain), size: .zero)
         node.name = "terrain.\(terrain)"
         node.zPosition = 0
+        switch terrain {
+        case .wall:
+            node.addChild(makeSemanticLabel(text: "▦", color: .white))
+        case .goal:
+            node.addChild(makeSemanticLabel(text: "◎", color: .white))
+        case .void, .floor:
+            break
+        }
         return node
     }
 
@@ -372,7 +442,75 @@ final class SokobanBoardScene: SKScene {
         let node = SKSpriteNode(color: color(for: kind), size: .zero)
         node.name = "entity.\(kind)"
         node.zPosition = kind == .player ? 2 : 1
+        let symbol = kind == .player ? "◆" : "×"
+        node.addChild(makeSemanticLabel(text: symbol, color: .white))
+        let goalMarker = makeSemanticLabel(text: "✓", color: .white)
+        goalMarker.name = "goalStateMarker"
+        goalMarker.alpha = 0
+        goalMarker.zPosition = 2
+        node.addChild(goalMarker)
         return node
+    }
+
+    private func makeSemanticLabel(text: String, color: SKColor) -> SKLabelNode {
+        let label = SKLabelNode(fontNamed: "Menlo-Bold")
+        label.name = "semanticMarker"
+        label.text = text
+        label.fontColor = color
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+        label.zPosition = 1
+        return label
+    }
+
+    private func resizeSemanticMarkers(in node: SKNode, tileSize: CGFloat) {
+        for case let label as SKLabelNode in node.children {
+            label.fontSize = max(
+                8,
+                tileSize * (label.name == "goalStateMarker" ? 0.34 : 0.48)
+            )
+        }
+    }
+
+    private func updateGoalStateMarkers(using snapshot: RenderSnapshot) {
+        for entity in snapshot.entities {
+            guard let node = entityNodes[entity.ref.id],
+                let marker = node.childNode(withName: "goalStateMarker") as? SKLabelNode
+            else { continue }
+            marker.alpha = snapshot.cell(at: entity.position)?.terrain == .goal ? 1 : 0
+        }
+
+        if let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode {
+            marker.alpha = snapshot.cell(at: snapshot.player.position)?.terrain == .goal ? 1 : 0
+        }
+    }
+
+    private func scheduleFeedbackSymbol(
+        _ symbol: String,
+        at position: GridPosition,
+        color: SKColor,
+        group: DispatchGroup
+    ) {
+        let label = makeSemanticLabel(text: symbol, color: color)
+        label.name = "eventFeedback"
+        label.fontSize = max(10, geometry.tileSize * 0.62)
+        label.position = geometry.center(for: position)
+        label.zPosition = 4
+        label.alpha = 0
+        effectLayer.addChild(label)
+
+        let visibleDuration = prefersReducedMotion ? 0.12 : 0.22
+        group.enter()
+        label.run(
+            .sequence([
+                .fadeIn(withDuration: 0.02),
+                .wait(forDuration: visibleDuration),
+                .fadeOut(withDuration: 0.06),
+                .removeFromParent(),
+            ])
+        ) {
+            group.leave()
+        }
     }
 
     private func color(for terrain: RenderTerrain) -> SKColor {
@@ -398,23 +536,29 @@ final class SokobanBoardScene: SKScene {
     }
 
     #if DEBUG
-    /// Test helper: force-settle the held in-flight step and drain the queue instantly.
-    func settleAnimationsForTesting() {
-        guard let snapshot = appliedSnapshot else {
+        /// Test helper: force-settle the held in-flight step and drain the queue instantly.
+        func settleAnimationsForTesting() {
+            guard let snapshot = appliedSnapshot else {
+                cancelAnimationsAndPending()
+                markSettled(appliedRevision)
+                return
+            }
             cancelAnimationsAndPending()
+            snapEntities(to: snapshot)
             markSettled(appliedRevision)
-            return
         }
-        cancelAnimationsAndPending()
-        snapEntities(to: snapshot)
-        markSettled(appliedRevision)
-    }
 
-    var terrainNodeCountForTesting: Int { terrainNodes.count }
-    var entityNodeCountForTesting: Int { entityNodes.count + (playerNode == nil ? 0 : 1) }
-    var geometryForTesting: GridGeometry { geometry }
-    var playerPositionForTesting: CGPoint? { playerNode?.position }
-    var isAnimatingForTesting: Bool { isAnimating }
-    var queuedAnimationCountForTesting: Int { animationQueue.count }
+        var terrainNodeCountForTesting: Int { terrainNodes.count }
+        var entityNodeCountForTesting: Int { entityNodes.count + (playerNode == nil ? 0 : 1) }
+        var geometryForTesting: GridGeometry { geometry }
+        var playerPositionForTesting: CGPoint? { playerNode?.position }
+        var isAnimatingForTesting: Bool { isAnimating }
+        var queuedAnimationCountForTesting: Int { animationQueue.count }
+        private(set) var lastEventsForTesting: [GameEvent] = []
+        var crateGoalMarkerCountForTesting: Int {
+            entityNodes.values.filter { node in
+                node.childNode(withName: "goalStateMarker")?.alpha == 1
+            }.count
+        }
     #endif
 }

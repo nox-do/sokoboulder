@@ -84,8 +84,10 @@ Vor jedem Level werden höchstens folgende Informationen gezeigt:
 - eine neue Steuerungs- oder Regelhilfe, falls dieses Level eine Mechanik
   erstmals einführt.
 
-Die Einführung ist überspringbar. Wiederholte Versuche zeigen sie verkürzt oder
-gar nicht, sofern der Spieler sie nicht erneut anfordert.
+Die Einführung ist überspringbar. Ein erstmalig gezeigter Lernhinweis wartet auf
+eine bewusste Eingabe und verschwindet nicht nach einem Zeitlimit. Wiederholte
+Versuche zeigen ihn verkürzt oder gar nicht, sofern der Spieler ihn nicht erneut
+anfordert.
 
 ### 3.2 Pause
 
@@ -353,6 +355,19 @@ sie verkürzt oder durch eine Überblendung ersetzt.
 Die Tastatur ist auf macOS immer vollständig unterstützt. Aktionen verwenden
 komfortable Einzeltasten, ohne systemübliche Kurzbefehle umzudeuten.
 
+Die Spielmenüs besitzen zusätzlich eine app-eigene Navigation, die unabhängig
+von der macOS-Einstellung „Full Keyboard Access“ funktioniert:
+
+| Kontext | Hoch/Runter | Links/Rechts | Return/Leertaste | Escape |
+| --- | --- | --- | --- | --- |
+| Aktionsmenü | Auswahl bewegen | Auswahl bewegen | markierte Aktion | zurück |
+| Levelauswahl | Level bewegen | Level bewegen | Level öffnen | Übersicht |
+| Einstellungen | Zeile bewegen | Slider ändern | Toggle/Aktion | zurück |
+| Ergebnis | Aktion bewegen | Aktion bewegen | markierte Aktion | Levelauswahl |
+
+Deaktivierte Aktionen werden übersprungen. Die Markierung bleibt jederzeit
+sichtbar und darf nicht hinter der SpriteKit-Ansicht verschwinden.
+
 Alle gameplayrelevanten Tasten können später neu belegt werden. Nicht erlaubte
 Konflikte werden verständlich angezeigt. Menübefehle und Hilfe zeigen die
 tatsächlich aktive Belegung.
@@ -401,8 +416,9 @@ Gefährliche Zustände dürfen auch ohne Blinken eindeutig erkennbar sein.
 
 ### 9.3 Vollständige Tastaturbedienung
 
-Hauptmenü, Levelauswahl, Einstellungen, Pause und Ergebnisdialoge sind mit Full
-Keyboard Access erreichbar. Der sichtbare Fokus verschwindet nicht hinter der
+Hauptmenü, Levelauswahl, Einstellungen, Pause und Ergebnisdialoge sind durch die
+App selbst vollständig per Tastatur erreichbar; Full Keyboard Access ist keine
+Voraussetzung. Der sichtbare Fokus verschwindet nicht hinter der
 SpriteKit-Ansicht.
 
 ### 9.4 Zugängliche Rasterbeschreibung
@@ -471,6 +487,8 @@ Fortschrittswährungen sind kein Ziel der ersten Version.
 - Versteht ein neuer Spieler das erste Level ohne externe Erklärung?
 - Wird erkannt, dass Kisten nicht gezogen werden können?
 - Finden Spieler Undo, Redo und Neustart?
+- Können Spieler bei deaktiviertem Full Keyboard Access jede Menüaktion mit
+  Pfeiltasten, Return/Leertaste und Escape erreichen?
 - Ist die Todesursache im Höhlenspiel verständlich?
 - Wird der geöffnete Ausgang schnell gefunden?
 - Fühlt sich die Kamera ruhig und trotzdem hilfreich an?
@@ -487,6 +505,8 @@ Fortschrittswährungen sind kein Ziel der ersten Version.
 - Kein Testspieler stirbt vor dem ersten steuerbaren Tick eines neu geladenen
   Höhlenlevels.
 - Ergebnisaktionen sind ohne Maus erreichbar.
+- Ein stummgeschalteter Spieler erkennt Bewegung, Blockade, Schub, Zielzustand
+  und Abschluss weiterhin eindeutig.
 - Ein Hard-Resync erzeugt weder Doppelanimation noch doppelten Jingle.
 - Verschiedene Renderframeraten verändern weder Eingaben noch Ergebnis.
 

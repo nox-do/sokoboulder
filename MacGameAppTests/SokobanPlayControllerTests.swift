@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -18,9 +19,7 @@ struct SokobanPlayControllerTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         controller.dismissLevelIntro()
         controller.scene.holdAnimationsForTesting = holdAnimations
@@ -94,9 +93,7 @@ struct SokobanPlayControllerTests {
             runPersistence: runPersistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
 
         #expect(controller.presentationPhase == .launchMenu)
@@ -127,9 +124,7 @@ struct SokobanPlayControllerTests {
             runPersistence: runPersistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         priming.dismissLevelIntro()
         completeDemoLevel(priming)
@@ -152,9 +147,7 @@ struct SokobanPlayControllerTests {
             runPersistence: runPersistence,
             progressPersistence: reloadedProgress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         #expect(relaunch.presentationPhase == .launchMenu)
         #expect(relaunch.session == nil)
@@ -180,9 +173,7 @@ struct SokobanPlayControllerTests {
             runPersistence: runPersistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         controller.dismissLevelIntro()
 
@@ -229,9 +220,7 @@ struct SokobanPlayControllerTests {
             runPersistence: runPersistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         controller.dismissLevelIntro()
 
@@ -432,7 +421,8 @@ struct SokobanPlayControllerTests {
         controller.scene.resize(to: CGSize(width: 500, height: 400))
         #expect(controller.session?.revision == outcomeRevision)
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
-        #expect(controller.scene.geometryForTesting.availableSize == CGSize(width: 500, height: 400))
+        #expect(
+            controller.scene.geometryForTesting.availableSize == CGSize(width: 500, height: 400))
     }
 
     @Test("HUD mirrors snapshot goal counters")

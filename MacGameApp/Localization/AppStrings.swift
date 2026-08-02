@@ -50,6 +50,11 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiHudRedo = "ui.hud.redo"
     case uiHudAvailable = "ui.hud.available"
     case uiHudUnavailable = "ui.hud.unavailable"
+    case uiBoardLabel = "ui.board.label"
+    case uiBoardPlayer = "ui.board.player"
+    case uiBoardColumn = "ui.board.column"
+    case uiBoardRow = "ui.board.row"
+    case uiBoardUnavailable = "ui.board.unavailable"
 
     // Pause
     case uiPauseTitle = "ui.pause.title"
@@ -103,7 +108,7 @@ enum AppStringID: String, CaseIterable, Sendable {
 enum AppStrings {
     private static let german: [String: String] = [
         AppStringID.uiIntroContinue.rawValue: "Weiter",
-        AppStringID.uiIntroSkipHint.rawValue: "Return, Space oder Escape startet · schließt nach 5 Sekunden",
+        AppStringID.uiIntroSkipHint.rawValue: "Return, Leertaste oder Escape startet",
         AppStringID.uiIntroClose.rawValue: "Schließen",
 
         AppStringID.uiOutcomeLevelComplete.rawValue: "Level geschafft",
@@ -114,15 +119,19 @@ enum AppStrings {
         AppStringID.uiOutcomeBack.rawValue: "Zur Übersicht",
         AppStringID.uiOutcomeMenu.rawValue: "Zur Übersicht",
         AppStringID.uiOutcomeLevelSelect.rawValue: "Levelauswahl",
-        AppStringID.uiOutcomeHintNext.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
-        AppStringID.uiOutcomeHintAgain.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
-        AppStringID.uiOutcomeHintBack.rawValue: "Return/Space bestätigt die markierte Aktion · Z: Undo",
+        AppStringID.uiOutcomeHintNext.rawValue:
+            "Return/Space bestätigt die markierte Aktion · Z: Undo",
+        AppStringID.uiOutcomeHintAgain.rawValue:
+            "Return/Space bestätigt die markierte Aktion · Z: Undo",
+        AppStringID.uiOutcomeHintBack.rawValue:
+            "Return/Space bestätigt die markierte Aktion · Z: Undo",
         AppStringID.uiOutcomeNewRecordMoves.rawValue: "Neuer Zugrekord",
         AppStringID.uiOutcomeNewRecordPushes.rawValue: "Neuer Schubrekord",
         AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
         AppStringID.uiOutcomeBestPushes.rawValue: "Beste Schübe",
         AppStringID.uiOutcomeAnimatingTitle.rawValue: "Level geschafft",
-        AppStringID.uiOutcomeAnimatingBody.rawValue: "Zug wird beendet… Return oder Space überspringt",
+        AppStringID.uiOutcomeAnimatingBody.rawValue:
+            "Zug wird beendet… Return oder Space überspringt",
         AppStringID.uiOutcomeSkip.rawValue: "Überspringen",
 
         AppStringID.uiLaunchTitle.rawValue: "SokoBoulder",
@@ -143,6 +152,11 @@ enum AppStrings {
         AppStringID.uiHudRedo.rawValue: "Redo",
         AppStringID.uiHudAvailable.rawValue: "verfügbar",
         AppStringID.uiHudUnavailable.rawValue: "nicht verfügbar",
+        AppStringID.uiBoardLabel.rawValue: "Spielfeld",
+        AppStringID.uiBoardPlayer.rawValue: "Spielerposition:",
+        AppStringID.uiBoardColumn.rawValue: "Spalte",
+        AppStringID.uiBoardRow.rawValue: "Zeile",
+        AppStringID.uiBoardUnavailable.rawValue: "Spielfeld wird geladen.",
 
         AppStringID.uiPauseTitle.rawValue: "Pause",
         AppStringID.uiPauseHint.rawValue: "Escape setzt fort · Spielzug-Eingabe gesperrt",
@@ -168,7 +182,8 @@ enum AppStrings {
         AppStringID.uiSettingsTitle.rawValue: "Einstellungen",
         AppStringID.uiSettingsBack.rawValue: "Zurück",
         AppStringID.uiSettingsReduceMotion.rawValue: "Bewegung reduzieren",
-        AppStringID.uiSettingsReduceMotionDetail.rawValue: "Wirkt zusätzlich zur Systemeinstellung (nur Darstellung)",
+        AppStringID.uiSettingsReduceMotionDetail.rawValue:
+            "Wirkt zusätzlich zur Systemeinstellung (nur Darstellung)",
         AppStringID.uiSettingsMusicVolume.rawValue: "Musiklautstärke",
         AppStringID.uiSettingsEffectsVolume.rawValue: "Effektlautstärke",
         AppStringID.uiSettingsMute.rawValue: "Stummschalten",

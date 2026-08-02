@@ -44,30 +44,36 @@ struct ContentView: View {
         controller.presentationPhase == .playing
     }
 
+    private var showsHUD: Bool {
+        switch controller.presentationPhase {
+        case .launchMenu, .levelSelection, .help, .settings, .faulted, .runRecovery:
+            false
+        case .levelIntro, .playing, .paused, .outcomeAnimating, .outcomeAwaitingChoice:
+            true
+        }
+    }
+
     var body: some View {
         ZStack {
-            SokobanSpriteView(
-                scene: controller.scene,
-                claimsKeyboardFocus: boardClaimsKeyboardFocus
-            ) { event in
-                _ = controller.handleKeyEvent(event)
-            } onWindowNumberChange: { windowNumber in
-                owningWindowNumber = windowNumber
-                syncOverlayKeyMonitor()
-            }
-            .frame(minWidth: 520, minHeight: 400)
-            .accessibilityIdentifier("app.root")
-
-            if controller.presentationPhase != .launchMenu,
-               controller.presentationPhase != .levelSelection,
-               controller.presentationPhase != .help,
-               controller.presentationPhase != .settings
-            {
-                VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                if showsHUD {
                     SokobanHUDView(controller: controller)
-                    Spacer(minLength: 0)
                 }
+
+                SokobanSpriteView(
+                    scene: controller.scene,
+                    claimsKeyboardFocus: boardClaimsKeyboardFocus
+                ) { event in
+                    _ = controller.handleKeyEvent(event)
+                } onWindowNumberChange: { windowNumber in
+                    owningWindowNumber = windowNumber
+                    syncOverlayKeyMonitor()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(controller.boardAccessibilityLabel)
+                .accessibilityValue(controller.boardAccessibilityValue)
             }
+            .accessibilityHidden(controller.presentationPhase != .playing)
 
             switch controller.presentationPhase {
             case .levelIntro:
@@ -125,8 +131,8 @@ struct ContentView: View {
             }
 
             if let diagnostic = controller.persistenceDiagnostic,
-               controller.presentationPhase != .runRecovery,
-               controller.presentationPhase != .faulted
+                controller.presentationPhase != .runRecovery,
+                controller.presentationPhase != .faulted
             {
                 VStack {
                     Spacer()
@@ -139,6 +145,8 @@ struct ContentView: View {
                 .allowsHitTesting(false)
             }
         }
+        .frame(minWidth: 520, minHeight: 400)
+        .accessibilityIdentifier("app.root")
         .focusedValue(\.sokobanPlayController, controller)
         .onAppear { syncOverlayKeyMonitor() }
         .onDisappear { removeOverlayKeyMonitor() }
@@ -163,8 +171,10 @@ struct ContentView: View {
         guard !boardClaimsKeyboardFocus else { return }
         guard let owningWindowNumber else { return }
 
-        overlayKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
-            let eventWindowNumber = event.windowNumber == 0
+        overlayKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) {
+            event in
+            let eventWindowNumber =
+                event.windowNumber == 0
                 ? NSApp.keyWindow?.windowNumber
                 : event.windowNumber
             guard eventWindowNumber == owningWindowNumber else { return event }

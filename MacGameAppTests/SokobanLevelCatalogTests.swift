@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -20,11 +21,12 @@ struct SokobanLevelCatalogTests {
             from: Bundle(for: SokobanPlayController.self)
         )
         #expect(catalog.levels.count == 3)
-        #expect(catalog.levels.map(\.id) == [
-            "sokoban.tutorial.001",
-            "sokoban.tutorial.002",
-            "sokoban.tutorial.003",
-        ])
+        #expect(
+            catalog.levels.map(\.id) == [
+                "sokoban.tutorial.001",
+                "sokoban.tutorial.002",
+                "sokoban.tutorial.003",
+            ])
 
         for descriptor in catalog.levels {
             #expect(!catalog.title(for: descriptor).isEmpty)
@@ -106,9 +108,7 @@ struct SokobanLevelCatalogTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         #expect(controller.levelTitle == "Der erste Schub")
         #expect(controller.session != nil)

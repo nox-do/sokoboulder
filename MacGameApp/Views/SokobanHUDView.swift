@@ -5,9 +5,21 @@ struct SokobanHUDView: View {
     @ObservedObject var controller: SokobanPlayController
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            regularHUD
+            compactHUD
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var regularHUD: some View {
         HStack(spacing: 16) {
             Text(controller.levelTitle)
                 .font(.headline)
+                .lineLimit(1)
 
             Spacer()
 
@@ -19,14 +31,31 @@ struct SokobanHUDView: View {
             )
 
             HStack(spacing: 8) {
-                availability(AppStrings.text(.uiHudUndo), enabled: controller.canUndo)
-                availability(AppStrings.text(.uiHudRedo), enabled: controller.canRedo)
+                availability("\(AppStrings.text(.uiHudUndo)) ⌘Z", enabled: controller.canUndo)
+                availability("\(AppStrings.text(.uiHudRedo)) ⇧⌘Z", enabled: controller.canRedo)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
-        .accessibilityElement(children: .contain)
+    }
+
+    private var compactHUD: some View {
+        VStack(spacing: 6) {
+            Text(controller.levelTitle)
+                .font(.headline)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 12) {
+                labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
+                labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
+                labeled(
+                    AppStrings.text(.uiHudGoals),
+                    value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
+                )
+                Spacer(minLength: 0)
+                availability("⌘Z", enabled: controller.canUndo)
+                availability("⇧⌘Z", enabled: controller.canRedo)
+            }
+        }
     }
 
     private func labeled(_ title: String, value: String) -> some View {

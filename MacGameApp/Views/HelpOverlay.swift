@@ -78,5 +78,14 @@ struct HelpOverlay: View {
         .onAppear {
             focusedID = "back"
         }
+        .onKeyPress(.return) {
+            onBack()
+            return .handled
+        }
+        .onKeyPress(.space) {
+            onBack()
+            return .handled
+        }
+        .onExitCommand(perform: onBack)
     }
 }

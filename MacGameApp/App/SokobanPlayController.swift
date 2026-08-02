@@ -6,14 +6,10 @@ import SwiftUI
 @MainActor
 final class SokobanPlayController: ObservableObject {
     static let outcomePresentationTimeout: TimeInterval = 0.45
-    /// Intro Variant B: unseen tutorial hints auto-dismiss after this delay.
-    static let introAutoDismissDelay: TimeInterval = 5.0
 
     #if DEBUG
-    /// Test override for the outcome settle timeout.
-    var outcomePresentationTimeoutForTesting: TimeInterval?
-    /// Test override for intro auto-dismiss delay.
-    var introAutoDismissDelayForTesting: TimeInterval?
+        /// Test override for the outcome settle timeout.
+        var outcomePresentationTimeoutForTesting: TimeInterval?
     #endif
 
     let scene: SokobanBoardScene
@@ -24,8 +20,6 @@ final class SokobanPlayController: ObservableObject {
     let catalog: SokobanContentCatalog
     let settingsStore: AppSettingsStore
     let reduceMotionProvider: ReduceMotionProvider
-    let assistiveReadingProbe: any AssistiveReadingProbe
-    let delayedActionScheduler: any DelayedActionScheduler
 
     private(set) var session: GameSession?
 
@@ -66,8 +60,6 @@ final class SokobanPlayController: ObservableObject {
     private var outcomeTimeoutItem: DispatchWorkItem?
     private var outcomeTargetRevision: UInt64?
     private var outcomeGeneration: UInt64 = 0
-    private var introAutoDismissToken: (any DelayedActionToken)?
-    private var introGeneration: UInt64 = 0
     private var recordedCompletionForSession = false
     private var settingsHandlerID: UUID?
     private var appIsActive = true
@@ -80,9 +72,7 @@ final class SokobanPlayController: ObservableObject {
         progressPersistence: ProgressPersistence,
         catalog: SokobanContentCatalog,
         settingsStore: AppSettingsStore = AppSettingsStore(),
-        reduceMotionSource: (any SystemReduceMotionSource)? = nil,
-        assistiveReadingProbe: any AssistiveReadingProbe = VoiceOverAssistiveReadingProbe(),
-        delayedActionScheduler: any DelayedActionScheduler = DispatchDelayedActionScheduler()
+        reduceMotionSource: (any SystemReduceMotionSource)? = nil
     ) {
         self.audioDirector = audioDirector
         self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
@@ -94,8 +84,6 @@ final class SokobanPlayController: ObservableObject {
             settings: settingsStore,
             systemSource: reduceMotionSource ?? WorkspaceReduceMotionSource()
         )
-        self.assistiveReadingProbe = assistiveReadingProbe
-        self.delayedActionScheduler = delayedActionScheduler
         self.currentLevelID = catalog.first.id
         self.runPersistence.onSaveFailure = { [weak self] message in
             self?.persistenceDiagnostic = message
@@ -142,9 +130,7 @@ final class SokobanPlayController: ObservableObject {
         progressPersistence: ProgressPersistence,
         contentLoadFailureMessage: String,
         settingsStore: AppSettingsStore = AppSettingsStore(),
-        reduceMotionSource: (any SystemReduceMotionSource)? = nil,
-        assistiveReadingProbe: any AssistiveReadingProbe = VoiceOverAssistiveReadingProbe(),
-        delayedActionScheduler: any DelayedActionScheduler = DispatchDelayedActionScheduler()
+        reduceMotionSource: (any SystemReduceMotionSource)? = nil
     ) {
         self.audioDirector = audioDirector
         self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
@@ -162,8 +148,6 @@ final class SokobanPlayController: ObservableObject {
             settings: settingsStore,
             systemSource: reduceMotionSource ?? WorkspaceReduceMotionSource()
         )
-        self.assistiveReadingProbe = assistiveReadingProbe
-        self.delayedActionScheduler = delayedActionScheduler
         self.currentLevelID = ""
         self.session = nil
         self.presentationPhase = .faulted
@@ -180,10 +164,7 @@ final class SokobanPlayController: ObservableObject {
             title: levelTitle,
             body: tutorialHintText,
             continueTitle: AppStrings.text(.uiIntroClose),
-            skipHint: AppStrings.text(.uiIntroSkipHint),
-            autoDismissDelay: assistiveReadingProbe.preventsIntroAutoDismiss
-                ? nil
-                : resolvedIntroAutoDismissDelay
+            skipHint: AppStrings.text(.uiIntroSkipHint)
         )
     }
 
@@ -306,23 +287,32 @@ final class SokobanPlayController: ObservableObject {
         )
     }
 
-    private var resolvedIntroAutoDismissDelay: TimeInterval {
-        #if DEBUG
-        introAutoDismissDelayForTesting ?? Self.introAutoDismissDelay
-        #else
-        Self.introAutoDismissDelay
-        #endif
+    var boardAccessibilityLabel: String {
+        "\(levelTitle), \(AppStrings.text(.uiBoardLabel))"
+    }
+
+    var boardAccessibilityValue: String {
+        guard let snapshot = scene.currentSnapshot else {
+            return AppStrings.text(.uiBoardUnavailable)
+        }
+        let player = snapshot.player.position
+        return "\(AppStrings.text(.uiBoardPlayer)) "
+            + "\(AppStrings.text(.uiBoardColumn)) \(player.column + 1), "
+            + "\(AppStrings.text(.uiBoardRow)) \(player.row + 1). "
+            + "\(AppStrings.text(.uiHudGoals)) "
+            + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
+            + "\(AppStrings.text(.uiHudMoves)) \(snapshot.moveCount), "
+            + "\(AppStrings.text(.uiHudPushes)) \(snapshot.pushCount)."
     }
 
     // MARK: - Lifecycle
 
     /// Loads a catalog level without consulting the run file (explicit next / recovery).
     ///
-    /// Shows the level intro for an unseen tutorial hint (Variant B). In-session
+    /// Shows an explicit-dismiss level intro for an unseen tutorial hint. In-session
     /// restart keeps the existing session and does not call this path.
     func startLevel(id: String? = nil, showIntro: Bool? = nil) {
         cancelOutcomeWait()
-        cancelIntroAutoDismiss()
         audioDirector.reset()
         applyAudioSettingsFromStore()
         scene.prepareForNewSession()
@@ -377,7 +367,6 @@ final class SokobanPlayController: ObservableObject {
     /// Dismisses the level-intro overlay and begins accepting moves.
     func dismissLevelIntro() {
         guard presentationPhase == .levelIntro else { return }
-        cancelIntroAutoDismiss()
         markCurrentIntroHintSeen()
         presentationPhase = .playing
         router.enterGameplay()
@@ -416,9 +405,6 @@ final class SokobanPlayController: ObservableObject {
 
     func handleAppDeactivation() {
         appIsActive = false
-        if presentationPhase == .levelIntro {
-            cancelIntroAutoDismiss()
-        }
         router.clearPendingInputs()
         audioDirector.interrupt()
         Task { await runPersistence.flush() }
@@ -445,7 +431,6 @@ final class SokobanPlayController: ObservableObject {
             audioDirector.resumePlayback()
         case .levelIntro:
             audioDirector.resumePlayback()
-            scheduleIntroAutoDismissIfNeeded()
         case .paused:
             requestPauseOverlayFocus()
         case .help, .settings:
@@ -572,7 +557,8 @@ final class SokobanPlayController: ObservableObject {
         case .loaded(let file):
             restoreRun(file)
         case .absent:
-            let levelID = progressPersistence.file.lastSelectedLevelID
+            let levelID =
+                progressPersistence.file.lastSelectedLevelID
                 .flatMap { progressPersistence.file.isUnlocked($0) ? $0 : nil }
                 ?? catalog.levels.first(where: { progressPersistence.file.isUnlocked($0.id) })?.id
                 ?? catalog.first.id
@@ -740,7 +726,6 @@ final class SokobanPlayController: ObservableObject {
                 return
             }
             cancelOutcomeWait()
-            cancelIntroAutoDismiss()
             audioDirector.reset()
             applyAudioSettingsFromStore()
             scene.prepareForNewSession()
@@ -787,34 +772,6 @@ final class SokobanPlayController: ObservableObject {
     private func enterLevelIntro() {
         presentationPhase = .levelIntro
         router.enterLevelIntro()
-        scheduleIntroAutoDismissIfNeeded()
-    }
-
-    private func scheduleIntroAutoDismissIfNeeded() {
-        cancelIntroAutoDismiss(clearGeneration: false)
-        guard appIsActive else { return }
-        guard !assistiveReadingProbe.preventsIntroAutoDismiss else { return }
-        introGeneration &+= 1
-        let generation = introGeneration
-        let delay = resolvedIntroAutoDismissDelay
-        introAutoDismissToken = delayedActionScheduler.schedule(after: delay) { [weak self] in
-            guard let self else { return }
-            guard generation == self.introGeneration else { return }
-            guard self.presentationPhase == .levelIntro else { return }
-            guard !self.assistiveReadingProbe.preventsIntroAutoDismiss else {
-                self.introAutoDismissToken = nil
-                return
-            }
-            self.dismissLevelIntro()
-        }
-    }
-
-    private func cancelIntroAutoDismiss(clearGeneration: Bool = true) {
-        introAutoDismissToken?.cancel()
-        introAutoDismissToken = nil
-        if clearGeneration {
-            introGeneration &+= 1
-        }
     }
 
     private func markCurrentIntroHintSeen() {
@@ -864,7 +821,6 @@ final class SokobanPlayController: ObservableObject {
 
     private func teardownSessionForNavigation(phase: GamePresentationPhase) {
         cancelOutcomeWait()
-        cancelIntroAutoDismiss()
         session = nil
         scene.prepareForNewSession()
         audioDirector.reset()
@@ -910,7 +866,9 @@ final class SokobanPlayController: ObservableObject {
     private func handleGameplay(_ intent: GameplayIntent) {
         switch intent {
         case .move(let direction):
-            guard presentationPhase == .playing, let session, session.phase == .playing else { return }
+            guard presentationPhase == .playing, let session, session.phase == .playing else {
+                return
+            }
             applyResults(session.submitMove(direction))
 
         case .undo:
@@ -988,7 +946,6 @@ final class SokobanPlayController: ObservableObject {
 
             case .faulted(let message):
                 cancelOutcomeWait()
-                cancelIntroAutoDismiss()
                 presentationPhase = .faulted
                 faultMessage = message
                 router.enterModalBlocked()
@@ -1028,7 +985,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func recordCompletionIfNeeded(snapshot: RenderSnapshot) {
         guard !recordedCompletionForSession,
-              let descriptor = catalog.descriptor(id: currentLevelID)
+            let descriptor = catalog.descriptor(id: currentLevelID)
         else { return }
 
         let delta = progressPersistence.recordCompletion(
@@ -1091,9 +1048,9 @@ final class SokobanPlayController: ObservableObject {
         outcomeTimeoutItem = timeout
         let delay: TimeInterval
         #if DEBUG
-        delay = outcomePresentationTimeoutForTesting ?? Self.outcomePresentationTimeout
+            delay = outcomePresentationTimeoutForTesting ?? Self.outcomePresentationTimeout
         #else
-        delay = Self.outcomePresentationTimeout
+            delay = Self.outcomePresentationTimeout
         #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: timeout)
     }
@@ -1131,16 +1088,20 @@ final class SokobanPlayController: ObservableObject {
 
         // Help/settings overlays are modal: keep the paused session intact, but
         // do not expose Undo/Redo/Restart (menu shortcuts would resumeIfPaused).
-        let sessionCommandsAllowed = presentationPhase != .help
+        let sessionCommandsAllowed =
+            presentationPhase != .help
             && presentationPhase != .settings
 
-        canUndo = sessionCommandsAllowed
+        canUndo =
+            sessionCommandsAllowed
             && session.undoCount > 0
             && (session.canAcceptSessionCommand || session.phase == .paused)
-        canRedo = sessionCommandsAllowed
+        canRedo =
+            sessionCommandsAllowed
             && session.redoCount > 0
             && (session.canAcceptSessionCommand || session.phase == .paused)
-        canRestart = sessionCommandsAllowed
+        canRestart =
+            sessionCommandsAllowed
             && (session.phase == .playing
                 || session.phase == .paused
                 || session.phase == .outcomePresenting)

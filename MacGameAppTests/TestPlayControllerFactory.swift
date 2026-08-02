@@ -1,14 +1,13 @@
 import Foundation
+
 @testable import MacGameApp
 
-/// Shared factory for Phase 3 controller tests (isolated settings + manual timers).
+/// Shared factory for Phase 3 controller tests (isolated settings and system flags).
 @MainActor
 enum TestPlayControllerFactory {
     struct Harness {
         let controller: SokobanPlayController
         let settings: AppSettingsStore
-        let scheduler: ManualDelayedActionScheduler
-        let assistive: ManualAssistiveReadingProbe
         let reduceMotion: ManualReduceMotionSource
         let progress: ProgressPersistence
         let runPersistence: SokobanRunPersistence
@@ -18,7 +17,6 @@ enum TestPlayControllerFactory {
     static func make(
         audioDirector: AudioDirector = AudioDirector(backend: NoOpAudioPlaybackBackend()),
         markIntroDismissed: Bool = false,
-        assistivePreventsAutoDismiss: Bool = false,
         systemReduceMotion: Bool = false
     ) throws -> Harness {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
@@ -27,10 +25,6 @@ enum TestPlayControllerFactory {
         let runPersistence = try SokobanRunPersistence.ephemeral()
         let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
         let settings = AppSettingsStore.ephemeral()
-        let scheduler = ManualDelayedActionScheduler()
-        let assistive = ManualAssistiveReadingProbe(
-            preventsIntroAutoDismiss: assistivePreventsAutoDismiss
-        )
         let reduceMotion = ManualReduceMotionSource(
             systemReduceMotionEnabled: systemReduceMotion
         )
@@ -40,9 +34,7 @@ enum TestPlayControllerFactory {
             progressPersistence: progress,
             catalog: catalog,
             settingsStore: settings,
-            reduceMotionSource: reduceMotion,
-            assistiveReadingProbe: assistive,
-            delayedActionScheduler: scheduler
+            reduceMotionSource: reduceMotion
         )
         reduceMotion.onChange = { [weak controller] in
             controller?.reduceMotionProvider.refresh()
@@ -53,8 +45,6 @@ enum TestPlayControllerFactory {
         return Harness(
             controller: controller,
             settings: settings,
-            scheduler: scheduler,
-            assistive: assistive,
             reduceMotion: reduceMotion,
             progress: progress,
             runPersistence: runPersistence,

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -19,9 +20,7 @@ struct SokobanPlayControllerAudioTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         controller.dismissLevelIntro()
         return (controller, spy)

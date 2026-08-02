@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -17,9 +18,7 @@ struct SokobanTutorialFlowTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
     }
 
@@ -97,9 +96,11 @@ struct SokobanTutorialFlowTests {
         controller.performOutcomePrimaryAction()
         #expect(controller.currentLevelID == "sokoban.tutorial.002")
         #expect(controller.presentationPhase == .levelIntro)
-        #expect(controller.tutorialHintText == controller.catalog.tutorialHint(
-            for: try #require(controller.catalog.descriptor(id: "sokoban.tutorial.002"))
-        ))
+        #expect(
+            controller.tutorialHintText
+                == controller.catalog.tutorialHint(
+                    for: try #require(controller.catalog.descriptor(id: "sokoban.tutorial.002"))
+                ))
         controller.dismissLevelIntro()
 
         // Level 2 → next
@@ -151,9 +152,7 @@ struct SokobanTutorialFlowTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         #expect(controller.presentationPhase == .levelIntro)
         #expect(spy.musicStates.contains(.sokobanLoop))
@@ -183,9 +182,7 @@ struct SokobanTutorialFlowTests {
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
-            settingsStore: AppSettingsStore.ephemeral(),
-            assistiveReadingProbe: ManualAssistiveReadingProbe(),
-            delayedActionScheduler: ManualDelayedActionScheduler()
+            settingsStore: AppSettingsStore.ephemeral()
         )
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)

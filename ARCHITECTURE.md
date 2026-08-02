@@ -863,6 +863,20 @@ Standardbelegung:
 - Escape: Pause beziehungsweise zurück,
 - Leertaste: warten, falls ein Spielmodus dies unterstützt.
 
+UI-Navigation ist ein eigener semantischer Eingabevertrag und hängt nicht von
+der macOS-Systemoption „Full Keyboard Access“ ab:
+
+- Pfeil hoch/runter wählt in vertikalen Aktionslisten die vorige/nächste
+  aktivierte Aktion; kurze Listen dürfen zyklisch umlaufen.
+- Return oder Leertaste aktiviert ausschließlich die sichtbar markierte Aktion.
+- Escape führt aus Unteransichten zur fachlich vorherigen Ansicht zurück.
+- In Einstellungen wechseln hoch/runter die Zeile; links/rechts verändert den
+  fokussierten Slider. Deaktivierte Einträge werden übersprungen.
+- Fokus und Aktivierung werden als semantische UI-Absichten modelliert, damit
+  Tastatur und ein späterer Gamecontroller denselben Navigationsvertrag nutzen.
+- UI-Navigation durchläuft denselben Eingabeschutz wie Overlays; ein schließender
+  Tastendruck darf nicht als Spielzug weiterverwendet werden.
+
 Die Bewegungswiederholung wird von macOS-Key-Repeat entkoppelt. Für Boulder Dash
 merkt sich ein `DirectionalInputState` die aktuell gehaltenen Richtungen in
 Drückreihenfolge und zusätzlich einen Press-Latch seit dem letzten
@@ -1261,7 +1275,8 @@ Wertsemantik und vollständige Snapshots zunächst vertretbar sind.
 - Alle Aktionen erhalten Menübefehle und sichtbare Tastaturkürzel.
 - Bewegung funktioniert ohne Maus.
 - Menüs, Levelauswahl, Pause und Ergebnisdialoge unterstützen vollständige
-  Tastaturnavigation mit sichtbarem Fokus.
+  app-eigene Tastaturnavigation mit sichtbarem Fokus, auch wenn macOS „Full
+  Keyboard Access“ deaktiviert ist.
 - Farben sind nicht das einzige Unterscheidungsmerkmal.
 - Wichtige Audiohinweise besitzen sichtbare Entsprechungen.
 - Die Systemeinstellung „Bewegung reduzieren“ wird berücksichtigt; Kamera,
@@ -1417,7 +1432,39 @@ Abnahme:
 Explizit nicht in Phase 3: `CaveState`, Tick-Loop, Gravitation, Gegner, Kamera
 oder ein gemeinsames `GameRules`-Protokoll.
 
-### Phase 3.5: Höhlenregel-Spike
+### Phase 3.4: Theme und Renderer-Härtung
+
+- Versionierten Theme-Vertrag mit vollständigen Fallbacks für Terrain,
+  Bewohner, Zustandsmarker und UI-Fokus festlegen.
+- Wand, Boden, Void, Ziel, Spieler und Kiste durch Form beziehungsweise Symbol
+  und nicht ausschließlich durch Farbe unterscheiden.
+- Leeres Ziel, Kiste auf Ziel und Spieler auf Ziel eindeutig darstellen.
+- Fachliche Renderereignisse für Blockade, Schub, Ziel betreten/verlassen und
+  Abschluss auf kurze sichtbare Rückmeldungen abbilden; Stummschaltung entfernt
+  keine Information.
+- HUD und Board in getrennten Layoutbereichen rendern; Overlays und Levelauswahl
+  bleiben bei minimaler Fenstergröße scrollbar.
+- Ganzzahlige Pixel-Skalierung oder auflösungsunabhängigen Stil verbindlich
+  wählen und bei Resize/Hard-Resync ohne Flimmern neu aufbauen.
+- Kompakte zugängliche Brettbeschreibung und High-Contrast-Fähigkeit des
+  Theme-Vertrags absichern.
+
+Abnahme:
+
+- Alle Zustände bleiben in Graustufen und ohne Ton unterscheidbar.
+- Jeder Sokoban-Eingabeausgang liefert sichtbares Feedback; „Bewegung reduzieren“
+  besitzt eine semantisch gleichwertige Alternative.
+- Das vollständige Raster wird bei minimaler Fenstergröße nie vom HUD verdeckt.
+- Hauptmenü, Levelauswahl, Pause, Einstellungen und Ergebnis sind mit
+  Pfeiltasten, Return/Leertaste und Escape bedienbar, unabhängig von Full
+  Keyboard Access.
+- Hard-Resync, Undo und Redo spielen keine historischen Effekte nach und enden
+  exakt im Ziel-Snapshot.
+- Renderer-, Fokus- und Resize-Verträge sind automatisiert getestet; ein kurzer
+  manueller Tastatur-, Stumm-, Graustufen- und Reduce-Motion-Playtest ist
+  protokolliert.
+
+### Phase 3.7: Höhlenregel-Spike
 
 - ADR `Cave Tick Semantics` anhand konkurrierender Beispielsituationen entscheiden.
 - 10–15 Golden-Konfliktraster für Scanrichtung, Update-once und Explosionen bauen.
@@ -1538,7 +1585,7 @@ In frühen Spikes zu entscheiden:
 
 1. `SKTileMapNode` oder vollständig eigene Node-Schichten.
 2. In-place mit Marker oder Double Buffer für Boulder-Dash-Ticks; verbindlich in
-   Phase 3.5 und nicht als doppelte Abstraktion.
+   Phase 3.7 und nicht als doppelte Abstraktion.
 3. Exakte Tickrate und Eingabepufferung des Höhlenspiels.
 4. Minimale unterstützte macOS-Version.
 5. Pixel-Art mit ganzzahliger Skalierung oder auflösungsunabhängiger Stil.

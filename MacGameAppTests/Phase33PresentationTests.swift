@@ -1,13 +1,35 @@
-import Combine
 import AppKit
+import Combine
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
 @Suite("Phase 3.3 presentation platform")
 @MainActor
 struct Phase33PresentationTests {
+    @Test("game menu focus traversal wraps independently of system keyboard settings")
+    func keyboardFocusCycleWraps() {
+        let items = ["continue", "levels", "help", "settings"]
+        #expect(
+            KeyboardFocusCycle.move(from: "continue", in: items, offset: -1)
+                == "settings"
+        )
+        #expect(
+            KeyboardFocusCycle.move(from: "settings", in: items, offset: 1)
+                == "continue"
+        )
+        #expect(KeyboardFocusCycle.move(from: nil, in: items, offset: 1) == "continue")
+        #expect(
+            KeyboardFocusCycle.move(
+                from: Optional<String>.none,
+                in: [String](),
+                offset: 1
+            ) == nil
+        )
+    }
+
     private func playMoves(_ controller: SokobanPlayController, _ moves: [Direction]) {
         for direction in moves {
             let key: UInt16
@@ -36,49 +58,28 @@ struct Phase33PresentationTests {
         #expect(bundle.controller.presentationPhase == .levelIntro)
         let level1 = try #require(bundle.catalog.descriptor(id: "sokoban.tutorial.001"))
         #expect(bundle.controller.tutorialHintText == bundle.catalog.tutorialHint(for: level1))
-        #expect(bundle.scheduler.pendingCount == 1)
     }
 
-    @Test("2 intro auto-dismisses after scheduled delay")
-    func introAutoDismisses() throws {
+    @Test("2 first-time tutorial hint waits for an explicit action")
+    func introWaitsForExplicitAction() throws {
         let bundle = try TestPlayControllerFactory.make()
         #expect(bundle.controller.presentationPhase == .levelIntro)
-        bundle.scheduler.fireNext()
-        #expect(bundle.controller.presentationPhase == .playing)
+        #expect(bundle.controller.presentationPhase == .levelIntro)
         let hintID = try #require(
             bundle.catalog.descriptor(id: "sokoban.tutorial.001")?.tutorialHintID
         )
+        #expect(!bundle.progress.file.hasSeenHint(hintID))
+    }
+
+    @Test("3 manual dismiss marks the hint as seen")
+    func manualDismissMarksHintSeen() throws {
+        let bundle = try TestPlayControllerFactory.make()
+        let hintID = try #require(
+            bundle.catalog.descriptor(id: "sokoban.tutorial.001")?.tutorialHintID
+        )
+        bundle.controller.dismissLevelIntro()
+        #expect(bundle.controller.presentationPhase == .playing)
         #expect(bundle.progress.file.hasSeenHint(hintID))
-    }
-
-    @Test("3 manual dismiss cancels the intro timer")
-    func manualDismissCancelsTimer() throws {
-        let bundle = try TestPlayControllerFactory.make()
-        bundle.controller.dismissLevelIntro()
-        #expect(bundle.controller.presentationPhase == .playing)
-        #expect(bundle.scheduler.pendingCount == 0)
-        bundle.scheduler.fireNext()
-        #expect(bundle.controller.presentationPhase == .playing)
-    }
-
-    @Test("4 stale intro timer cannot close a later overlay or level")
-    func staleTimerDoesNotAffectLaterLevel() throws {
-        let bundle = try TestPlayControllerFactory.make()
-        #expect(bundle.scheduler.pendingCount == 1)
-        // Start next level while first intro timer is still pending (cancel + new gen).
-        bundle.controller.startSelectedLevel(id: "sokoban.tutorial.001", showIntro: false)
-        #expect(bundle.controller.presentationPhase == .playing)
-        // Fire any leftover cancelled work — must not change phase.
-        bundle.scheduler.fireNext()
-        #expect(bundle.controller.presentationPhase == .playing)
-
-        bundle.controller.startLevel(id: "sokoban.tutorial.002", showIntro: true)
-        #expect(bundle.controller.presentationPhase == .levelIntro)
-        let pendingBefore = bundle.scheduler.pendingCount
-        #expect(pendingBefore == 1)
-        bundle.controller.dismissLevelIntro()
-        bundle.scheduler.fireNext()
-        #expect(bundle.controller.presentationPhase == .playing)
     }
 
     @Test("5 seen hint is skipped on normal level start")
@@ -92,35 +93,10 @@ struct Phase33PresentationTests {
 
         bundle.controller.startLevel(id: "sokoban.tutorial.001")
         #expect(bundle.controller.presentationPhase == .playing)
-        #expect(bundle.scheduler.pendingCount == 0)
     }
 
-    @Test("6 assistive reading prevents intro auto-dismiss")
-    func assistivePreventsAutoDismiss() throws {
-        let bundle = try TestPlayControllerFactory.make(assistivePreventsAutoDismiss: true)
-        #expect(bundle.controller.presentationPhase == .levelIntro)
-        #expect(bundle.scheduler.pendingCount == 0)
-        #expect(bundle.controller.levelIntroPresentation.autoDismissDelay == nil)
-    }
-
-    @Test("6b enabling assistive reading blocks a pending auto-dismiss")
-    func assistiveChangePreventsPendingAutoDismiss() throws {
-        let bundle = try TestPlayControllerFactory.make()
-        let hintID = try #require(
-            bundle.catalog.descriptor(id: "sokoban.tutorial.001")?.tutorialHintID
-        )
-        #expect(bundle.scheduler.pendingCount == 1)
-
-        bundle.assistive.preventsIntroAutoDismiss = true
-        bundle.scheduler.fireNext()
-
-        #expect(bundle.controller.presentationPhase == .levelIntro)
-        #expect(!bundle.progress.file.hasSeenHint(hintID))
-        #expect(bundle.scheduler.pendingCount == 0)
-    }
-
-    @Test("6c inactive app suspends intro auto-dismiss until activation")
-    func inactiveAppSuspendsIntroAutoDismiss() throws {
+    @Test("6 focus changes never dismiss a first-time tutorial hint")
+    func focusChangesKeepIntroVisible() throws {
         let spy = SpyAudioPlaybackBackend()
         let bundle = try TestPlayControllerFactory.make(
             audioDirector: AudioDirector(backend: spy)
@@ -131,19 +107,14 @@ struct Phase33PresentationTests {
         spy.resetCalls()
 
         bundle.controller.handleAppDeactivation()
-        #expect(bundle.scheduler.pendingCount == 0)
-        bundle.scheduler.fireNext()
         #expect(bundle.controller.presentationPhase == .levelIntro)
         #expect(!bundle.progress.file.hasSeenHint(hintID))
         #expect(spy.musicStates.last == .stopped)
 
         bundle.controller.handleAppActivation()
-        #expect(bundle.scheduler.pendingCount == 1)
         #expect(spy.musicStates.last == .sokobanLoop)
-
-        bundle.scheduler.fireNext()
-        #expect(bundle.controller.presentationPhase == .playing)
-        #expect(bundle.progress.file.hasSeenHint(hintID))
+        #expect(bundle.controller.presentationPhase == .levelIntro)
+        #expect(!bundle.progress.file.hasSeenHint(hintID))
     }
 
     @Test("7 help still lists already-seen tutorial hints")
@@ -376,7 +347,6 @@ struct Phase33PresentationTests {
         awaitOutcome(bundle.controller)
         bundle.controller.restartFromOutcomeOverlay()
         #expect(bundle.controller.presentationPhase == .playing)
-        #expect(bundle.scheduler.pendingCount == 0)
     }
 
     @Test("help from pause blocks gameplay input")

@@ -1,5 +1,6 @@
 import CoreGraphics
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -34,7 +35,7 @@ struct SokobanBoardSceneTests {
 
         #expect(scene.appliedRevision == 1)
         #expect(scene.terrainNodeCountForTesting == 15)
-        #expect(scene.entityNodeCountForTesting == 2) // player + crate
+        #expect(scene.entityNodeCountForTesting == 2)  // player + crate
         #expect(scene.currentSnapshot?.player.position == GridPosition(column: 1, row: 1))
     }
 
@@ -61,6 +62,55 @@ struct SokobanBoardSceneTests {
         #expect(scene.currentSnapshot?.player.position.column == 1)
     }
 
+    @Test("blocked movement is forwarded as visible renderer feedback")
+    func blockedMovementFeedback() throws {
+        let session = try startedSession(
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let scene = makeScene()
+        scene.holdAnimationsForTesting = true
+        scene.apply(session.bootstrapEmission!.render)
+
+        guard case .emitted(let emission) = session.submitMove(.left)[0] else {
+            Issue.record("expected blocked event emission")
+            return
+        }
+        scene.apply(emission.render)
+
+        #expect(
+            scene.lastEventsForTesting == [
+                .movementBlocked(at: GridPosition(column: 0, row: 1))
+            ])
+        #expect(scene.pendingAnimationCount == 1)
+    }
+
+    @Test("crate on goal has a non-color state marker")
+    func crateGoalMarker() throws {
+        let session = try startedSession(
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let scene = makeScene()
+        scene.holdAnimationsForTesting = true
+        scene.apply(session.bootstrapEmission!.render)
+
+        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+            Issue.record("expected terminal push")
+            return
+        }
+        scene.apply(emission.render)
+        scene.settleAnimationsForTesting()
+
+        #expect(scene.crateGoalMarkerCountForTesting == 1)
+    }
+
     @Test("artificial revision gap triggers hard-resync")
     func revisionGapHardResync() throws {
         let session = try startedSession(
@@ -77,7 +127,7 @@ struct SokobanBoardSceneTests {
         let first = session.submitMove(.right)
         let second = session.submitMove(.right)
         guard case .emitted(let a) = first[0],
-              case .emitted(let b) = second[0]
+            case .emitted(let b) = second[0]
         else {
             Issue.record("expected emissions")
             return
@@ -88,7 +138,7 @@ struct SokobanBoardSceneTests {
         #expect(scene.appliedRevision == b.render.targetRevision)
         #expect(scene.pendingAnimationCount == 0)
         #expect(scene.currentSnapshot?.player.position == b.render.snapshot.player.position)
-        _ = a // silence unused; documents the skipped intermediate
+        _ = a  // silence unused; documents the skipped intermediate
     }
 
     @Test("hard-resync clears running animations")
@@ -285,12 +335,13 @@ struct SokobanBoardSceneTests {
         #expect(scene.currentSnapshot == nil)
         #expect(fired == false)
 
-        let level = try SokobanLevelValidator.level(fromASCII:
-            """
-            #####
-            #@$.#
-            #####
-            """
+        let level = try SokobanLevelValidator.level(
+            fromASCII:
+                """
+                #####
+                #@$.#
+                #####
+                """
         )
         let fresh = try GameSession(level: level, levelID: "fresh")
         let bootstrap = fresh.start()

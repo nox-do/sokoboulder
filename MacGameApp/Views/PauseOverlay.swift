@@ -11,7 +11,7 @@ struct PauseOverlay: View {
     let onHelp: () -> Void
     @FocusState private var focusedAction: PauseAction?
 
-    private enum PauseAction: Hashable {
+    private enum PauseAction: Hashable, CaseIterable {
         case resume
         case restart
         case settings
@@ -37,7 +37,6 @@ struct PauseOverlay: View {
                         onResume()
                     }
                     .focused($focusedAction, equals: .resume)
-                    .keyboardShortcut(.defaultAction)
 
                     Button(model.restartTitle) {
                         onRestart()
@@ -75,11 +74,47 @@ struct PauseOverlay: View {
         .onChange(of: pauseFocusEpoch) { _, _ in
             focusResumeButton()
         }
+        .onMoveCommand { direction in
+            switch direction {
+            case .up, .left:
+                moveFocus(by: -1)
+            case .down, .right:
+                moveFocus(by: 1)
+            @unknown default:
+                break
+            }
+        }
+        .onKeyPress(.return) {
+            performFocusedAction()
+            return .handled
+        }
+        .onKeyPress(.space) {
+            performFocusedAction()
+            return .handled
+        }
     }
 
     private func focusResumeButton() {
         DispatchQueue.main.async {
             focusedAction = .resume
+        }
+    }
+
+    private func moveFocus(by offset: Int) {
+        focusedAction = KeyboardFocusCycle.move(
+            from: focusedAction,
+            in: PauseAction.allCases,
+            offset: offset
+        )
+    }
+
+    private func performFocusedAction() {
+        switch focusedAction ?? .resume {
+        case .resume: onResume()
+        case .restart: onRestart()
+        case .settings: onSettings()
+        case .levelSelection: onLevelSelection()
+        case .help: onHelp()
         }
     }
 }

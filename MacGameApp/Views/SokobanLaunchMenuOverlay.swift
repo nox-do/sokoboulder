@@ -5,7 +5,7 @@ struct SokobanLaunchMenuOverlay: View {
     @ObservedObject var controller: SokobanPlayController
     @FocusState private var focusedAction: LaunchAction?
 
-    private enum LaunchAction: Hashable {
+    private enum LaunchAction: Hashable, CaseIterable {
         case continueCampaign
         case selectLevel
         case help
@@ -25,7 +25,6 @@ struct SokobanLaunchMenuOverlay: View {
                     controller.continueCampaign()
                 }
                 .focused($focusedAction, equals: .continueCampaign)
-                .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
 
                 Button(AppStrings.text(.uiLaunchSelectLevel)) {
@@ -52,6 +51,45 @@ struct SokobanLaunchMenuOverlay: View {
         .accessibilityAddTraits(.isModal)
         .onAppear {
             focusedAction = .continueCampaign
+        }
+        .onMoveCommand { direction in
+            switch direction {
+            case .up, .left:
+                focusedAction = KeyboardFocusCycle.move(
+                    from: focusedAction,
+                    in: LaunchAction.allCases,
+                    offset: -1
+                )
+            case .down, .right:
+                focusedAction = KeyboardFocusCycle.move(
+                    from: focusedAction,
+                    in: LaunchAction.allCases,
+                    offset: 1
+                )
+            @unknown default:
+                break
+            }
+        }
+        .onKeyPress(.return) {
+            performFocusedAction()
+            return .handled
+        }
+        .onKeyPress(.space) {
+            performFocusedAction()
+            return .handled
+        }
+    }
+
+    private func performFocusedAction() {
+        switch focusedAction ?? .continueCampaign {
+        case .continueCampaign:
+            controller.continueCampaign()
+        case .selectLevel:
+            controller.openLevelSelection()
+        case .help:
+            controller.openHelpFromLaunchMenu()
+        case .settings:
+            controller.openSettingsFromLaunchMenu()
         }
     }
 }

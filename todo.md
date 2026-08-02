@@ -223,33 +223,55 @@ Vertragsentscheidungen:
 
 Vertragsentscheidungen:
 - Gemeinsame Präsentationsmodelle (Intro, Hilfe, Pause, Ergebnis, Settings) ohne Sokoban-Regellogik in den Views; Ergebniskennzahlen sind spielneutrale Präsentationszeilen; Controller erzeugt Modelle und verarbeitet Aktionen
-- Intro **Variante B** mit Accessibility-Ausnahme:
+- Introvertrag:
   - ungesehener Tutorial-Hinweis erscheint; sichtbarer Schließen-Button + Tastatur (Return/Space/Escape)
-  - ohne Interaktion Auto-Dismiss nach 5 Sekunden; ID → `seenTutorialHintIDs`
+  - erstmaliger Hinweis wartet ohne Zeitlimit auf eine bewusste Eingabe; ID → `seenTutorialHintIDs`
   - bereits gesehener Hinweis wird beim normalen Start übersprungen
   - Restart / „Noch einmal“ zeigen den Hinweis nicht erneut
   - Hilfe zeigt Hinweise weiterhin, ohne Fortschritt zu ändern
-  - VoiceOver / assistive Reading (`AssistiveReadingProbe`) verhindert Auto-Dismiss, auch wenn es während des Countdowns aktiviert wird
-  - Timer über injizierbaren `DelayedActionScheduler` + Generation; bei inaktiver App pausiert; kein Restore-Intro
+  - kein Restore-Intro
 - Hilfe und Einstellungen aus Launch-Menü und Pause; Return-Origin erhält Pause-Session
 - **Settings (Phase 3.3):** `AppSettingsStore` (injizierbares UserDefaults), Reduce-Motion-App-Toggle, Musik-/Effektlautstärke `0...1`, Mute; live an `AudioDirector` / Backend; effektives Reduce Motion = System **ODER** App-Toggle (nur Präsentation/`SokobanBoardScene.prefersReducedMotion`)
 - **Settings (Phase 3.5, später):** Audio-Manifest und Audio-Theme-Mapping wiederverwenden die Settings-Schnittstelle; noch nicht gebaut
 - Ergebnis: Undo nur bei `canUndo`; Levelauswahl-Aktion ergänzt; bestehende Fokus-/Confirm-/Double-Key-Verträge bleiben
 
 - [x] Präsentationsmodelle + gemeinsame Overlay-Views
-- [x] Intro Variante B (Timer, Generation, A11y-Probe)
+- [x] Intro mit explizitem Schließen und dauerhaft erreichbarer Hilfe
 - [x] Hilfe / Einstellungen Navigation und Persistenz
 - [x] Pause-/Ergebnis-Erweiterung
 - [x] Audio-Lautstärken/Mute + Reduce-Motion-Anbindung
 - [x] Tests (isolierte Defaults/Scheduler); GameCore + MacGameApp grün
 - [x] Nachzug Review: Workspace-NotificationCenter für Reduce Motion; Hilfe/Settings sperren Session-Menübefehle; Mute ohne Loop-Stapel; Hilfe scrollbar
 
-## Später
+### 3.3a Spieler-UX-Nachzug vor Theme-Arbeit – abgenommen
 
-- Phase 3.4: Theme + Renderer-Härtung
+Vertragsentscheidungen:
+- App-eigene Pfeiltasten-Navigation für Hauptmenü, Levelauswahl, Pause,
+  Einstellungen und Ergebnis; unabhängig von macOS Full Keyboard Access
+- Return/Leertaste aktiviert die markierte Aktion, Escape geht konsistent zurück;
+  deaktivierte Einträge werden übersprungen
+- HUD und SpriteKit-Board besitzen getrennte Layoutbereiche; lange Ergebnis-,
+  Settings- und Levelinhalte sind scrollbar
+- Renderereignisse erzeugen sichtbare Symbole für Blockade und Zielwechsel;
+  Terrain/Bewohner besitzen bereits nichtfarbliche Semantikmarker als Baseline
+- Kompakte VoiceOver-Brettbeschreibung mit Level, Spielerposition, Zielen,
+  Zügen und Schüben
+- Erstmalige Tutorial-Hinweise warten auf explizites Schließen; gesehene Hinweise
+  werden weiterhin übersprungen
+
+- [x] Tastatur-Fokuszyklus und Overlay-Verdrahtung
+- [x] Sichtbares Ereignisfeedback und Zielzustandsmarker
+- [x] HUD-/Board-Trennung und responsive Scrollbereiche
+- [x] Zugängliche Brettzusammenfassung
+- [x] Introvertrag ohne 5-Sekunden-Auto-Dismiss
+- [x] App-Tests grün
+
+## Als Nächstes
+
+- Phase 3.4: Theme + Renderer-Härtung gemäß Abnahme in `ARCHITECTURE.md`
 - Phase 3.5: Audio-Manifest + Theme-Mapping (Settings-UI/Persistenz bereits in 3.3)
 - Phase 3.6: Replay-Grundlage
-- Phase 3.5 (Höhlen-Spike) / Phase 4+: Cave…
+- Phase 3.7 (Höhlen-Spike) / Phase 4+: Cave…
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
