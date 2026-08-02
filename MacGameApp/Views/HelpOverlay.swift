@@ -2,33 +2,37 @@ import SwiftUI
 
 /// Shared help / controls overview driven by ``HelpPresentation``.
 struct HelpOverlay: View {
+    @Environment(\.visualTheme) private var theme
     let model: HelpPresentation
     let onBack: () -> Void
     @FocusState private var focusedID: String?
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45)
+            theme.ui.overlayScrim.swiftUIColor
                 .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 16) {
                 Text(model.title)
                     .font(.largeTitle.weight(.semibold))
+                    .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                     .frame(maxWidth: .infinity)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(AppStrings.text(.uiHelpControlsTitle))
                             .font(.headline)
+                            .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(model.controls) { row in
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.title)
                                         .font(.body.weight(.semibold))
+                                        .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                                     Text(row.detail)
                                         .font(.callout)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .accessibilityElement(children: .combine)
@@ -38,6 +42,7 @@ struct HelpOverlay: View {
                         if !model.tutorialHints.isEmpty {
                             Text(model.tutorialSectionTitle)
                                 .font(.headline)
+                                .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                                 .padding(.top, 4)
 
                             VStack(alignment: .leading, spacing: 10) {
@@ -45,9 +50,10 @@ struct HelpOverlay: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(hint.title)
                                             .font(.body.weight(.semibold))
+                                            .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                                         Text(hint.body)
                                             .font(.callout)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .accessibilityElement(children: .combine)
@@ -64,12 +70,16 @@ struct HelpOverlay: View {
                 }
                 .focused($focusedID, equals: "back")
                 .keyboardShortcut(.cancelAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
+                .themedFocus(isFocused: focusedID == "back", isPrimary: true)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
             }
             .padding(32)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                theme.ui.panelBackground.swiftUIColor,
+                in: RoundedRectangle(cornerRadius: 16)
+            )
             .frame(maxWidth: 480)
             .frame(maxHeight: 360)
         }

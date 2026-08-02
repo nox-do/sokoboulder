@@ -5,6 +5,7 @@ import SwiftUI
 /// Return/Space confirmation is routed through ``GameplayInputRouter`` only —
 /// no `.defaultAction` shortcut, so a skip-Return cannot also confirm.
 struct OutcomeOverlay: View {
+    @Environment(\.visualTheme) private var theme
     let model: OutcomePresentation
     let focusedAction: OutcomeFocusedAction
     let onFocusChange: (OutcomeFocusedAction) -> Void
@@ -24,13 +25,14 @@ struct OutcomeOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            theme.ui.overlayScrim.swiftUIColor
                 .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 18) {
                     Text(model.title)
                         .font(.largeTitle.weight(.semibold))
+                        .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
                     if !model.metrics.isEmpty {
                         Text(
@@ -39,6 +41,7 @@ struct OutcomeOverlay: View {
                                 .joined(separator: " · ")
                         )
                         .font(.body.monospacedDigit())
+                        .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                     }
 
                     if !model.records.isEmpty {
@@ -49,49 +52,60 @@ struct OutcomeOverlay: View {
                                     if line.isNewRecord {
                                         Text(line.newRecordTitle)
                                             .font(.caption.weight(.semibold))
-                                            .foregroundStyle(.tint)
+                                            .foregroundStyle(theme.ui.success.swiftUIColor)
                                     }
                                 }
                             }
                         }
                         .font(.callout.monospacedDigit())
+                        .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                     }
 
                     Text(model.hint)
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
                         .multilineTextAlignment(.center)
 
                     VStack(spacing: 12) {
-                        Button(model.primaryTitle) {
-                            onPrimary()
-                        }
-                        .focused($focusedActionState, equals: .primary)
-                        .buttonStyle(.borderedProminent)
-
-                        Button(model.playAgainTitle) {
-                            onPlayAgain()
-                        }
-                        .focused($focusedActionState, equals: .again)
-                        .disabled(!model.playAgainEnabled)
-
+                        themedButton(
+                            model.primaryTitle,
+                            action: .primary,
+                            enabled: true,
+                            primary: true,
+                            onPrimary
+                        )
+                        themedButton(
+                            model.playAgainTitle,
+                            action: .again,
+                            enabled: model.playAgainEnabled,
+                            primary: false,
+                            onPlayAgain
+                        )
                         if model.undoEnabled {
-                            Button(model.undoTitle) {
-                                onUndo()
-                            }
-                            .focused($focusedActionState, equals: .undo)
+                            themedButton(
+                                model.undoTitle,
+                                action: .undo,
+                                enabled: true,
+                                primary: false,
+                                onUndo
+                            )
                         }
-
-                        Button(model.levelSelectTitle) {
-                            onLevelSelection()
-                        }
-                        .focused($focusedActionState, equals: .levelSelection)
+                        themedButton(
+                            model.levelSelectTitle,
+                            action: .levelSelection,
+                            enabled: true,
+                            primary: false,
+                            onLevelSelection
+                        )
                     }
                     .controlSize(.large)
                 }
                 .padding(32)
             }
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                theme.ui.panelBackground.swiftUIColor,
+                in: RoundedRectangle(cornerRadius: 16)
+            )
             .frame(maxWidth: 400)
             .frame(maxHeight: 520)
         }
@@ -119,6 +133,25 @@ struct OutcomeOverlay: View {
         .onExitCommand {
             onLevelSelection()
         }
+    }
+
+    private func themedButton(
+        _ title: String,
+        action: OutcomeFocusedAction,
+        enabled: Bool,
+        primary: Bool,
+        _ handler: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: handler)
+            .buttonStyle(.plain)
+            .focused($focusedActionState, equals: action)
+            .disabled(!enabled)
+            .themedFocus(
+                isFocused: focusedActionState == action,
+                isEnabled: enabled,
+                isPrimary: primary
+            )
+            .frame(maxWidth: .infinity)
     }
 
     private func moveFocus(by offset: Int) {

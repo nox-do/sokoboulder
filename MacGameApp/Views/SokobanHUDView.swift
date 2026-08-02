@@ -3,6 +3,7 @@ import SwiftUI
 /// Top HUD for Sokoban: level, counters, goal progress, undo/redo availability.
 struct SokobanHUDView: View {
     @ObservedObject var controller: SokobanPlayController
+    @Environment(\.visualTheme) private var theme
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -11,7 +12,8 @@ struct SokobanHUDView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(theme.ui.hudBackground.swiftUIColor)
+        .foregroundStyle(theme.ui.hudForeground.swiftUIColor)
         .accessibilityElement(children: .contain)
     }
 
@@ -62,7 +64,7 @@ struct SokobanHUDView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.ui.hudSecondary.swiftUIColor)
             Text(value)
                 .font(.subheadline.monospacedDigit())
         }
@@ -75,8 +77,12 @@ struct SokobanHUDView: View {
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .foregroundStyle(enabled ? Color.primary : Color.secondary)
-            .opacity(enabled ? 1 : 0.45)
+            .foregroundStyle(
+                enabled
+                    ? theme.ui.hudForeground.swiftUIColor
+                    : theme.ui.disabledForeground.swiftUIColor
+            )
+            .opacity(enabled ? 1 : 0.55)
             .accessibilityLabel(
                 "\(title) \(enabled ? AppStrings.text(.uiHudAvailable) : AppStrings.text(.uiHudUnavailable))"
             )

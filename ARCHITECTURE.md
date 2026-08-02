@@ -951,6 +951,14 @@ Bundle-`Resources`-Wurzel (z. B. `Levels/…`) und die Freischaltreihenfolge; es
 wiederholt weder ID noch Titel noch Spieltyp. Unbekannte JSON-Keys und
 unbekannte Felder in `rules` werden abgelehnt; `rules` ist Pflicht.
 
+Für ausgelieferte Sokoban-Level führt der JSON-Codec zusätzlich eine
+konservative Rückwärtsanalyse von allen Zielen durch. Beginnt eine Kiste auf
+einem Feld, von dem wegen der statischen Geometrie kein Ziel erreichbar ist,
+wird das Level als fehlerhafter Content abgelehnt. Dieselbe Menge garantiert
+toter Felder schützt laufende Sessions vor irreversiblen Schüben. Historische
+Spielstände auf einem solchen Feld werden beim Restore bis vor den Schub
+gekürzt; strategische oder nicht sicher beweisbare Deadlocks bleiben gültig.
+
 Der `contentHash` umfasst ausschließlich kanonische, gameplayrelevante Bytes:
 Spieltyp, Schema-Version, Rasterzeilen und Regeln. Präsentationstexte, Themes
 und Audio ändern den Hash nicht.
@@ -1588,12 +1596,14 @@ In frühen Spikes zu entscheiden:
    Phase 3.7 und nicht als doppelte Abstraktion.
 3. Exakte Tickrate und Eingabepufferung des Höhlenspiels.
 4. Minimale unterstützte macOS-Version.
-5. Pixel-Art mit ganzzahliger Skalierung oder auflösungsunabhängiger Stil.
 
 Bereits entschieden (siehe `docs/adr/`):
 
 1. Keine GitHub-CI; lokale `swift test`-Abnahme.
 2. Primäres Auslieferungsformat ist eine `.dmg`.
+3. Auflösungsunabhängiger Shape-/Vektor-Stil für Brett-Skalierung
+   (`docs/adr/0003-resolution-independent-board-scaling.md`); Pixel-Art bleibt
+   eine spätere optionale Theme-Variante.
 
 ## 24. Definition of Done für den ersten vertikalen Prototyp
 

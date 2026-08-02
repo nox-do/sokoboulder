@@ -1,8 +1,8 @@
 /// Injectable playback surface for ``AudioDirector``.
 ///
 /// Implementations must not block the caller and must not throw into session /
-/// presentation flow. Tests use a spy; production uses a procedural AVFAudio
-/// backend so no foreign assets are required for Phase 2 step 7.
+/// presentation flow. Tests use a spy; production uses bundled music and
+/// procedural effects through AVFoundation.
 @MainActor
 protocol AudioPlaybackBackend: AnyObject {
     func playEffect(_ cue: AudioCue)

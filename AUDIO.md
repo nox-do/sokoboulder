@@ -126,6 +126,17 @@ Instrumentation vermittelt, nicht durch einen Warnpiepser in jedem Tick.
 Alle Kandidaten müssen vor Aufnahme ins Repository noch einmal heruntergeladen,
 angehört und mit ihrer konkreten Quelldatei dokumentiert werden.
 
+### 4.0 Aktueller Sokoban-Playtest
+
+- Rolle: provisorisches Sokoban-Thema
+- Titel: Puzzling
+- Autor: Ruskerdax
+- Format: MP3, ungefähr 120 Sekunden
+- Lizenz: CC0 1.0 Universal / Public Domain
+- Quelle: <https://opengameart.org/content/puzzling>
+- Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- Status: technisch eingebunden; musikalische Playtest-Abnahme offen
+
 ### 4.1 Vorgemerkt
 
 #### Cave Music

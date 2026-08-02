@@ -4,6 +4,9 @@ import Foundation
 struct SettingsPresentation: Equatable, Sendable {
     var title: String
     var backTitle: String
+    var themeTitle: String
+    var themeOptions: [ThemeOption]
+    var selectedThemeID: String
     var reduceMotionTitle: String
     var reduceMotionDetail: String
     var reduceMotionEnabled: Bool
@@ -13,4 +16,9 @@ struct SettingsPresentation: Equatable, Sendable {
     var effectsVolume: Double
     var muteTitle: String
     var isMuted: Bool
+
+    struct ThemeOption: Equatable, Sendable, Identifiable {
+        var id: String
+        var title: String
+    }
 }

@@ -166,7 +166,7 @@ struct SokobanTutorialFlowTests {
 
         controller.dismissLevelIntro()
         spy.resetCalls()
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        playMoves(controller, Array(SokobanTutorialSolutions.level001.prefix(2)))
         #expect(spy.playedEffects.contains(.cratePushed))
     }
 

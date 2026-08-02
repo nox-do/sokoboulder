@@ -148,6 +148,40 @@ struct GameSessionRevisionTests {
         #expect(session.undoCount == beforeUndo)
     }
 
+    @Test("push onto a guaranteed static dead square is prevented")
+    func staticDeadlockPushPrevented() throws {
+        let session = try started(
+            """
+            #######
+            #     #
+            # # $ #
+            # @ . #
+            #######
+            """
+        )
+        for direction in [Direction.right, .up] {
+            guard case .emitted = move(session, direction) else {
+                Issue.record("setup move failed")
+                return
+            }
+        }
+
+        let result = move(session, .right)
+        guard case .emitted(let emission) = result else {
+            Issue.record("expected blocked deadlock feedback")
+            return
+        }
+
+        #expect(session.preventedStaticDeadlockOnLastMove)
+        #expect(session.journalCommandCount == 2)
+        #expect(session.undoCount == 2)
+        #expect(emission.render.snapshot.moveCount == 2)
+        #expect(emission.render.snapshot.pushCount == 0)
+        #expect(emission.render.snapshot.player.position == GridPosition(column: 3, row: 2))
+        #expect(emission.render.snapshot.entities.first?.position == GridPosition(column: 4, row: 2))
+        #expect(emission.render.events == [.movementBlocked(at: GridPosition(column: 3, row: 2))])
+    }
+
     @Test("moves in outcomePresenting are rejected at the session boundary")
     func emptyTerminalMove() throws {
         let session = try makeSession("#@*#")

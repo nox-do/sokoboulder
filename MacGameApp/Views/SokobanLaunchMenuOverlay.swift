@@ -3,6 +3,7 @@ import SwiftUI
 /// Campaign entry point shown after a non-fresh boot or completing the campaign.
 struct SokobanLaunchMenuOverlay: View {
     @ObservedObject var controller: SokobanPlayController
+    @Environment(\.visualTheme) private var theme
     @FocusState private var focusedAction: LaunchAction?
 
     private enum LaunchAction: Hashable, CaseIterable {
@@ -14,37 +15,43 @@ struct SokobanLaunchMenuOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45)
+            theme.ui.overlayScrim.swiftUIColor
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
                 Text(AppStrings.text(.uiLaunchTitle))
                     .font(.largeTitle.weight(.semibold))
+                    .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
-                Button(AppStrings.text(.uiLaunchContinue)) {
+                themedButton(
+                    AppStrings.text(.uiLaunchContinue),
+                    action: .continueCampaign,
+                    primary: true
+                ) {
                     controller.continueCampaign()
                 }
-                .focused($focusedAction, equals: .continueCampaign)
-                .buttonStyle(.borderedProminent)
 
-                Button(AppStrings.text(.uiLaunchSelectLevel)) {
+                themedButton(
+                    AppStrings.text(.uiLaunchSelectLevel),
+                    action: .selectLevel,
+                    primary: false
+                ) {
                     controller.openLevelSelection()
                 }
-                .focused($focusedAction, equals: .selectLevel)
 
-                Button(AppStrings.text(.uiLaunchHelp)) {
+                themedButton(AppStrings.text(.uiLaunchHelp), action: .help, primary: false) {
                     controller.openHelpFromLaunchMenu()
                 }
-                .focused($focusedAction, equals: .help)
 
-                Button(AppStrings.text(.uiLaunchSettings)) {
+                themedButton(AppStrings.text(.uiLaunchSettings), action: .settings, primary: false) {
                     controller.openSettingsFromLaunchMenu()
                 }
-                .focused($focusedAction, equals: .settings)
             }
-            .controlSize(.large)
             .padding(32)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                theme.ui.panelBackground.swiftUIColor,
+                in: RoundedRectangle(cornerRadius: 16)
+            )
             .frame(maxWidth: 360)
         }
         .accessibilityElement(children: .contain)
@@ -78,6 +85,20 @@ struct SokobanLaunchMenuOverlay: View {
             performFocusedAction()
             return .handled
         }
+    }
+
+    private func themedButton(
+        _ title: String,
+        action: LaunchAction,
+        primary: Bool,
+        _ handler: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: handler)
+            .buttonStyle(.plain)
+            .focused($focusedAction, equals: action)
+            .themedFocus(isFocused: focusedAction == action, isPrimary: primary)
+            .frame(maxWidth: .infinity)
+            .controlSize(.large)
     }
 
     private func performFocusedAction() {

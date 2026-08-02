@@ -204,18 +204,21 @@ Undo und Redo sind Kernbestandteile des Spielerlebnisses:
 ### 5.4 Deadlock-Unterstützung
 
 Version 1 verspricht keinen Solver und keine allgemeine Deadlock-Erkennung.
-Optional erkannt werden ausschließlich mathematisch sichere lokale Fälle, zum
-Beispiel eine Kiste auf einem Nicht-Zielfeld in einer unbeweglichen Ecke.
+Erkannt werden ausschließlich mathematisch sichere statische Fälle, zum
+Beispiel eine Kiste auf einem Nicht-Zielfeld in einer unbeweglichen Ecke oder
+an einer toten Wandreihe.
 
-Bei einem sicheren Deadlock:
+Ausgelieferte Level werden strenger behandelt als laufende Partien: Der
+Content-Loader lehnt bereits beim Start statisch tote Kistenpositionen ab. Eine
+bekannte Lösung pro Kampagnenlevel bleibt zusätzlich Bestandteil der Tests.
 
-- bleibt der Zug gültig,
-- wird die betroffene Kiste optional dezent markiert,
-- erscheint einmalig ein kurzer Undo-Hinweis,
-- erfolgt niemals ein automatischer Neustart,
-- kann die Hilfe in den Einstellungen deaktiviert werden.
+Ein Schub auf ein solches garantiert totes Feld wird als blockiert behandelt
+und mit einem kurzen Hinweis erklärt. Alte gespeicherte Läufe werden beim Laden
+bis vor den verursachenden Schub zurückgespult. Ist der Deadlock bereits in
+einen kompaktierten Checkpoint eingegangen, startet das Level neu.
 
-Unsichere oder strategische Sackgassen werden nicht als Fehler behauptet.
+Unsichere oder strategische Sackgassen bleiben gültige Spielzustände und werden
+nicht als Fehler behauptet.
 
 ### 5.5 Levelabschluss
 
@@ -464,6 +467,7 @@ Fortschrittswährungen sind kein Ziel der ersten Version.
 ### 12.1 Sokoban
 
 - Frühe Level sind kurz und besitzen wenige Kisten.
+- Keine Kiste startet auf einem statisch toten Feld; das wird beim Laden geprüft.
 - Schwierigkeit entsteht zuerst durch Positionierung, später durch Reihenfolge.
 - Lange Laufwege ohne Entscheidung werden vermieden.
 - Eindeutige Deadlock-Fallen werden vor komplexen Kombinationen eingeführt.

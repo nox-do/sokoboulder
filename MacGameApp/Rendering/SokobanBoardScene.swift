@@ -1,7 +1,7 @@
 import GameCore
 import SpriteKit
 
-/// SpriteKit board scene for the Sokoban rendering spike.
+/// SpriteKit board scene for Sokoban.
 ///
 /// Nodes are presentation-only. Authoritative state stays in ``GameSession``.
 /// ``SKScene.update`` does **not** drain the session move queue.
@@ -15,12 +15,16 @@ final class SokobanBoardScene: SKScene {
     /// Max queued + in-flight animate steps before forcing a hard catch-up.
     static let animationBudget = 3
     static let moveAnimationDuration: TimeInterval = 0.12
-    /// Near-instant duration when effective reduce motion is on (Phase 3.3 wiring;
-    /// fuller renderer hardening remains Phase 3.4).
+    /// Near-instant duration when effective reduce motion is on.
     static let reducedMoveAnimationDuration: TimeInterval = 0.01
+    static let pushFeedbackDuration: TimeInterval = 0.18
+    static let completionCelebrationDuration: TimeInterval = 0.5
 
     /// Effective reduce motion from settings / accessibility. Presentation only.
     var prefersReducedMotion = false
+
+    /// Active visual theme (board tokens). Defaults to the built-in standard theme.
+    private(set) var theme: VisualTheme = BuiltInThemes.standard
 
     #if DEBUG
         /// When true, the in-flight animate step never settles on its own.
@@ -37,6 +41,7 @@ final class SokobanBoardScene: SKScene {
     private let terrainLayer = SKNode()
     private let entityLayer = SKNode()
     private let effectLayer = SKNode()
+    private let frameNode = SKShapeNode()
 
     private var geometry = GridGeometry(
         availableSize: .zero,
@@ -52,6 +57,8 @@ final class SokobanBoardScene: SKScene {
     private var isAnimating = false
     /// Generation token so cancelled action completions cannot touch counters.
     private var animationGeneration: UInt64 = 0
+    /// True while goal tiles / frame still show completion celebration visuals.
+    private var celebrationVisualsActive = false
 
     private(set) var appliedRevision: UInt64 = 0
     /// Last revision whose presentation has visually settled (or hard-synced).
@@ -106,15 +113,32 @@ final class SokobanBoardScene: SKScene {
     private func commonInit() {
         anchorPoint = .zero
         scaleMode = .resizeFill
-        backgroundColor = SKColor(calibratedWhite: 0.12, alpha: 1)
+        backgroundColor = theme.board.background.skColor
         boardRoot.name = "boardRoot"
         terrainLayer.name = "terrainLayer"
         entityLayer.name = "entityLayer"
         effectLayer.name = "effectLayer"
+        frameNode.name = "completionFrame"
+        frameNode.zPosition = 5
+        frameNode.lineWidth = 4
+        frameNode.fillColor = .clear
+        frameNode.alpha = 0
+        frameNode.isHidden = true
         addChild(boardRoot)
         boardRoot.addChild(terrainLayer)
         boardRoot.addChild(entityLayer)
         boardRoot.addChild(effectLayer)
+        boardRoot.addChild(frameNode)
+    }
+
+    /// Applies a visual theme. Rebuilds from the last snapshot when one exists.
+    func apply(theme: VisualTheme) {
+        self.theme = theme
+        backgroundColor = theme.board.background.skColor
+        guard let snapshot = appliedSnapshot else { return }
+        cancelAnimationsAndPending()
+        rebuild(from: snapshot)
+        markSettled(appliedRevision)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -133,6 +157,7 @@ final class SokobanBoardScene: SKScene {
         geometry.gridHeight = snapshot.height
         cancelAnimationsAndPending()
         relayoutExistingNodes(using: snapshot)
+        clearCelebrationPresentation(using: snapshot)
         markSettled(appliedRevision)
     }
 
@@ -146,6 +171,7 @@ final class SokobanBoardScene: SKScene {
         }
         cancelAnimationsAndPending()
         snapEntities(to: snapshot)
+        clearCelebrationPresentation(using: snapshot)
         markSettled(appliedRevision)
     }
 
@@ -162,6 +188,8 @@ final class SokobanBoardScene: SKScene {
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
         effectLayer.removeAllChildren()
+        applyCompletionFrame(visible: false, animated: false)
+        celebrationVisualsActive = false
         terrainNodes.removeAll(keepingCapacity: true)
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
@@ -226,6 +254,14 @@ final class SokobanBoardScene: SKScene {
             guard generation == self.animationGeneration else { return }
             self.isAnimating = false
             self.snapEntities(to: next.snapshot)
+            // Celebration may recolor goals temporarily; settle back to snapshot colors
+            // unless another celebration step is about to run.
+            if next.events.contains(where: {
+                if case .levelCompleted = $0 { return true }
+                return false
+            }) {
+                self.clearCelebrationPresentation(using: next.snapshot)
+            }
             self.markSettled(next.targetRevision)
             self.pumpAnimationQueue()
         }
@@ -236,6 +272,9 @@ final class SokobanBoardScene: SKScene {
         rebuild(from: update.snapshot)
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
+        // Hard-resync never replays historical celebration effects and must match
+        // the target snapshot exactly (no leftover goal highlights / frame).
+        clearCelebrationPresentation(using: update.snapshot)
         markSettled(update.targetRevision)
     }
 
@@ -251,6 +290,7 @@ final class SokobanBoardScene: SKScene {
         }
         effectLayer.removeAllActions()
         effectLayer.removeAllChildren()
+        frameNode.removeAllActions()
     }
 
     // MARK: - Node build / layout
@@ -277,6 +317,7 @@ final class SokobanBoardScene: SKScene {
                 let node = makeTerrainNode(cell.terrain)
                 node.position = geometry.center(for: position)
                 node.size = CGSize(width: geometry.tileSize, height: geometry.tileSize)
+                updateStroke(for: node, tileSize: geometry.tileSize)
                 resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
                 terrainLayer.addChild(node)
                 terrainNodes.append(node)
@@ -287,6 +328,7 @@ final class SokobanBoardScene: SKScene {
             let node = makeEntityNode(kind: entity.ref.kind)
             node.position = geometry.center(for: entity.position)
             node.size = entitySize()
+            updateStroke(for: node, tileSize: geometry.tileSize)
             resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
             entityLayer.addChild(node)
             entityNodes[entity.ref.id] = node
@@ -295,10 +337,12 @@ final class SokobanBoardScene: SKScene {
         let player = makeEntityNode(kind: .player)
         player.position = geometry.center(for: snapshot.player.position)
         player.size = entitySize()
+        updateStroke(for: player, tileSize: geometry.tileSize)
         resizeSemanticMarkers(in: player, tileSize: geometry.tileSize)
         entityLayer.addChild(player)
         playerNode = player
         updateGoalStateMarkers(using: snapshot)
+        layoutCompletionFrame()
     }
 
     private func relayoutExistingNodes(using snapshot: RenderSnapshot) {
@@ -310,6 +354,7 @@ final class SokobanBoardScene: SKScene {
                 let node = terrainNodes[index]
                 node.position = geometry.center(for: position)
                 node.size = CGSize(width: geometry.tileSize, height: geometry.tileSize)
+                updateStroke(for: node, tileSize: geometry.tileSize)
                 resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
                 index += 1
             }
@@ -319,23 +364,28 @@ final class SokobanBoardScene: SKScene {
             guard let node = entityNodes[entity.ref.id] else { continue }
             node.position = geometry.center(for: entity.position)
             node.size = entitySize()
+            updateStroke(for: node, tileSize: geometry.tileSize)
             resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
         }
 
         playerNode?.position = geometry.center(for: snapshot.player.position)
         playerNode?.size = entitySize()
         if let playerNode {
+            updateStroke(for: playerNode, tileSize: geometry.tileSize)
             resizeSemanticMarkers(in: playerNode, tileSize: geometry.tileSize)
         }
         updateGoalStateMarkers(using: snapshot)
+        layoutCompletionFrame()
     }
 
     private func snapEntities(to snapshot: RenderSnapshot) {
         for entity in snapshot.entities {
             guard let node = entityNodes[entity.ref.id] else { continue }
             node.position = geometry.center(for: entity.position)
+            node.setScale(1)
         }
         playerNode?.position = geometry.center(for: snapshot.player.position)
+        playerNode?.setScale(1)
         updateGoalStateMarkers(using: snapshot)
     }
 
@@ -383,27 +433,35 @@ final class SokobanBoardScene: SKScene {
             switch event {
             case .movementBlocked(let position):
                 scheduleFeedbackSymbol(
-                    "×",
+                    theme.board.feedback.blockedSymbol,
                     at: position,
-                    color: .systemRed,
+                    color: theme.board.feedback.blockedColor.skColor,
                     group: group
                 )
                 scheduled = true
+            case .objectPushed(let entity, _, _):
+                if let node = entityNodes[entity.id] {
+                    schedulePushPulse(on: node, group: group)
+                    scheduled = true
+                }
             case .crateEnteredGoal(_, let position, _, _):
                 scheduleFeedbackSymbol(
-                    "✓",
+                    theme.board.feedback.goalEnteredSymbol,
                     at: position,
-                    color: .systemGreen,
+                    color: theme.board.feedback.goalEnteredColor.skColor,
                     group: group
                 )
                 scheduled = true
             case .crateLeftGoal(_, let position, _, _):
                 scheduleFeedbackSymbol(
-                    "↶",
+                    theme.board.feedback.goalLeftSymbol,
                     at: position,
-                    color: .systemOrange,
+                    color: theme.board.feedback.goalLeftColor.skColor,
                     group: group
                 )
+                scheduled = true
+            case .levelCompleted:
+                scheduleCompletionCelebration(using: snapshot, group: group)
                 scheduled = true
             default:
                 break
@@ -424,32 +482,101 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func makeTerrainNode(_ terrain: RenderTerrain) -> SKSpriteNode {
-        let node = SKSpriteNode(color: color(for: terrain), size: .zero)
+        let tokens = theme.board.terrain
+        let fill: ThemeColor
+        let stroke: ThemeColor?
+        let symbol: String?
+        switch terrain {
+        case .void:
+            fill = tokens.voidFill
+            stroke = nil
+            symbol = nil
+        case .floor:
+            fill = tokens.floorFill
+            stroke = tokens.floorStroke
+            symbol = nil
+        case .wall:
+            fill = tokens.wallFill
+            stroke = tokens.wallStroke
+            symbol = tokens.wallSymbol
+        case .goal:
+            fill = tokens.goalFill
+            stroke = tokens.goalStroke
+            symbol = tokens.goalSymbol
+        }
+
+        let node = SKSpriteNode(color: fill.skColor, size: .zero)
         node.name = "terrain.\(terrain)"
         node.zPosition = 0
-        switch terrain {
-        case .wall:
-            node.addChild(makeSemanticLabel(text: "▦", color: .white))
-        case .goal:
-            node.addChild(makeSemanticLabel(text: "◎", color: .white))
-        case .void, .floor:
-            break
+        if let stroke {
+            node.addChild(makeStrokeNode(color: stroke.skColor))
+        }
+        if let symbol {
+            let color =
+                terrain == .goal
+                ? theme.board.stateMarkers.emptyGoalAccent.skColor
+                : theme.board.terrain.wallStroke.skColor
+            node.addChild(makeSemanticLabel(text: symbol, color: color))
         }
         return node
     }
 
     private func makeEntityNode(kind: EntityKind) -> SKSpriteNode {
-        let node = SKSpriteNode(color: color(for: kind), size: .zero)
+        let tokens = theme.board.entities
+        let fill: ThemeColor
+        let stroke: ThemeColor
+        let symbol: String
+        switch kind {
+        case .player:
+            fill = tokens.playerFill
+            stroke = tokens.playerStroke
+            symbol = tokens.playerSymbol
+        case .crate:
+            fill = tokens.crateFill
+            stroke = tokens.crateStroke
+            symbol = tokens.crateSymbol
+        }
+
+        let node = SKSpriteNode(color: fill.skColor, size: .zero)
         node.name = "entity.\(kind)"
         node.zPosition = kind == .player ? 2 : 1
-        let symbol = kind == .player ? "◆" : "×"
-        node.addChild(makeSemanticLabel(text: symbol, color: .white))
-        let goalMarker = makeSemanticLabel(text: "✓", color: .white)
+        node.addChild(makeStrokeNode(color: stroke.skColor))
+        node.addChild(makeSemanticLabel(text: symbol, color: stroke.skColor))
+        let goalMarker = makeSemanticLabel(
+            text: kind == .player
+                ? theme.board.stateMarkers.playerOnGoalSymbol
+                : theme.board.stateMarkers.crateOnGoalSymbol,
+            color: kind == .player
+                ? theme.board.stateMarkers.playerOnGoalColor.skColor
+                : theme.board.stateMarkers.crateOnGoalColor.skColor
+        )
         goalMarker.name = "goalStateMarker"
         goalMarker.alpha = 0
         goalMarker.zPosition = 2
         node.addChild(goalMarker)
         return node
+    }
+
+    private func makeStrokeNode(color: SKColor) -> SKShapeNode {
+        let stroke = SKShapeNode(rectOf: CGSize(width: 1, height: 1))
+        stroke.name = "stroke"
+        stroke.fillColor = .clear
+        stroke.strokeColor = color
+        stroke.lineWidth = 2
+        stroke.zPosition = 0.5
+        stroke.isAntialiased = false
+        return stroke
+    }
+
+    private func updateStroke(for node: SKSpriteNode, tileSize: CGFloat) {
+        guard let stroke = node.childNode(withName: "stroke") as? SKShapeNode else { return }
+        let inset = max(1, tileSize * 0.04)
+        let edge = max(1, node.size.width - inset)
+        stroke.path = CGPath(
+            rect: CGRect(x: -edge / 2, y: -edge / 2, width: edge, height: edge),
+            transform: nil
+        )
+        stroke.lineWidth = max(1.5, tileSize * 0.045)
     }
 
     private func makeSemanticLabel(text: String, color: SKColor) -> SKLabelNode {
@@ -499,13 +626,13 @@ final class SokobanBoardScene: SKScene {
         label.alpha = 0
         effectLayer.addChild(label)
 
-        let visibleDuration = prefersReducedMotion ? 0.12 : 0.22
+        let visibleDuration = prefersReducedMotion ? 0.08 : 0.22
         group.enter()
         label.run(
             .sequence([
-                .fadeIn(withDuration: 0.02),
+                .fadeIn(withDuration: prefersReducedMotion ? 0 : 0.02),
                 .wait(forDuration: visibleDuration),
-                .fadeOut(withDuration: 0.06),
+                .fadeOut(withDuration: prefersReducedMotion ? 0 : 0.06),
                 .removeFromParent(),
             ])
         ) {
@@ -513,25 +640,172 @@ final class SokobanBoardScene: SKScene {
         }
     }
 
-    private func color(for terrain: RenderTerrain) -> SKColor {
-        switch terrain {
-        case .void:
-            SKColor(calibratedWhite: 0.05, alpha: 1)
-        case .floor:
-            SKColor(calibratedRed: 0.22, green: 0.28, blue: 0.24, alpha: 1)
-        case .wall:
-            SKColor(calibratedRed: 0.45, green: 0.40, blue: 0.35, alpha: 1)
-        case .goal:
-            SKColor(calibratedRed: 0.20, green: 0.45, blue: 0.55, alpha: 1)
+    private func schedulePushPulse(on node: SKSpriteNode, group: DispatchGroup) {
+        let highlight = theme.board.feedback.pushHighlight.skColor
+        let original = node.color
+        group.enter()
+
+        if prefersReducedMotion {
+            node.color = highlight
+            node.run(
+                .sequence([
+                    .wait(forDuration: 0.06),
+                    .run { node.color = original },
+                ])
+            ) {
+                group.leave()
+            }
+            return
+        }
+
+        let duration = Self.pushFeedbackDuration
+        node.run(
+            .group([
+                .sequence([
+                    .scale(to: 0.88, duration: duration * 0.35),
+                    .scale(to: 1.0, duration: duration * 0.65),
+                ]),
+                .sequence([
+                    .run { node.color = highlight },
+                    .wait(forDuration: duration * 0.45),
+                    .run { node.color = original },
+                ]),
+            ])
+        ) {
+            node.setScale(1)
+            node.color = original
+            group.leave()
         }
     }
 
-    private func color(for kind: EntityKind) -> SKColor {
-        switch kind {
-        case .player:
-            SKColor(calibratedRed: 0.95, green: 0.75, blue: 0.20, alpha: 1)
-        case .crate:
-            SKColor(calibratedRed: 0.75, green: 0.35, blue: 0.20, alpha: 1)
+    private func scheduleCompletionCelebration(
+        using snapshot: RenderSnapshot,
+        group: DispatchGroup
+    ) {
+        layoutCompletionFrame()
+        celebrationVisualsActive = true
+        group.enter()
+
+        if prefersReducedMotion {
+            applyCompletionFrame(visible: true, animated: false)
+            pulseGoalTiles(using: snapshot, animated: false)
+            group.leave()
+            return
+        }
+
+        applyCompletionFrame(visible: true, animated: true)
+        pulseGoalTiles(using: snapshot, animated: true)
+        frameNode.run(.wait(forDuration: Self.completionCelebrationDuration)) {
+            group.leave()
+        }
+    }
+
+    /// Restores terrain fills and hides the success frame so presentation matches snapshot.
+    private func clearCelebrationPresentation(using snapshot: RenderSnapshot) {
+        restoreTerrainColors(using: snapshot)
+        applyCompletionFrame(visible: false, animated: false)
+        celebrationVisualsActive = false
+    }
+
+    private func restoreTerrainColors(using snapshot: RenderSnapshot) {
+        var index = 0
+        for row in 0..<snapshot.height {
+            for column in 0..<snapshot.width {
+                defer { index += 1 }
+                guard index < terrainNodes.count else { return }
+                let position = GridPosition(column: column, row: row)
+                guard let cell = snapshot.cell(at: position) else { continue }
+                let node = terrainNodes[index]
+                node.removeAction(forKey: "goalPulse")
+                node.color = fillColor(for: cell.terrain).skColor
+            }
+        }
+    }
+
+    private func fillColor(for terrain: RenderTerrain) -> ThemeColor {
+        switch terrain {
+        case .void: theme.board.terrain.voidFill
+        case .floor: theme.board.terrain.floorFill
+        case .wall: theme.board.terrain.wallFill
+        case .goal: theme.board.terrain.goalFill
+        }
+    }
+
+    private func layoutCompletionFrame() {
+        let board = CGRect(
+            origin: geometry.boardOrigin,
+            size: geometry.boardSize
+        ).insetBy(dx: -4, dy: -4)
+        frameNode.path = CGPath(rect: board, transform: nil)
+        frameNode.strokeColor = theme.board.feedback.completionFrame.skColor
+        frameNode.lineWidth = max(3, geometry.tileSize * 0.08)
+        frameNode.zPosition = 5
+    }
+
+    private func applyCompletionFrame(visible: Bool, animated: Bool) {
+        layoutCompletionFrame()
+        frameNode.isHidden = false
+        frameNode.removeAllActions()
+        if !animated || prefersReducedMotion {
+            frameNode.alpha = visible ? 1 : 0
+            if !visible {
+                frameNode.isHidden = true
+            }
+            return
+        }
+        if visible {
+            frameNode.alpha = 0
+            frameNode.run(
+                .sequence([
+                    .fadeIn(withDuration: 0.08),
+                    .repeat(
+                        .sequence([
+                            .fadeAlpha(to: 0.45, duration: 0.12),
+                            .fadeAlpha(to: 1.0, duration: 0.12),
+                        ]),
+                        count: 2
+                    ),
+                ])
+            )
+        } else {
+            frameNode.run(
+                .sequence([
+                    .fadeOut(withDuration: 0.05),
+                    .run { [weak self] in self?.frameNode.isHidden = true },
+                ])
+            )
+        }
+    }
+
+    private func pulseGoalTiles(using snapshot: RenderSnapshot, animated: Bool) {
+        var index = 0
+        for row in 0..<snapshot.height {
+            for column in 0..<snapshot.width {
+                defer { index += 1 }
+                guard index < terrainNodes.count else { return }
+                let position = GridPosition(column: column, row: row)
+                guard snapshot.cell(at: position)?.terrain == .goal else { continue }
+                let node = terrainNodes[index]
+                node.removeAction(forKey: "goalPulse")
+                if !animated || prefersReducedMotion {
+                    node.color = theme.board.feedback.completionFrame.skColor
+                    continue
+                }
+                let original = theme.board.terrain.goalFill.skColor
+                let highlight = theme.board.feedback.completionFrame.skColor
+                node.run(
+                    .sequence([
+                        .run { node.color = highlight },
+                        .wait(forDuration: 0.12),
+                        .run { node.color = original },
+                        .wait(forDuration: 0.12),
+                        .run { node.color = highlight },
+                        .wait(forDuration: 0.12),
+                        .run { node.color = original },
+                    ]),
+                    withKey: "goalPulse"
+                )
+            }
         }
     }
 
@@ -545,6 +819,7 @@ final class SokobanBoardScene: SKScene {
             }
             cancelAnimationsAndPending()
             snapEntities(to: snapshot)
+            clearCelebrationPresentation(using: snapshot)
             markSettled(appliedRevision)
         }
 
@@ -560,5 +835,10 @@ final class SokobanBoardScene: SKScene {
                 node.childNode(withName: "goalStateMarker")?.alpha == 1
             }.count
         }
+        var completionFrameVisibleForTesting: Bool {
+            !frameNode.isHidden && frameNode.alpha > 0.01
+        }
+        var themeIDForTesting: String { theme.id }
+        var celebrationVisualsActiveForTesting: Bool { celebrationVisualsActive }
     #endif
 }

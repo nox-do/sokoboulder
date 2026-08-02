@@ -1,20 +1,27 @@
 import AVFoundation
 import Foundation
 
-/// Quiet procedural beeps / loop via ``AVAudioEngine``. No bundle assets.
+/// Bundled music plus quiet procedural effects via AVFoundation.
 ///
-/// Failures to start the engine degrade to silence; they never propagate.
+/// Missing/invalid audio and engine failures degrade to silence; they never propagate.
 @MainActor
 final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
+    static let musicResourceName = "sokoban-puzzling"
+    static let musicResourceExtension = "mp3"
+    static let musicResourceSubdirectory = "Audio/Music"
+
     private let engine = AVAudioEngine()
     private let effectPlayer = AVAudioPlayerNode()
-    private let musicPlayer = AVAudioPlayerNode()
+    private let musicPlayer: AVAudioPlayer?
     private let format: AVAudioFormat
     private var engineRunning = false
     private var currentMusic: MusicPlaybackState = .stopped
     private var outputSettings: AudioOutputSettings = .default
-    /// True after a looping music buffer was scheduled; cleared by ``stop()``.
-    private var musicLoopScheduled = false
+
+    /// The source is mastered music; keep headroom for gameplay feedback.
+    private var effectiveMusicVolume: Float {
+        outputSettings.effectiveMusicGain * 0.5
+    }
 
     private lazy var cueBuffers: [AudioCue: AVAudioPCMBuffer] = [
         .step: Self.toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
@@ -30,23 +37,28 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         ),
     ]
 
-    private lazy var musicBuffer: AVAudioPCMBuffer = Self.toneBuffer(
-        frequency: 196,
-        duration: 2.0,
-        amplitude: 0.03,
-        format: format,
-        softAttack: true
-    )
-
-    init() {
+    init(bundle: Bundle = Bundle(for: ProceduralAudioPlaybackBackend.self)) {
         format = AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)
             ?? AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
+        if let url = Self.musicAssetURL(in: bundle) {
+            musicPlayer = try? AVAudioPlayer(contentsOf: url)
+        } else {
+            musicPlayer = nil
+        }
         engine.attach(effectPlayer)
-        engine.attach(musicPlayer)
         engine.connect(effectPlayer, to: engine.mainMixerNode, format: format)
-        engine.connect(musicPlayer, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = 0.8
+        musicPlayer?.numberOfLoops = -1
+        musicPlayer?.prepareToPlay()
         startEngineIfNeeded()
+    }
+
+    static func musicAssetURL(in bundle: Bundle) -> URL? {
+        bundle.url(
+            forResource: musicResourceName,
+            withExtension: musicResourceExtension,
+            subdirectory: musicResourceSubdirectory
+        )
     }
 
     func playEffect(_ cue: AudioCue) {
@@ -66,11 +78,10 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         }
         currentMusic = state
         stopMusicPlayback()
-        guard state == .sokobanLoop, startEngineIfNeeded() else { return }
-        scheduleMusicLoopIfNeeded()
-        musicPlayer.volume = outputSettings.effectiveMusicGain
-        if outputSettings.effectiveMusicGain > 0 {
-            musicPlayer.play()
+        guard state == .sokobanLoop else { return }
+        musicPlayer?.volume = effectiveMusicVolume
+        if effectiveMusicVolume > 0 {
+            musicPlayer?.play()
         }
     }
 
@@ -91,31 +102,21 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
 
     private func applyGains() {
         effectPlayer.volume = outputSettings.effectiveEffectsGain
-        musicPlayer.volume = outputSettings.effectiveMusicGain
+        musicPlayer?.volume = effectiveMusicVolume
         guard currentMusic == .sokobanLoop else { return }
 
-        if outputSettings.effectiveMusicGain > 0 {
-            guard startEngineIfNeeded() else { return }
-            // Mute used stop(), which clears the schedule — plan exactly once, then play.
-            scheduleMusicLoopIfNeeded()
-            if !musicPlayer.isPlaying {
-                musicPlayer.play()
+        if effectiveMusicVolume > 0 {
+            if musicPlayer?.isPlaying == false {
+                musicPlayer?.play()
             }
         } else {
-            // stop() clears scheduled buffers so unmute cannot stack endless loops.
-            stopMusicPlayback()
+            musicPlayer?.pause()
         }
     }
 
-    private func scheduleMusicLoopIfNeeded() {
-        guard !musicLoopScheduled else { return }
-        musicPlayer.scheduleBuffer(musicBuffer, at: nil, options: .loops, completionHandler: nil)
-        musicLoopScheduled = true
-    }
-
     private func stopMusicPlayback() {
-        musicPlayer.stop()
-        musicLoopScheduled = false
+        musicPlayer?.stop()
+        musicPlayer?.currentTime = 0
     }
 
     @discardableResult
@@ -137,8 +138,7 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         frequency: Double,
         duration: Double,
         amplitude: Float,
-        format: AVAudioFormat,
-        softAttack: Bool = false
+        format: AVAudioFormat
     ) -> AVAudioPCMBuffer {
         let sampleRate = format.sampleRate
         let frameCount = AVAudioFrameCount(duration * sampleRate)
@@ -150,15 +150,9 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         for i in 0..<Int(frameCount) {
             let t = Double(i) / sampleRate
             var sample = Float(sin(twoPi * frequency * t)) * amplitude
-            if softAttack {
-                let attack = min(1.0, t / 0.08)
-                let release = min(1.0, (duration - t) / 0.08)
-                sample *= Float(attack * release)
-            } else {
-                let attack = min(1.0, t / 0.005)
-                let release = min(1.0, (duration - t) / 0.01)
-                sample *= Float(attack * release)
-            }
+            let attack = min(1.0, t / 0.005)
+            let release = min(1.0, (duration - t) / 0.01)
+            sample *= Float(attack * release)
             channel[i] = sample
         }
         return buffer

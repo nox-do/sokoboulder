@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Shared pause overlay driven by ``PausePresentation``.
 struct PauseOverlay: View {
+    @Environment(\.visualTheme) private var theme
     let model: PausePresentation
     let pauseFocusEpoch: UInt64
     let onResume: () -> Void
@@ -21,48 +22,36 @@ struct PauseOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45)
+            theme.ui.overlayScrim.swiftUIColor
                 .ignoresSafeArea()
 
             VStack(spacing: 20) {
                 Text(model.title)
                     .font(.largeTitle.weight(.semibold))
+                    .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
                 Text(model.hint)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
 
                 VStack(spacing: 12) {
-                    Button(model.resumeTitle) {
-                        onResume()
-                    }
-                    .focused($focusedAction, equals: .resume)
-
-                    Button(model.restartTitle) {
-                        onRestart()
-                    }
-                    .focused($focusedAction, equals: .restart)
-
-                    Button(model.settingsTitle) {
-                        onSettings()
-                    }
-                    .focused($focusedAction, equals: .settings)
-
-                    Button(model.levelSelectTitle) {
-                        onLevelSelection()
-                    }
-                    .focused($focusedAction, equals: .levelSelection)
-
-                    Button(model.helpTitle) {
-                        onHelp()
-                    }
-                    .focused($focusedAction, equals: .help)
+                    themedButton(model.resumeTitle, action: .resume, primary: true, onResume)
+                    themedButton(model.restartTitle, action: .restart, primary: false, onRestart)
+                    themedButton(model.settingsTitle, action: .settings, primary: false, onSettings)
+                    themedButton(
+                        model.levelSelectTitle,
+                        action: .levelSelection,
+                        primary: false,
+                        onLevelSelection
+                    )
+                    themedButton(model.helpTitle, action: .help, primary: false, onHelp)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             .padding(32)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                theme.ui.panelBackground.swiftUIColor,
+                in: RoundedRectangle(cornerRadius: 16)
+            )
             .frame(maxWidth: 360)
         }
         .accessibilityElement(children: .contain)
@@ -92,6 +81,19 @@ struct PauseOverlay: View {
             performFocusedAction()
             return .handled
         }
+    }
+
+    private func themedButton(
+        _ title: String,
+        action: PauseAction,
+        primary: Bool,
+        _ handler: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: handler)
+            .buttonStyle(.plain)
+            .focused($focusedAction, equals: action)
+            .themedFocus(isFocused: focusedAction == action, isPrimary: primary)
+            .frame(maxWidth: .infinity)
     }
 
     private func focusResumeButton() {

@@ -2,7 +2,7 @@
   "level.sokoban.tutorial.001.title": "Der erste Schub",
   "level.sokoban.tutorial.002.title": "Umweg und Undo",
   "level.sokoban.tutorial.003.title": "Zwei Kisten",
-  "hint.sokoban.move_and_push": "Pfeiltasten bewegen. In eine Kiste laufen schiebt sie — ziehen geht nicht. Stelle sie auf das Ziel.",
+  "hint.sokoban.move_and_push": "◆ = du, ■ = Kiste, ◎ = Ziel. Pfeiltasten bewegen. In die Kiste laufen schiebt sie — ziehen geht nicht.",
   "hint.sokoban.walk_around_and_undo": "Lauf um Hindernisse herum, bevor du schiebst. Falscher Schub? Z = Undo, ⇧⌘Z = Redo.",
   "hint.sokoban.crate_blocking": "Zwei Kisten blockieren einander. Plane die Schübe — sonst klemmen sie sich fest."
 }

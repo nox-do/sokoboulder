@@ -30,8 +30,10 @@
 		b5c84e20cabb418797b9d1a2 /* MacGameApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			explicitFolders = (
+				Resources/Audio,
 				Resources/Levels,
 				Resources/Localization,
+				Resources/Themes,
 			);
 			path = MacGameApp;
 			sourceTree = "<group>";

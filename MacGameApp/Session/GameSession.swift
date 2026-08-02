@@ -20,6 +20,7 @@ final class GameSession {
     private let level: SokobanLevel
     private let levelID: String
     private let contentHash: String
+    private let staticDeadSquares: Set<GridPosition>
     private weak var saveSink: SokobanRunSaveSink?
 
     private var state: SokobanState
@@ -34,6 +35,7 @@ final class GameSession {
 
     private(set) var revision: UInt64 = 0
     private(set) var phase: SessionPhase = .created
+    private(set) var preventedStaticDeadlockOnLastMove = false
 
     /// Emission produced by ``start()`` — always a hard-resync, optionally outcome.
     private(set) var bootstrapEmission: SessionEmission?
@@ -48,6 +50,7 @@ final class GameSession {
         self.level = level
         self.levelID = levelID
         self.contentHash = contentHash
+        self.staticDeadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: level)
         self.saveSink = saveSink
         let started = try SokobanRules().start(level: level)
         self.state = started
@@ -63,6 +66,7 @@ final class GameSession {
         self.level = restored.level
         self.levelID = restored.levelID
         self.contentHash = restored.contentHash
+        self.staticDeadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: restored.level)
         self.saveSink = saveSink
         self.state = restored.currentState
         self.initialState = restored.initialState
@@ -228,6 +232,7 @@ final class GameSession {
     }
 
     private func applyMove(_ direction: Direction) -> SessionApplyResult {
+        preventedStaticDeadlockOnLastMove = false
         let transition: Transition<SokobanState>
         do {
             transition = try rules.move(direction, in: state)
@@ -242,6 +247,21 @@ final class GameSession {
         // Empty terminal / no-op: no events and identical state → no revision.
         if events.isEmpty, next == previous {
             return .ignored
+        }
+
+        if events.contains(where: { event in
+            if case .objectPushed = event { return true }
+            return false
+        }), containsCrateOnStaticDeadSquare(in: next) {
+            preventedStaticDeadlockOnLastMove = true
+            return .emitted(
+                makeEmission(
+                    events: [.movementBlocked(at: previous.playerPosition)],
+                    delivery: .animate,
+                    audioDelivery: .perform,
+                    appTransition: nil
+                )
+            )
         }
 
         switch transition.outcome {
@@ -281,6 +301,13 @@ final class GameSession {
 
         compactJournalIfNeeded()
         persistRun()
+    }
+
+    private func containsCrateOnStaticDeadSquare(in candidate: SokobanState) -> Bool {
+        staticDeadSquares.contains { position in
+            if case .crate = candidate.grid[position].occupant { return true }
+            return false
+        }
     }
 
     private func applyUndo() -> SessionApplyResult {

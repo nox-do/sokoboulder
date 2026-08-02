@@ -297,7 +297,8 @@ struct Phase33PresentationTests {
     @Test("15 outcome undo is only available when canUndo")
     func outcomeUndoOnlyWhenCanUndo() throws {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
-        playMoves(bundle.controller, SokobanTutorialSolutions.level001)
+        let solution = SokobanTutorialSolutions.level001
+        playMoves(bundle.controller, solution)
         awaitOutcome(bundle.controller)
         #expect(bundle.controller.canUndo)
         #expect(bundle.controller.outcomePresentation.undoEnabled)
@@ -309,6 +310,9 @@ struct Phase33PresentationTests {
         // After undoing back and with empty undo stack mid-play, undo is unavailable.
         bundle.controller.undoFromOutcomeOverlay()
         #expect(bundle.controller.presentationPhase == .playing)
+        for _ in solution.dropFirst() {
+            bundle.controller.undo()
+        }
         #expect(!bundle.controller.canUndo)
     }
 
@@ -363,7 +367,7 @@ struct Phase33PresentationTests {
     @Test("help/settings from pause reject menu undo and restart without resuming")
     func helpSettingsRejectMenuSessionCommands() throws {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
-        // Level 1 completes on a single push; use level 2 for a non-terminal undo step.
+        // Use level 2 for a non-terminal undo step independent of tutorial-1 layout.
         // Bypass unlock gate (startSelectedLevel would reject a locked level).
         bundle.controller.startLevel(id: "sokoban.tutorial.002", showIntro: false)
         playMoves(bundle.controller, [.right])

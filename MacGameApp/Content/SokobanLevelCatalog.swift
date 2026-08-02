@@ -50,7 +50,8 @@ enum SokobanLevelCatalog {
 
 /// Golden move sequences for catalog levels (tests / acceptance).
 enum SokobanTutorialSolutions {
-    static let level001: [Direction] = [.right]
+    /// Walk to the crate, then push it once across floor and once onto the goal.
+    static let level001: [Direction] = [.right, .right, .right]
 
     /// Walk around the pillar, then push the crate onto the goal.
     static let level002: [Direction] = [

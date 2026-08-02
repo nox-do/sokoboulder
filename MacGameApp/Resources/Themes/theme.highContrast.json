@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "theme.highContrast",
+  "displayNameID": "theme.highContrast.name",
+  "board": {
+    "background": "#000000",
+    "terrain": {
+      "voidFill": "#000000",
+      "floorFill": "#FFFFFF",
+      "floorStroke": "#000000",
+      "wallFill": "#000000",
+      "wallStroke": "#FFFFFF",
+      "wallSymbol": "▦",
+      "goalFill": "#FFFF00",
+      "goalStroke": "#000000",
+      "goalSymbol": "◎"
+    },
+    "entities": {
+      "playerFill": "#00FFFF",
+      "playerStroke": "#000000",
+      "playerSymbol": "◆",
+      "crateFill": "#FF00FF",
+      "crateStroke": "#000000",
+      "crateSymbol": "■"
+    },
+    "stateMarkers": {
+      "crateOnGoalSymbol": "✓",
+      "crateOnGoalColor": "#000000",
+      "playerOnGoalSymbol": "✓",
+      "playerOnGoalColor": "#000000",
+      "emptyGoalAccent": "#000000"
+    },
+    "feedback": {
+      "blockedSymbol": "×",
+      "blockedColor": "#FF0000",
+      "goalEnteredSymbol": "✓",
+      "goalEnteredColor": "#008000",
+      "goalLeftSymbol": "↶",
+      "goalLeftColor": "#FF8000",
+      "pushHighlight": "#FFFFFF",
+      "completionFrame": "#00FF00"
+    }
+  },
+  "ui": {
+    "focusRing": "#FFFF00",
+    "focusBackground": "#000000",
+    "focusBorder": "#FFFF00",
+    "focusForeground": "#FFFF00",
+    "primaryFill": "#FFFF00",
+    "primaryForeground": "#000000",
+    "secondaryFill": "#FFFFFF",
+    "secondaryForeground": "#000000",
+    "disabledFill": "#666666",
+    "disabledForeground": "#FFFFFF",
+    "success": "#00FF00",
+    "warning": "#FF8000",
+    "error": "#FF0000",
+    "overlayScrim": "#000000CC",
+    "panelBackground": "#000000",
+    "panelForeground": "#FFFFFF",
+    "panelSecondary": "#FFFF00",
+    "hudBackground": "#000000",
+    "hudForeground": "#FFFFFF",
+    "hudSecondary": "#FFFF00"
+  }
+}

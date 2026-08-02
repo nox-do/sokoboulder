@@ -119,6 +119,70 @@ struct SokobanLevelJSONCodecTests {
         }
     }
 
+    @Test("rejects a crate starting on a provably dead square")
+    func rejectsStaticStartDeadlock() {
+        let json = """
+            {
+              "schemaVersion": 1,
+              "id": "x",
+              "game": "sokoban",
+              "titleID": "t",
+              "width": 5,
+              "height": 4,
+              "rows": ["#####", "#$ @#", "# . #", "#####"],
+              "rules": {}
+            }
+            """
+        #expect(
+            throws: SokobanLevelJSONError.crateStartsOnStaticDeadSquare(
+                GridPosition(column: 1, row: 1)
+            )
+        ) {
+            _ = try SokobanLevelJSONCodec.decode(json: json)
+        }
+    }
+
+    @Test("rejects a dead wall strip even when the crate is not in a corner")
+    func rejectsStaticWallStripDeadlock() {
+        let json = """
+            {
+              "schemaVersion": 1,
+              "id": "x",
+              "game": "sokoban",
+              "titleID": "t",
+              "width": 7,
+              "height": 4,
+              "rows": ["#######", "#  $  #", "# @ . #", "#######"],
+              "rules": {}
+            }
+            """
+        #expect(
+            throws: SokobanLevelJSONError.crateStartsOnStaticDeadSquare(
+                GridPosition(column: 3, row: 1)
+            )
+        ) {
+            _ = try SokobanLevelJSONCodec.decode(json: json)
+        }
+    }
+
+    @Test("allows a crate already on a goal even in a corner")
+    func allowsCornerGoalStart() throws {
+        let json = """
+            {
+              "schemaVersion": 1,
+              "id": "x",
+              "game": "sokoban",
+              "titleID": "t",
+              "width": 5,
+              "height": 3,
+              "rows": ["#####", "#* @#", "#####"],
+              "rules": {}
+            }
+            """
+        let decoded = try SokobanLevelJSONCodec.decode(json: json)
+        #expect(decoded.level.crateStarts == [GridPosition(column: 1, row: 1)])
+    }
+
     @Test("rejects unknown top-level keys")
     func rejectsUnknownKeys() {
         let json = """

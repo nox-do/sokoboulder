@@ -15,6 +15,7 @@ public enum SokobanLevelJSONError: Error, Equatable, Sendable {
     case dimensionMismatch(declaredWidth: Int, declaredHeight: Int, rowCount: Int, firstRowWidth: Int?)
     case parse(SokobanParseError)
     case validation(SokobanValidationError)
+    case crateStartsOnStaticDeadSquare(GridPosition)
 }
 
 /// Fully decoded, validated Sokoban level ready for the rule engine.
@@ -139,6 +140,10 @@ public enum SokobanLevelJSONCodec {
             level = try SokobanLevelValidator.validate(map)
         } catch {
             throw SokobanLevelJSONError.validation(error)
+        }
+
+        if let deadCrate = SokobanStaticDeadlockAnalyzer.deadCrateStarts(in: level).first {
+            throw SokobanLevelJSONError.crateStartsOnStaticDeadSquare(deadCrate)
         }
 
         let contentHash = SokobanContentHasher.sha256Hex(

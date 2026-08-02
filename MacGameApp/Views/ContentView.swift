@@ -4,7 +4,7 @@ import SwiftUI
 /// Main play surface: board, HUD, pause / outcome overlays, focus wiring.
 struct ContentView: View {
     @StateObject private var controller: SokobanPlayController
-    @State private var overlayKeyMonitor: Any?
+    @State private var windowKeyMonitor: Any?
     @State private var owningWindowNumber: Int?
 
     init(
@@ -67,7 +67,7 @@ struct ContentView: View {
                     _ = controller.handleKeyEvent(event)
                 } onWindowNumberChange: { windowNumber in
                     owningWindowNumber = windowNumber
-                    syncOverlayKeyMonitor()
+                    syncWindowKeyMonitor()
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(controller.boardAccessibilityLabel)
@@ -97,6 +97,8 @@ struct ContentView: View {
             case .settings:
                 SettingsOverlay(
                     model: controller.settingsPresentation,
+                    onThemeChange: { controller.updateThemeID($0) },
+                    onThemeCycle: { controller.cycleTheme(by: $0) },
                     onReduceMotionChange: { controller.updateReduceMotionEnabled($0) },
                     onMusicVolumeChange: { controller.updateMusicVolume($0) },
                     onEffectsVolumeChange: { controller.updateEffectsVolume($0) },
@@ -130,7 +132,7 @@ struct ContentView: View {
                 EmptyView()
             }
 
-            if let diagnostic = controller.persistenceDiagnostic,
+            if let diagnostic = controller.gameplayNotice ?? controller.persistenceDiagnostic,
                 controller.presentationPhase != .runRecovery,
                 controller.presentationPhase != .faulted
             {
@@ -146,12 +148,13 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 520, minHeight: 400)
+        .environment(\.visualTheme, controller.visualTheme)
         .accessibilityIdentifier("app.root")
         .focusedValue(\.sokobanPlayController, controller)
-        .onAppear { syncOverlayKeyMonitor() }
-        .onDisappear { removeOverlayKeyMonitor() }
+        .onAppear { syncWindowKeyMonitor() }
+        .onDisappear { removeWindowKeyMonitor() }
         .onChange(of: controller.presentationPhase) { _, _ in
-            syncOverlayKeyMonitor()
+            syncWindowKeyMonitor()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
@@ -165,13 +168,16 @@ struct ContentView: View {
         }
     }
 
-    /// While overlays own first-responder focus, forward keys through the router.
-    private func syncOverlayKeyMonitor() {
-        removeOverlayKeyMonitor()
-        guard !boardClaimsKeyboardFocus else { return }
+    /// Routes keys for this window independently of AppKit first-responder changes.
+    ///
+    /// During gameplay this is the reliable primary path; returning `nil` keeps the
+    /// same event from reaching ``KeyHandlingSKView`` a second time. Overlay keys
+    /// that the router does not own continue into SwiftUI's native focus system.
+    private func syncWindowKeyMonitor() {
+        removeWindowKeyMonitor()
         guard let owningWindowNumber else { return }
 
-        overlayKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) {
+        windowKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) {
             event in
             let eventWindowNumber =
                 event.windowNumber == 0
@@ -185,29 +191,35 @@ struct ContentView: View {
         }
     }
 
-    private func removeOverlayKeyMonitor() {
-        if let overlayKeyMonitor {
-            NSEvent.removeMonitor(overlayKeyMonitor)
-            self.overlayKeyMonitor = nil
+    private func removeWindowKeyMonitor() {
+        if let windowKeyMonitor {
+            NSEvent.removeMonitor(windowKeyMonitor)
+            self.windowKeyMonitor = nil
         }
     }
 
     private var faultOverlay: some View {
         ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
+            controller.visualTheme.ui.overlayScrim.swiftUIColor.ignoresSafeArea()
             VStack(spacing: 16) {
                 Text(AppStrings.text(.uiFaultTitle))
                     .font(.title.weight(.semibold))
+                    .foregroundStyle(controller.visualTheme.ui.panelForeground.swiftUIColor)
                 Text(controller.faultMessage ?? "Unknown fault")
                     .font(.callout)
                     .multilineTextAlignment(.center)
+                    .foregroundStyle(controller.visualTheme.ui.panelSecondary.swiftUIColor)
                 Button(AppStrings.text(.uiFaultReload)) {
                     controller.startLevel(showIntro: true)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
+                .themedFocus(isFocused: true, isPrimary: true)
             }
             .padding(28)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                controller.visualTheme.ui.panelBackground.swiftUIColor,
+                in: RoundedRectangle(cornerRadius: 16)
+            )
         }
     }
 }

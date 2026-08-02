@@ -26,10 +26,11 @@ struct GridGeometry: Equatable, Sendable {
     }
 
     /// Bottom-left of the centered board in the available area (origin at bottom-left).
+    /// Rounded to whole points so Retina strokes stay sharp.
     var boardOrigin: CGPoint {
         CGPoint(
-            x: (availableSize.width - boardSize.width) / 2,
-            y: (availableSize.height - boardSize.height) / 2
+            x: ((availableSize.width - boardSize.width) / 2).rounded(.toNearestOrAwayFromZero),
+            y: ((availableSize.height - boardSize.height) / 2).rounded(.toNearestOrAwayFromZero)
         )
     }
 

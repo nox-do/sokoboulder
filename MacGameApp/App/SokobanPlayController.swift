@@ -5,7 +5,13 @@ import SwiftUI
 /// App-layer controller for one Sokoban window: session, input, scene, overlays.
 @MainActor
 final class SokobanPlayController: ObservableObject {
-    static let outcomePresentationTimeout: TimeInterval = 0.45
+    static let outcomePresentationTimeout: TimeInterval = 1.5
+    private static let restartableSupersededTutorialHashes: [String: Set<String>] = [
+        "sokoban.tutorial.001": [
+            "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585",
+            "d951ac0c0b9114dae245aecabc5befdac913614a096a21f3fd303f0777cfd594",
+        ],
+    ]
 
     #if DEBUG
         /// Test override for the outcome settle timeout.
@@ -18,6 +24,7 @@ final class SokobanPlayController: ObservableObject {
     let runPersistence: SokobanRunPersistence
     let progressPersistence: ProgressPersistence
     let catalog: SokobanContentCatalog
+    let themeCatalog: ThemeCatalog
     let settingsStore: AppSettingsStore
     let reduceMotionProvider: ReduceMotionProvider
 
@@ -40,6 +47,7 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var recoveryMessage: String?
     /// Non-blocking persistence warning; gameplay continues.
     @Published private(set) var persistenceDiagnostic: String?
+    @Published private(set) var gameplayNotice: String?
     @Published private(set) var outcomeHint = ""
     @Published private(set) var outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
     @Published private(set) var outcomePrimaryAction: OutcomePrimaryAction = .openLaunchMenu
@@ -56,6 +64,8 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var overlayReturnOrigin: OverlayReturnOrigin?
     /// Published mirror so SwiftUI invalidates when the nested settings store changes.
     @Published private(set) var settingsSnapshot: AppSettingsSnapshot = .default
+    /// Active visual theme resolved from settings + catalog fallbacks.
+    @Published private(set) var visualTheme: VisualTheme = BuiltInThemes.standard
 
     private var outcomeTimeoutItem: DispatchWorkItem?
     private var outcomeTargetRevision: UInt64?
@@ -72,13 +82,19 @@ final class SokobanPlayController: ObservableObject {
         progressPersistence: ProgressPersistence,
         catalog: SokobanContentCatalog,
         settingsStore: AppSettingsStore = AppSettingsStore(),
-        reduceMotionSource: (any SystemReduceMotionSource)? = nil
+        reduceMotionSource: (any SystemReduceMotionSource)? = nil,
+        themeCatalog: ThemeCatalog? = nil
     ) {
         self.audioDirector = audioDirector
         self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = catalog
+        self.themeCatalog =
+            themeCatalog
+            ?? ThemeCatalogLoader.load(
+                from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+            )
         self.settingsStore = settingsStore
         self.reduceMotionProvider = ReduceMotionProvider(
             settings: settingsStore,
@@ -142,6 +158,10 @@ final class SokobanPlayController: ObservableObject {
             strings: ContentStringTable(values: [:]),
             defaultThemeID: nil,
             defaultAudioThemeID: nil
+        )
+        self.themeCatalog = ThemeCatalog(
+            themes: BuiltInThemes.allFallbacks(),
+            defaultThemeID: VisualTheme.standardID
         )
         self.settingsStore = settingsStore
         self.reduceMotionProvider = ReduceMotionProvider(
@@ -223,6 +243,14 @@ final class SokobanPlayController: ObservableObject {
         return SettingsPresentation(
             title: AppStrings.text(.uiSettingsTitle),
             backTitle: AppStrings.text(.uiSettingsBack),
+            themeTitle: AppStrings.text(.uiSettingsTheme),
+            themeOptions: themeCatalog.selectableThemes.map {
+                SettingsPresentation.ThemeOption(
+                    id: $0.id,
+                    title: AppStrings.text(id: $0.displayNameID)
+                )
+            },
+            selectedThemeID: visualTheme.id,
             reduceMotionTitle: AppStrings.text(.uiSettingsReduceMotion),
             reduceMotionDetail: AppStrings.text(.uiSettingsReduceMotionDetail),
             reduceMotionEnabled: snap.reduceMotionEnabled,
@@ -317,6 +345,7 @@ final class SokobanPlayController: ObservableObject {
         applyAudioSettingsFromStore()
         scene.prepareForNewSession()
         recoveryMessage = nil
+        gameplayNotice = nil
         refreshPersistenceDiagnostic()
 
         let levelID = id ?? currentLevelID
@@ -584,6 +613,19 @@ final class SokobanPlayController: ObservableObject {
         settingsStore.reduceMotionEnabled = enabled
     }
 
+    func updateThemeID(_ themeID: String) {
+        settingsStore.themeID = themeID
+    }
+
+    func cycleTheme(by offset: Int) {
+        let options = themeCatalog.selectableThemes
+        guard !options.isEmpty else { return }
+        let currentIndex = options.firstIndex { $0.id == visualTheme.id } ?? 0
+        let count = options.count
+        let nextIndex = ((currentIndex + offset) % count + count) % count
+        settingsStore.themeID = options[nextIndex].id
+    }
+
     func updateMusicVolume(_ volume: Double) {
         settingsStore.musicVolume = volume
     }
@@ -657,14 +699,17 @@ final class SokobanPlayController: ObservableObject {
     // MARK: - Private bootstrap
 
     private func bindSettingsSideEffects() {
+        settingsStore.seedThemeIDFromCatalogIfUnset(themeCatalog.defaultThemeID)
         settingsSnapshot = settingsStore.snapshot
         applyAudioSettingsFromStore()
+        applyVisualThemeFromStore()
         scene.prefersReducedMotion = reduceMotionProvider.isReduceMotionEffective
 
         settingsHandlerID = settingsStore.addChangeHandler { [weak self] in
             guard let self else { return }
             self.settingsSnapshot = self.settingsStore.snapshot
             self.applyAudioSettingsFromStore()
+            self.applyVisualThemeFromStore()
         }
 
         reduceMotionProvider.onEffectiveChange = { [weak self] effective in
@@ -676,6 +721,12 @@ final class SokobanPlayController: ObservableObject {
 
     private func applyAudioSettingsFromStore() {
         audioDirector.applyOutputSettings(.from(settings: settingsStore.snapshot))
+    }
+
+    private func applyVisualThemeFromStore() {
+        let resolved = themeCatalog.resolvedTheme(preferredID: settingsStore.themeID)
+        visualTheme = resolved
+        scene.apply(theme: resolved)
     }
 
     private func shouldShowIntro(
@@ -721,6 +772,7 @@ final class SokobanPlayController: ObservableObject {
                 catalogLookup: { [catalog] in catalog.descriptor(id: $0) }
             )
             let newSession = GameSession(restored: restored, saveSink: runPersistence)
+            let recoveredStaticDeadlock = restored.recoveredStaticDeadlock
             guard let descriptor = catalog.descriptor(id: restored.levelID) else {
                 enterRunRecovery(message: "Saved level is no longer in the catalog.")
                 return
@@ -731,11 +783,42 @@ final class SokobanPlayController: ObservableObject {
             scene.prepareForNewSession()
             // Mid-run restore skips the intro; the player already knows the level.
             bootstrapSession(newSession, descriptor: descriptor, showIntro: false)
+            if recoveredStaticDeadlock {
+                gameplayNotice = AppStrings.text(.uiDeadlockRecovered)
+            }
         } catch {
+            if canRestartRunAfterContentChange(file, error: error) {
+                // Known tutorial revisions restart in place; a generic content
+                // mismatch is only replaced when the run is untouched.
+                startLevel(id: file.levelID)
+                return
+            }
             let message = restoreFailureMessage(error)
             _ = runPersistence.quarantineLoadedInvalidFile(message: message)
             enterRunRecovery(message: message)
         }
+    }
+
+    private func canRestartRunAfterContentChange(
+        _ file: SokobanRunFileV1,
+        error: Error
+    ) -> Bool {
+        guard let failure = error as? SokobanRunRestoreFailure,
+            failure == .contentHashMismatch,
+            catalog.descriptor(id: file.levelID) != nil
+        else { return false }
+
+        if Self.restartableSupersededTutorialHashes[file.levelID]?
+            .contains(file.contentHash) == true
+        {
+            return true
+        }
+
+        return file.commands.isEmpty
+            && file.cursor == 0
+            && file.checkpoint.moveCount == 0
+            && file.checkpoint.pushCount == 0
+            && file.checkpoint.status == .playing
     }
 
     private func bootstrapSession(
@@ -869,7 +952,11 @@ final class SokobanPlayController: ObservableObject {
             guard presentationPhase == .playing, let session, session.phase == .playing else {
                 return
             }
-            applyResults(session.submitMove(direction))
+            let results = session.submitMove(direction)
+            applyResults(results)
+            gameplayNotice = session.preventedStaticDeadlockOnLastMove
+                ? AppStrings.text(.uiDeadlockPrevented)
+                : nil
 
         case .undo:
             undo()
@@ -929,6 +1016,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func applySessionCommand(_ command: SessionCommand) {
         guard let session else { return }
+        gameplayNotice = nil
         let result = session.apply(command)
         applyResults([result])
     }

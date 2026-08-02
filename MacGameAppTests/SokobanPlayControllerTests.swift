@@ -27,7 +27,12 @@ struct SokobanPlayControllerTests {
     }
 
     private func completeDemoLevel(_ controller: SokobanPlayController) {
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        for (index, _) in SokobanTutorialSolutions.level001.enumerated() {
+            controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+            if index < SokobanTutorialSolutions.level001.count - 1 {
+                controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow))
+            }
+        }
     }
 
     private func awaitOutcomeChoice(_ controller: SokobanPlayController) {
@@ -161,6 +166,59 @@ struct SokobanPlayControllerTests {
         )
     }
 
+    @Test("run from a known superseded tutorial layout restarts without recovery")
+    func supersededTutorialRunRestarts() async throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        let oldRun = SokobanRunFileV1(
+            schemaVersion: SokobanRunFileV1.currentSchemaVersion,
+            levelID: catalog.first.id,
+            contentHash: "d951ac0c0b9114dae245aecabc5befdac913614a096a21f3fd303f0777cfd594",
+            ruleVersion: SokobanRules.ruleVersion,
+            checkpoint: SokobanCheckpointV1(
+                schemaVersion: SokobanCheckpointV1.currentSchemaVersion,
+                playerColumn: 1,
+                playerRow: 1,
+                crates: [SokobanCratePlacementV1(id: 2, column: 3, row: 1)],
+                moveCount: 0,
+                pushCount: 0,
+                status: .playing
+            ),
+            commands: [.right],
+            cursor: 1
+        )
+        runPersistence.scheduleSave(oldRun)
+        await runPersistence.flush()
+
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral()
+        )
+
+        #expect(controller.presentationPhase == .levelIntro)
+        #expect(controller.recoveryMessage == nil)
+        #expect(controller.scene.currentSnapshot?.player.position == GridPosition(column: 2, row: 2))
+        #expect(controller.scene.currentSnapshot?.entities.first?.position == GridPosition(column: 4, row: 2))
+        #expect(
+            controller.scene.currentSnapshot?.cell(at: GridPosition(column: 6, row: 2))?.terrain
+                == .goal
+        )
+
+        await runPersistence.flush()
+        guard case .loaded(let migrated) = runPersistence.load() else {
+            Issue.record("expected migrated run")
+            return
+        }
+        #expect(migrated.contentHash == catalog.first.contentHash)
+        #expect(migrated.commands.isEmpty)
+    }
+
     @Test("better second completion after undo updates records")
     func betterCompletionAfterUndoUpdatesRecords() throws {
         let runPersistence = try SokobanRunPersistence.ephemeral()
@@ -186,7 +244,7 @@ struct SokobanPlayControllerTests {
                 levelID: catalog.first.id,
                 contentHash: catalog.first.contentHash,
                 ruleVersion: SokobanRules.ruleVersion
-            )?.bestMoveCount == 1
+            )?.bestMoveCount == 3
         )
 
         controller.undoFromOutcomeOverlay()
@@ -202,9 +260,9 @@ struct SokobanPlayControllerTests {
             contentHash: catalog.first.contentHash,
             ruleVersion: SokobanRules.ruleVersion
         )
-        #expect(record?.bestMoveCount == 1)
+        #expect(record?.bestMoveCount == 3)
         // Second terminal transition must run after undo cleared the session gate.
-        #expect(controller.outcomeBestMoveCount == 1)
+        #expect(controller.outcomeBestMoveCount == 3)
         #expect(controller.outcomeNewBestMoves == false)
     }
 
@@ -232,7 +290,7 @@ struct SokobanPlayControllerTests {
 
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
-        #expect(controller.outcomeBestMoveCount == 1)
+        #expect(controller.outcomeBestMoveCount == 3)
     }
 
     @Test("next level updates lastSelectedLevelID")
@@ -433,8 +491,8 @@ struct SokobanPlayControllerTests {
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
         #expect(controller.completedGoalCount == 1)
-        #expect(controller.moveCount == 1)
-        #expect(controller.pushCount == 1)
+        #expect(controller.moveCount == 3)
+        #expect(controller.pushCount == 2)
     }
 
     @Test("deactivation during outcome clears locks without pausing")

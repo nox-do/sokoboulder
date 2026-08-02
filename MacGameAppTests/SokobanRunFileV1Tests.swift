@@ -49,9 +49,9 @@ struct SokobanRunFileV1Tests {
         let file = try SokobanRunFileCodec.decode(data)
         let restored = try SokobanRunRestorer.restore(file)
         #expect(restored.currentState.status == .completed)
-        #expect(restored.cursor == 1)
-        #expect(restored.commands == [.right])
-        #expect(restored.undoStack.count == 1)
+        #expect(restored.cursor == 3)
+        #expect(restored.commands == [.right, .right, .right])
+        #expect(restored.undoStack.count == 3)
         #expect(restored.redoStack.isEmpty)
 
         let reencoded = try SokobanRunFileCodec.encode(file)
@@ -179,6 +179,8 @@ struct SokobanRunFileV1Tests {
         )
         _ = session.start()
         _ = session.submitMove(.right)
+        _ = session.submitMove(.right)
+        _ = session.submitMove(.right)
         #expect(session.phase == .outcomePresenting)
         let file = try #require(sink.last)
         let restored = try SokobanRunRestorer.restore(file)
@@ -192,6 +194,87 @@ struct SokobanRunFileV1Tests {
         }
         #expect(emission.appTransition == .returnToPlaying)
         #expect(again.phase == .playing)
+    }
+
+    @Test("legacy deadlocked run rewinds before the irreversible push")
+    func deadlockedRunRewindsOnRestore() throws {
+        let descriptor = try #require(
+            SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002")
+        )
+        let started = try SokobanRules().start(level: descriptor.makeLevel())
+        let commands: [SokobanDirectionV1] = [
+            .right, .up, .right, .up, .right, .down,
+        ]
+        let file = SokobanRunFileV1(
+            schemaVersion: SokobanRunFileV1.currentSchemaVersion,
+            levelID: descriptor.id,
+            contentHash: descriptor.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            checkpoint: try SokobanCheckpointV1(
+                semantic: SokobanRules().checkpoint(from: started)
+            ),
+            commands: commands,
+            cursor: commands.count
+        )
+
+        let restored = try SokobanRunRestorer.restore(file)
+        #expect(restored.recoveredStaticDeadlock)
+        #expect(restored.cursor == 2)
+        #expect(restored.commands == commands.prefix(2).map(\.direction))
+        #expect(restored.redoStack.isEmpty)
+        #expect(restored.currentState.playerPosition == GridPosition(column: 3, row: 2))
+        #expect(
+            restored.currentState.grid[GridPosition(column: 4, row: 2)].occupant != nil
+        )
+        #expect(
+            restored.currentState.grid[GridPosition(column: 5, row: 2)].occupant == nil
+        )
+        #expect(
+            restored.currentState.grid[GridPosition(column: 5, row: 3)].occupant == nil
+        )
+    }
+
+    @Test("legacy deadlock is removed from redo history")
+    func deadlockedRedoHistoryIsTruncatedOnRestore() throws {
+        let descriptor = try #require(
+            SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002")
+        )
+        let started = try SokobanRules().start(level: descriptor.makeLevel())
+        let commands: [SokobanDirectionV1] = [
+            .right, .up, .right, .up, .right, .down,
+        ]
+        let file = SokobanRunFileV1(
+            schemaVersion: SokobanRunFileV1.currentSchemaVersion,
+            levelID: descriptor.id,
+            contentHash: descriptor.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            checkpoint: try SokobanCheckpointV1(
+                semantic: SokobanRules().checkpoint(from: started)
+            ),
+            commands: commands,
+            cursor: 1
+        )
+
+        let restored = try SokobanRunRestorer.restore(file)
+        #expect(restored.recoveredStaticDeadlock)
+        #expect(restored.cursor == 1)
+        #expect(restored.commands == commands.prefix(2).map(\.direction))
+        #expect(restored.currentState.playerPosition == GridPosition(column: 3, row: 3))
+        #expect(restored.redoStack.count == 1)
+
+        let session = GameSession(restored: restored)
+        _ = session.start()
+        guard case .emitted(let emission) = session.apply(.redo) else {
+            Issue.record("expected the remaining safe redo")
+            return
+        }
+        #expect(session.redoCount == 0)
+        #expect(session.apply(.redo) == .ignored)
+        #expect(emission.render.snapshot.player.position == GridPosition(column: 3, row: 2))
+        #expect(
+            emission.render.snapshot.entities.first?.position
+                == GridPosition(column: 4, row: 2)
+        )
     }
 
     @Test("restart clears journal and resets checkpoint")
@@ -211,12 +294,15 @@ struct SokobanRunFileV1Tests {
 
     @Test("1001 commands compact the oldest into the checkpoint")
     func compactionAt1001() throws {
-        // Width 1005: player walks 1001 free steps without touching the crate.
-        let wall = String(repeating: "#", count: 1005)
-        let empty = "#" + String(repeating: " ", count: 1003) + "#"
-        let play = "#@" + String(repeating: " ", count: 1001) + "$#"
-        let goals = "#" + String(repeating: " ", count: 1002) + ".#"
-        let ascii = [wall, empty, play, goals, wall].joined(separator: "\n")
+        // Alternate over one free tile so the test exercises journal size,
+        // not repeated snapshots of an unnecessarily huge board.
+        let ascii = """
+            ########
+            #@     #
+            #   $ .#
+            #      #
+            ########
+            """
         let level = try SokobanLevelValidator.level(fromASCII: ascii)
         let hash = try SokobanContentHasher.sha256Hex(ascii: ascii)
         let sink = RecordingSaveSink()
@@ -227,8 +313,8 @@ struct SokobanRunFileV1Tests {
             saveSink: sink
         )
         _ = session.start()
-        for _ in 0..<1000 {
-            let results = session.submitMove(.right)
+        for index in 0..<1000 {
+            let results = session.submitMove(index.isMultiple(of: 2) ? .right : .left)
             #expect(!results.isEmpty)
         }
         #expect(session.journalCommandCount == 1000)
@@ -342,4 +428,3 @@ struct SokobanRunFileV1Tests {
         }
     }
 }
-

@@ -9,7 +9,7 @@ import Testing
 struct SokobanLevelCatalogTests {
     /// Locked SHA-256 hex values for the built-in tutorial gameplay content.
     private static let hash001 =
-        "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585"
+        "211b4da23645a2eed7bd19c12938c53ea227d6f4a0659516f0ca9e739ae8a0b8"
     private static let hash002 =
         "f92868cd9a13d2a807284392d139a17975f0a618cdfa1caec5a29373583cf0d6"
     private static let hash003 =
@@ -114,6 +114,12 @@ struct SokobanLevelCatalogTests {
         #expect(controller.session != nil)
         #expect(controller.presentationPhase == .levelIntro)
         #expect(controller.currentLevelID == "sokoban.tutorial.001")
+        let snapshot = try #require(controller.scene.currentSnapshot)
+        #expect(snapshot.player.position == GridPosition(column: 2, row: 2))
+        #expect(snapshot.cell(at: snapshot.player.position)?.terrain == .floor)
+        #expect(snapshot.entities.first?.position == GridPosition(column: 4, row: 2))
+        #expect(snapshot.cell(at: GridPosition(column: 6, row: 2))?.terrain == .goal)
+        #expect(snapshot.completedGoalCount == 0)
     }
 
     @Test("missing string IDs are rejected when loading catalog")

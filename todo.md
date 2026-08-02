@@ -119,14 +119,14 @@ Audio-Mixer/Settings und CC0-Assets später.
 
 ### Audio-Entscheidungen (Schritt 7)
 
-- `AudioDirector` + injizierbares `AudioPlaybackBackend`; Produktion: prozedurale AVFAudio-Töne (keine Fremd-Assets)
+- `AudioDirector` + injizierbares `AudioPlaybackBackend`; Effekte prozedural via AVFAudio, Sokoban-Musik als dokumentiertes CC0-Bundle-Asset
 - Lifecycle getrennt vom Revisionsvertrag: `interrupt()` / `resumePlayback()` / `reset()`
 - Pause/Fokusverlust emittieren kein `AudioUpdate`; Controller ruft Lifecycle direkt
 - `.perform` → Cues einmal; `.synchronize` / Vorwärtslücke → `stopAllEffects` + Musik angleichen; Duplikat/veraltet (`<= last`) verwerfen
 - Fokusverlust: immer `interrupt()` (auch Outcome); Aktivierung: `resumePlayback()` nur im Outcome (Pause bleibt bis explizitem Resume)
 - Schub: nur `cratePushed` (kein zusätzlicher Schritt-Cue)
 - Cues: Schritt, blockiert, Schub, Ziel betreten/verlassen, Level abgeschlossen
-- Musik: ruhiger synthetischer Loop bei `.playing`; bei `.completed`/`.failed` stoppen
+- Musik: gebündelter CC0-Playtest-Track bei `.playing`; bei `.completed`/`.failed` stoppen
 - Spy-Backend-Tests; bestehende Controller-Tests nutzen `NoOpAudioPlaybackBackend`
 
 ### Katalog-Entscheidungen (Vorlauf Schritt 8)
@@ -164,7 +164,7 @@ Audio-Mixer/Settings und CC0-Assets später.
 - `ObservableObject` pro Tile/Entity (Session-weit ok)
 - eigene Hold-Wiederholung unabhängig von macOS-Repeat
 - Lautstärke-/Mute-UI, UI-Sounds, Menü-Audio ohne Revision (später)
-- CC0-Bundle-Assets inkl. Lizenznachweis (erst nach Hörprobe laut AUDIO.md)
+- weitere CC0-Bundle-Assets für Effekte/Jingles; Sokoban-Playtest-Musik samt Lizenznachweis ist bereits eingebunden
 
 ## Phase 3 (Gemeinsame Plattform) – in Arbeit
 
@@ -266,9 +266,70 @@ Vertragsentscheidungen:
 - [x] Introvertrag ohne 5-Sekunden-Auto-Dismiss
 - [x] App-Tests grün
 
+### 3.4 Theme und Renderer-Härtung – implementiert (manuelle Abnahme offen)
+
+Vertragsentscheidungen (Spielerentscheidung 2026-08-02):
+- **Skalierung B:** auflösungsunabhängiger Shape-/Vektor-Stil (ADR 0003):
+  - quadratische Tiles, konstante Brettproportionen
+  - stufenlose Anpassung an verfügbare Fläche
+  - scharfe Linien auf Retina (ganzzahlige Brettorigin)
+  - keine Gameplay-Geometrie außerhalb des sichtbaren Bereichs
+  - Pixel-Art = spätere Theme-Variante, kein 3.4-Vertrag
+- **Themes:** versioniertes JSON unter `Resources/Themes/`, validiertes Schema,
+  vollständiger Code-Fallback; zwei auswählbare Themes: Standard + High Contrast
+- High Contrast = **eigenes Theme** (nicht algorithmisch abgeleitet)
+- Theme-ID in Settings persistieren; Umschalter jetzt
+- Erststart ohne Settings-Key → Catalog-`defaultThemeID` seeden
+- **Assets:** weiterhin prozedurale Shapes/Symbole, keine Texture-PNGs in 3.4
+- **Event-Feedback differenziert:**
+  - Blockiert: kurzes × / Ablehnung
+  - Schub: mechanischer Impuls am Stein (~180 ms)
+  - Ziel betreten/verlassen: semantische Symbole
+  - Abschluss: kurze Feier (~500 ms; Ziele pulsieren, Erfolgsrahmen) Teil von
+    `whenSettled`; nach Settle/Hard-Resync/Undo Zielsnapshot ohne Feier-Reste;
+    Outcome-Timeout 1.5 s; Skip → sofort Outcome
+  - Keine Eingabeverzögerung bei normalen Zügen
+  - Reduce Motion → sofortige Farb-/Kontur-/Symbolzustände
+  - Mute entfernt keine visuelle Information
+- **UI-Fokus im Theme-Vertrag:** visuelle Tokens inkl. `focusForeground` für
+  Brett, HUD und Overlays; Navigation/Fokusreihenfolge/Tastaturverhalten theme-frei
+- Theme-Selektor: fokussierbare Zeile mit direkten Mausaktionen pro Theme
+
+Review-Nachzug:
+- [x] P1 High-Contrast Fokus-Text (`focusForeground`)
+- [x] P1 Theme-Selektor als fokussierbare Zeile + Fokusvertrag getestet
+- [x] P1 Abschlussfeier nach Settle/Undo/Hard-Resync zurückgesetzt
+- [x] P2 Outcome-Timeout 1.5 s
+- [x] P2 Catalog-`defaultThemeID` beim Erststart
+- [x] P2 Status: implementiert – manuelle Abnahme offen
+- [x] Recovery / Fault / Outcome-Animating an Theme-Tokens
+- [x] Tutorial 1 in offenen Raum verlegt; Spieler/Kiste/Ziel im Hinweis benannt
+- [x] JSON-Content-Gate gegen statisch tote Kisten-Startfelder
+- [x] Sichere Laufzeit-Deadlocks blockieren; alte Deadlock-Saves zurückspulen
+
+- [x] ADR Skalierungsstil B (`docs/adr/0003-…`)
+- [x] Theme-Schema V1 + Loader + Code-Fallback
+- [x] Standard- und High-Contrast-JSON-Themes
+- [x] Settings-Umschalter + Persistenz (`themeID`)
+- [x] Renderer: Theme-Tokens, Shapes, Zustandsmarker, Resize ohne Flimmern
+- [x] Differenziertes Event-Feedback inkl. Abschlussfeier
+- [x] SwiftUI-Overlays/HUD an Theme-Tokens
+- [x] Tests (MacGameAppTests)
+- [ ] Manuelles Playtest-Protokoll (Tastatur, Stumm, Graustufen, Reduce Motion)
+
+Manuelles Playtest-Protokoll (kurz, vor Abnahme abhaken):
+1. Theme in Settings zwischen Standard ↔ High Contrast wechseln (Maus + Pfeile);
+   Fokusring und Beschriftung im High-Contrast-Theme lesbar
+2. Graustufen-Filter / Display: Wand/Boden/Ziel/Spieler/Kiste unterscheidbar
+3. Mute an: Blockade, Schub, Zielwechsel und Abschluss weiterhin sichtbar
+4. Reduce Motion: keine langen Animationen; Zustände sofort erkennbar
+5. Minimale Fenstergröße: gesamtes Raster sichtbar, HUD deckt nichts ab
+6. Hard-Resync via Undo/Redo nach Abschluss: keine Feier-Wiederholung,
+   Ziele wieder in Theme-Farbe, kein Erfolgsrahmen
+
 ## Als Nächstes
 
-- Phase 3.4: Theme + Renderer-Härtung gemäß Abnahme in `ARCHITECTURE.md`
+- Manuelles 3.4-Playtest-Protokoll abhaken
 - Phase 3.5: Audio-Manifest + Theme-Mapping (Settings-UI/Persistenz bereits in 3.3)
 - Phase 3.6: Replay-Grundlage
 - Phase 3.7 (Höhlen-Spike) / Phase 4+: Cave…

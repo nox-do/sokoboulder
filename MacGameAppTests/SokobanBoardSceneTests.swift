@@ -37,6 +37,12 @@ struct SokobanBoardSceneTests {
         #expect(scene.terrainNodeCountForTesting == 15)
         #expect(scene.entityNodeCountForTesting == 2)  // player + crate
         #expect(scene.currentSnapshot?.player.position == GridPosition(column: 1, row: 1))
+        #expect(scene.currentSnapshot?.entities.first?.position == GridPosition(column: 2, row: 1))
+        #expect(
+            scene.currentSnapshot?.cell(at: GridPosition(column: 3, row: 1))?.terrain == .goal
+        )
+        #expect(scene.currentSnapshot?.completedGoalCount == 0)
+        #expect(scene.currentSnapshot?.status == .playing)
     }
 
     @Test("gapless animate updates revision")

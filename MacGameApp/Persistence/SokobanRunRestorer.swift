@@ -28,6 +28,9 @@ struct SokobanRunRestoreResult: Equatable, Sendable {
     let cursor: Int
     let undoStack: [SokobanState]
     let redoStack: [SokobanState]
+    /// True when a legacy run was truncated to the last state before a
+    /// mathematically certain static crate deadlock.
+    let recoveredStaticDeadlock: Bool
 }
 
 /// Validates a V1 run file and rebuilds state + undo/redo exclusively by replay.
@@ -120,10 +123,44 @@ enum SokobanRunRestorer {
             states.append(state)
         }
 
-        let cursor = file.cursor
+        let deadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: level)
+        let firstDeadStateIndex = states.firstIndex { state in
+            containsCrate(in: state, onAny: deadSquares)
+        }
+
+        if firstDeadStateIndex == 0 {
+            // Journal compaction can put an old deadlock into the checkpoint,
+            // beyond available undo history. Restarting is the only safe state.
+            let freshCheckpoint = rules.checkpoint(from: initialState)
+            return SokobanRunRestoreResult(
+                level: level,
+                levelID: descriptor.id,
+                contentHash: descriptor.contentHash,
+                initialState: initialState,
+                currentState: initialState,
+                checkpoint: freshCheckpoint,
+                commands: [],
+                cursor: 0,
+                undoStack: [],
+                redoStack: [],
+                recoveredStaticDeadlock: true
+            )
+        }
+
+        // State N is the result of command N - 1. Exclude the command that
+        // first entered a dead square, including when it currently lives in
+        // redo history after an undo.
+        let safeCommandCount = firstDeadStateIndex.map { $0 - 1 } ?? directions.count
+        let recoveredStaticDeadlock = firstDeadStateIndex != nil
+        let cursor = min(file.cursor, safeCommandCount)
         let current = states[cursor]
+        let commands = recoveredStaticDeadlock
+            ? Array(directions.prefix(safeCommandCount))
+            : directions
         let undoStack = Array(states[0..<cursor])
-        let redoStack = Array(states[(cursor + 1)...].reversed())
+        let redoStack = cursor < safeCommandCount
+            ? Array(states[(cursor + 1)...safeCommandCount].reversed())
+            : []
 
         return SokobanRunRestoreResult(
             level: level,
@@ -132,11 +169,22 @@ enum SokobanRunRestorer {
             initialState: initialState,
             currentState: current,
             checkpoint: semanticCheckpoint,
-            commands: directions,
+            commands: commands,
             cursor: cursor,
             undoStack: undoStack,
-            redoStack: redoStack
+            redoStack: redoStack,
+            recoveredStaticDeadlock: recoveredStaticDeadlock
         )
+    }
+
+    private static func containsCrate(
+        in state: SokobanState,
+        onAny positions: Set<GridPosition>
+    ) -> Bool {
+        positions.contains { position in
+            if case .crate = state.grid[position].occupant { return true }
+            return false
+        }
     }
 
     private static func faultDetail(_ fault: EngineFault) -> String {

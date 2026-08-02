@@ -55,6 +55,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiBoardColumn = "ui.board.column"
     case uiBoardRow = "ui.board.row"
     case uiBoardUnavailable = "ui.board.unavailable"
+    case uiDeadlockPrevented = "ui.deadlock.prevented"
+    case uiDeadlockRecovered = "ui.deadlock.recovered"
 
     // Pause
     case uiPauseTitle = "ui.pause.title"
@@ -82,11 +84,17 @@ enum AppStringID: String, CaseIterable, Sendable {
     // Settings
     case uiSettingsTitle = "ui.settings.title"
     case uiSettingsBack = "ui.settings.back"
+    case uiSettingsTheme = "ui.settings.theme"
+    case uiSettingsThemeHint = "ui.settings.theme_hint"
     case uiSettingsReduceMotion = "ui.settings.reduce_motion"
     case uiSettingsReduceMotionDetail = "ui.settings.reduce_motion_detail"
     case uiSettingsMusicVolume = "ui.settings.music_volume"
     case uiSettingsEffectsVolume = "ui.settings.effects_volume"
     case uiSettingsMute = "ui.settings.mute"
+
+    // Themes
+    case themeStandardName = "theme.standard.name"
+    case themeHighContrastName = "theme.highContrast.name"
 
     // Recovery / fault
     case uiRecoveryTitle = "ui.recovery.title"
@@ -157,6 +165,10 @@ enum AppStrings {
         AppStringID.uiBoardColumn.rawValue: "Spalte",
         AppStringID.uiBoardRow.rawValue: "Zeile",
         AppStringID.uiBoardUnavailable.rawValue: "Spielfeld wird geladen.",
+        AppStringID.uiDeadlockPrevented.rawValue:
+            "Dieser Schub würde die Kiste dauerhaft festsetzen und wurde verhindert.",
+        AppStringID.uiDeadlockRecovered.rawValue:
+            "Festgefahrenen Spielstand bis vor den letzten irreversiblen Schub zurückgesetzt.",
 
         AppStringID.uiPauseTitle.rawValue: "Pause",
         AppStringID.uiPauseHint.rawValue: "Escape setzt fort · Spielzug-Eingabe gesperrt",
@@ -181,12 +193,17 @@ enum AppStrings {
 
         AppStringID.uiSettingsTitle.rawValue: "Einstellungen",
         AppStringID.uiSettingsBack.rawValue: "Zurück",
+        AppStringID.uiSettingsTheme.rawValue: "Darstellung",
+        AppStringID.uiSettingsThemeHint.rawValue: "Pfeiltasten wechseln das Theme",
         AppStringID.uiSettingsReduceMotion.rawValue: "Bewegung reduzieren",
         AppStringID.uiSettingsReduceMotionDetail.rawValue:
             "Wirkt zusätzlich zur Systemeinstellung (nur Darstellung)",
         AppStringID.uiSettingsMusicVolume.rawValue: "Musiklautstärke",
         AppStringID.uiSettingsEffectsVolume.rawValue: "Effektlautstärke",
         AppStringID.uiSettingsMute.rawValue: "Stummschalten",
+
+        AppStringID.themeStandardName.rawValue: "Standard",
+        AppStringID.themeHighContrastName.rawValue: "Hoher Kontrast",
 
         AppStringID.uiRecoveryTitle.rawValue: "Spielstand nicht ladbar",
         AppStringID.uiRecoveryFallback.rawValue: "Der gespeicherte Lauf ist nicht nutzbar.",

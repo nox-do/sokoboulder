@@ -2,23 +2,25 @@
   "checkpoint" : {
     "crates" : [
       {
-        "column" : 2,
+        "column" : 4,
         "id" : 2,
-        "row" : 1
+        "row" : 2
       }
     ],
     "moveCount" : 0,
-    "playerColumn" : 1,
-    "playerRow" : 1,
+    "playerColumn" : 2,
+    "playerRow" : 2,
     "pushCount" : 0,
     "schemaVersion" : 1,
     "status" : "playing"
   },
   "commands" : [
+    "right",
+    "right",
     "right"
   ],
-  "contentHash" : "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585",
-  "cursor" : 1,
+  "contentHash" : "211b4da23645a2eed7bd19c12938c53ea227d6f4a0659516f0ca9e739ae8a0b8",
+  "cursor" : 3,
   "levelID" : "sokoban.tutorial.001",
   "ruleVersion" : 1,
   "schemaVersion" : 1

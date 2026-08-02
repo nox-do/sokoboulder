@@ -4,12 +4,14 @@
   "game": "sokoban",
   "titleID": "level.sokoban.tutorial.001.title",
   "tutorialHintID": "hint.sokoban.move_and_push",
-  "width": 5,
-  "height": 3,
+  "width": 8,
+  "height": 5,
   "rows": [
-    "#####",
-    "#@$.#",
-    "#####"
+    "########",
+    "#      #",
+    "# @ $ .#",
+    "#      #",
+    "########"
   ],
   "rules": {}
 }

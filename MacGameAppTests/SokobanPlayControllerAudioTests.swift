@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Testing
 
@@ -26,6 +27,15 @@ struct SokobanPlayControllerAudioTests {
         return (controller, spy)
     }
 
+    private func completeFirstLevel(_ controller: SokobanPlayController) {
+        for (index, _) in SokobanTutorialSolutions.level001.enumerated() {
+            controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+            if index < SokobanTutorialSolutions.level001.count - 1 {
+                controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow))
+            }
+        }
+    }
+
     @Test("start and move share render/audio target revision; cue plays once")
     func emissionReachesAudio() throws {
         let (controller, spy) = makeController()
@@ -33,19 +43,21 @@ struct SokobanPlayControllerAudioTests {
         #expect(spy.musicStates.contains(.sokobanLoop))
         spy.resetCalls()
 
-        // Demo: move right completes #@$.# → push onto goal.
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        completeFirstLevel(controller)
         let revision = try #require(controller.session).revision
         #expect(controller.audioDirector.lastAppliedRevision == revision)
         #expect(controller.scene.appliedRevision == revision)
-        #expect(spy.playedEffects == [.cratePushed, .goalEntered, .levelCompleted])
-        #expect(spy.playedEffects.filter { $0 == .cratePushed }.count == 1)
+        #expect(
+            spy.playedEffects
+                == [.step, .cratePushed, .cratePushed, .goalEntered, .levelCompleted]
+        )
+        #expect(spy.playedEffects.filter { $0 == .cratePushed }.count == 2)
     }
 
     @Test("undo after completion does not replay completion cues and stops effects")
     func undoDoesNotReplayCues() throws {
         let (controller, spy) = makeController()
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        completeFirstLevel(controller)
         spy.resetCalls()
 
         controller.undo()
@@ -81,7 +93,7 @@ struct SokobanPlayControllerAudioTests {
     @Test("focus loss during outcome interrupts; activation resumes without cues")
     func focusLossDuringOutcomeInterruptsAudio() throws {
         let (controller, spy) = makeController()
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        completeFirstLevel(controller)
         controller.scene.settleAnimationsForTesting()
         if controller.presentationPhase == .outcomeAnimating {
             controller.skipOutcomePresentation()
@@ -99,5 +111,15 @@ struct SokobanPlayControllerAudioTests {
         #expect(spy.playedEffects.isEmpty)
         // Completed context keeps music stopped; resume only clears interrupt.
         #expect(!spy.calls.contains(.playEffect(.levelCompleted)))
+    }
+
+    @Test("bundled Sokoban music is present and natively decodable")
+    func bundledMusicIsDecodable() throws {
+        let bundle = Bundle(for: SokobanPlayController.self)
+        let url = try #require(ProceduralAudioPlaybackBackend.musicAssetURL(in: bundle))
+        let file = try AVAudioFile(forReading: url)
+
+        #expect(url.lastPathComponent == "sokoban-puzzling.mp3")
+        #expect(file.length > AVAudioFramePosition(file.processingFormat.sampleRate * 90))
     }
 }
