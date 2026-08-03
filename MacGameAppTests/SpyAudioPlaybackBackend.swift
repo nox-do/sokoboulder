@@ -16,9 +16,11 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
     private(set) var calls: [Call] = []
     private(set) var lastOutputSettings: AudioOutputSettings?
     private(set) var lastThemeID: String?
+    private(set) var lastMusicPath: String?
 
     func applyTheme(_ theme: AudioTheme) {
         lastThemeID = theme.id
+        lastMusicPath = theme.musicPlayingPath
         calls.append(.applyTheme(theme.id))
     }
 

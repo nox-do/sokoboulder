@@ -1,6 +1,7 @@
 import Foundation
 
-/// Which game an audio theme belongs to. Selection is mode-driven, not a settings picker.
+/// Which game an audio theme belongs to. Cue/theme selection is mode-driven;
+/// background tracks may additionally be chosen in settings via ``MusicTrack``.
 enum AudioGameMode: String, Equatable, Codable, Sendable, CaseIterable {
     case sokoban
     case cave
@@ -9,6 +10,7 @@ enum AudioGameMode: String, Equatable, Codable, Sendable, CaseIterable {
 /// Runtime audio theme: music path + optional file-backed cue paths.
 ///
 /// Missing or unloadable assets degrade to silence (music) or procedural tones (cues).
+/// Settings may override ``musicPlayingPath`` through the music-track catalog.
 struct AudioTheme: Equatable, Sendable {
     static let sokobanID = "audio.sokoban"
     static let caveID = "audio.cave"
@@ -23,5 +25,14 @@ struct AudioTheme: Equatable, Sendable {
 
     func resourcePath(for cue: AudioCue) -> String? {
         cueResourcePaths[cue]
+    }
+
+    func replacingMusicPlayingPath(_ path: String?) -> AudioTheme {
+        AudioTheme(
+            id: id,
+            game: game,
+            musicPlayingPath: path,
+            cueResourcePaths: cueResourcePaths
+        )
     }
 }

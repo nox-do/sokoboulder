@@ -441,6 +441,27 @@ struct SokobanPlayControllerTests {
         #expect(controller.session?.revision == revision)
     }
 
+    @Test("Escape while paused returns to game selection")
+    func escapeFromPauseOpensGameSelection() throws {
+        let controller = makeController()
+        controller.togglePause()
+        #expect(controller.presentationPhase == .paused)
+
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.escape)))
+        #expect(controller.presentationPhase == .gameSelection)
+        #expect(controller.session == nil)
+        #expect(controller.router.mode == .modalBlocked)
+    }
+
+    @Test("pause Spielauswahl button returns to game selection")
+    func pauseLevelSelectOpensGameSelection() throws {
+        let controller = makeController()
+        controller.togglePause()
+        controller.openLevelSelectionFromPauseOverlay()
+        #expect(controller.presentationPhase == .gameSelection)
+        #expect(controller.session == nil)
+    }
+
     @Test("focus loss opens pause while playing")
     func focusLossOpensPause() throws {
         let controller = makeController()

@@ -485,7 +485,9 @@ public enum CaveInput: Equatable, Sendable {
 ```
 
 Sokoban erhält direkt eine `Direction`; das Höhlenspiel erhält pro Tick höchstens
-eine aufgelöste `CaveInput`. Pause, Undo, Neustart oder Menübefehle sind
+eine aufgelöste `CaveInput`. Eine optionale spätere `snap(Direction)`-Absicht
+(graben/sammeln ohne Bewegen) ist kein Pflichtteil von Phase 4 und wird vor
+Implementierung entschieden. Pause, Undo, Neustart oder Menübefehle sind
 Session-Befehle und keine Bewegungen innerhalb der simulierten Welt.
 
 ### 7.3 Sokoban-Schritt
@@ -511,12 +513,14 @@ Ein Level mit unterschiedlich vielen Kisten und Zielen ist ungültig.
 ### 7.4 Boulder-Dash-Tick
 
 Boulder Dash verwendet einen festen logischen Takt. Der genaue Zielwert wird
-spielgefühlbasiert festgelegt, zunächst beispielsweise zehn Ticks pro Sekunde.
+spielgefühlbasiert festgelegt; Kandidat für ADR 0005 ist zehn Ticks pro
+Sekunde (`fixedStep = 0.10`).
 
-Vor Beginn von Phase 4 wird das ADR **Cave Tick Semantics** verbindlich
+Vor Beginn von Phase 4 wird das ADR **Cave Tick Semantics**
+(`docs/adr/0005-cave-tick-semantics.md`, Plan `docs/plans/3.7-…`) verbindlich
 abgeschlossen. Es legt anhand von 10–15 kleinen Konfliktrastern fest:
 
-- Traversierungsreihenfolge des Rasters,
+- Traversierungs- bzw. Intent-Berechnungsreihenfolge des Rasters,
 - In-place-Aktualisierung oder Berechnung eines getrennten Folgezustands,
 - höchstens eine Aktion je zu Tickbeginn vorhandener Entität,
 - Verhalten neu entstandener Entitäten im aktuellen Tick,
@@ -527,25 +531,27 @@ abgeschlossen. Es legt anhand von 10–15 kleinen Konfliktrastern fest:
 - Gleichstandsregel für Ereignisse exakt auf Tickgrenzen,
 - Behandlung verspäteter Ereignisse sowie Reset bei Pause und Fortsetzen.
 
-Es wird genau ein Verfahren implementiert. Für originalnahes, sequenzielles
-Verhalten ist In-place-Aktualisierung mit einer `processedGeneration` pro
-beweglicher Entität der bevorzugte Kandidat. Ein Double Buffer bleibt nur dann
-eine Alternative, wenn bewusst einfachere, neu definierte Höhlenregeln gewünscht
-sind.
+Es wird genau ein Verfahren implementiert. Weil Original-Cave-Dateien kein Ziel
+sind, empfiehlt ADR 0005 **simultane Intents / Double Buffer** als
+Produktdefault; In-place mit `processedGeneration` bleibt nur optionaler
+späterer Kompatibilitätsmodus und wird nicht parallel abstrahiert.
 
 Ein Tick besteht konzeptionell aus:
 
 1. höchstens eine gepufferte Spielerabsicht anwenden,
-2. bewegliche Zellen in definierter Reihenfolge aktualisieren,
+2. bewegliche Zellen in definierter Reihenfolge aktualisieren
+   (Intents berechnen),
 3. Gravitation und seitliches Abrollen berechnen,
 4. Gegner nach ihren lokalen Regeln bewegen,
-5. Explosionen und resultierende Zellen anwenden,
+5. Explosionen und resultierende Zellen über eine Queue anwenden,
 6. Sammelzähler, Ausgang und Punktestand aktualisieren,
 7. Zeit reduzieren,
 8. Sieg- und Todeszustand bestimmen.
 
-Die gewählte Semantik ist Teil der versionierten Spielregeln. Ein Objekt darf
-innerhalb desselben Ticks nicht versehentlich mehrfach aktualisiert werden.
+Spielerische Objektregeln (Schieben, Rollen, ruhend vs. fallend, Gegner,
+Explosionstypen) stehen in [GAMEPLAY.md](GAMEPLAY.md) §6. Die gewählte Semantik
+ist Teil der versionierten Spielregeln. Ein Objekt darf innerhalb desselben
+Ticks nicht versehentlich mehrfach aktualisiert werden.
 
 ### 7.5 Gravitation
 
@@ -554,8 +560,12 @@ Grundregeln:
 - Felsen und Diamanten fallen in freien Raum.
 - Auf geeigneten runden Unterlagen können sie seitlich abrollen.
 - Fallende Objekte unterscheiden sich von ruhenden Objekten.
-- Ein fallendes Objekt kann Spieler oder Gegner treffen.
-- Geschobene Felsen bewegen sich horizontal nur bei freiem Zielfeld.
+- Ein fallendes Objekt kann Spieler oder Gegner treffen; ein ruhendes Objekt
+  auf dem Spielerkopf tötet nicht („unter dem Fels stehen“).
+- Geschobene Felsen bewegen sich horizontal nur bei freiem Zielfeld und nur im
+  Zustand `resting`.
+- Rollprüfung ist deterministisch; ADR-Kandidat: links vor rechts. Nach dem
+  Rollen gilt `falling`.
 
 Der Bewegungszustand `falling` wird explizit modelliert. Nur so kann zuverlässig
 unterschieden werden, ob ein direkt über dem Spieler liegender ruhender Fels
@@ -563,17 +573,21 @@ gefährlich ist oder ob ein fallender Fels einschlägt.
 
 ### 7.6 Gegner und Explosionen
 
-Gegner werden als spätere Ausbaustufe implementiert. Ihre Bewegungsentscheidung
-verwendet nur Raster, aktuelle Richtung und lokale Nachbarschaft.
+Gegner werden in Phase 5 implementiert. Ihre Bewegungsentscheidung verwendet nur
+Raster, aktuelle Richtung und lokale Nachbarschaft (Firefly: Linkswand;
+Butterfly: Rechtswand). Kontakt Spieler↔Gegner ist symmetrisch; historische
+Scan-Asymmetrien sind kein Produktziel.
 
 Explosionen sind keine SpriteKit-Partikel mit Spielwirkung, sondern Kernoperationen:
 
 - betroffene 3×3-Zellen bestimmen,
-- zerstörbare Inhalte entfernen,
-- Folgezustände erzeugen,
+- zerstörbare Inhalte entfernen bzw. Butterfly-Explosion in Diamanten wandeln,
+- Folgeexplosionen über eine Queue erzeugen,
 - fachliche Ereignisse für nachgelagerte Präsentationsdienste ausgeben.
 
-Partikel illustrieren anschließend nur das bereits berechnete Ergebnis.
+Stahlwand ist unzerstörbar. Partikel illustrieren anschließend nur das bereits
+berechnete Ergebnis. Amöbe und magische Wand sind Phase-5-Levelparameter; ihre
+Wachstums-/Umwandlungsregeln stehen in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
 
 ## 8. Zeitmodell und Game Loop
 
@@ -920,6 +934,10 @@ lesbar sind:
 ```
 
 ASCII ist ein Importformat, nicht zwingend das dauerhafte Versandformat.
+Für Höhlen-Golden-Tests (Phase 3.7+) gilt dieselbe Idee mit eigener Legende,
+z. B. ` ` leer, `.` Erde, `#` Ziegel, `X` Stahl, `O` Felsen, `*` Diamant,
+`P` Spieler, `E` Ausgang, später `F`/`B`/`A`/`M` für Gegner, Amöbe und
+magische Wand. Kanonisches Versandformat bleibt versioniertes JSON.
 
 ### 12.2 Kanonisches Format
 
@@ -1487,8 +1505,12 @@ Abnahme:
 
 ### Phase 3.7: Höhlenregel-Spike
 
+Plan: `docs/plans/3.7-cave-tick-semantics.md` · ADR:
+`docs/adr/0005-cave-tick-semantics.md`
+
 - ADR `Cave Tick Semantics` anhand konkurrierender Beispielsituationen entscheiden.
-- 10–15 Golden-Konfliktraster für Scanrichtung, Update-once und Explosionen bauen.
+- 10–15 Golden-Konfliktraster für Intent-Reihenfolge, Update-once und Explosionen
+  bauen.
 - Exakte Tickrate, Eingabeabtastung und Catch-up-Regel festlegen.
 - Globale Simulationsticks, Timing-Epochen und Überlast-Rebasierung festlegen.
 - Ready-State und Übergang der ersten Eingabe zu Tick 1 festlegen.
@@ -1510,12 +1532,14 @@ Abnahme:
 
 ### Phase 4: Boulder-Dash-Grundspiel
 
-- Fester Simulationstakt.
-- Erde, Felsen, Diamanten und Ausgang.
-- Fallen, Rollen, Schieben, Sammeln und Tod.
-- Kamera für größere Höhlen.
-- Zeitlimit und Punktestand.
-- Ready-State, Kamera-Safe-Zone und schnelle Todes-/Neustartfolge.
+Stufe-1-Kern laut Spielregeln:
+
+- Fester Simulationstakt nach ADR 0005.
+- Erde, Wände, Felsen, Diamanten und Ausgang.
+- Fallen, Rollen, horizontales Schieben, Sammeln und Tod.
+- Zeitlimit und Punktestand (`diamondValue` / `extraDiamondValue`).
+- Kamera für größere Höhlen; Ready-State; schnelle Todes-/Neustartfolge.
+- Optional nach Rückfrage: Snap-Aktion, Schiebeverzögerung.
 
 Abnahme:
 
@@ -1527,13 +1551,15 @@ Abnahme:
 - Die zentrale Weltbelegungsabfrage verhindert, dass eine Höhlenregel den lebenden
   Spieler als leere Zelle behandelt.
 - Der initiale `nextEntityID`-Wert ist kanonisch und replay-stabil.
+- Ruhender Fels auf dem Spieler tötet nicht; fallender schon.
 
 ### Phase 5: Erweiterte Höhlenregeln
 
-- Glühwürmchen und Schmetterlinge.
-- Explosionen und Diamantentstehung.
-- Amöben und weitere besondere Tiles.
-- Leben, Levelreihenfolge und Bonuswertung.
+- Glühwürmchen (Linkswand) und Schmetterlinge (Rechtswand).
+- Explosionen (zerstörend / diamantenerzeugend) und Kettenreaktionen.
+- Amöben (Wachstum, Ersticken → Diamanten, Überwuchern → Felsen).
+- Magische Wand (dormant / active / expired).
+- Leben, Levelreihenfolge und Bonuswertung in der App-Schicht.
 - Polishing von Animation und Schwierigkeit.
 - Audiopolishing nach den Vorgaben aus [AUDIO.md](AUDIO.md).
 
@@ -1605,10 +1631,10 @@ Bereits empfohlen:
 In frühen Spikes zu entscheiden:
 
 1. `SKTileMapNode` oder vollständig eigene Node-Schichten.
-2. In-place mit Marker oder Double Buffer für Boulder-Dash-Ticks; verbindlich in
-   Phase 3.7 und nicht als doppelte Abstraktion.
-3. Exakte Tickrate und Eingabepufferung des Höhlenspiels.
-4. Minimale unterstützte macOS-Version.
+2. ~~Cave-Tick-Verfahren~~ — ADR 0005 Accepted: simultane Intents; 10 Hz;
+   kein Snap/Schiebeverzögerung in Phase 4.
+3. Minimale unterstützte macOS-Version.
+4. Ob `snap` / Schiebeverzögerung nach Playtest ergänzt werden.
 
 Bereits entschieden (siehe `docs/adr/`):
 

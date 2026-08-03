@@ -365,6 +365,21 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
+### Phase 3.7 Cave-Tick-Spike / ADR — spielbarer Demo-Pfad
+
+Plan: `docs/plans/3.7-cave-tick-semantics.md`  
+ADR: `docs/adr/0005-cave-tick-semantics.md` (Accepted)
+
+- [x] ADR 0005 Accepted
+- [x] Cave-Modell + ASCII + `CaveRules.tick` + Digest (GameCore)
+- [x] Golden-Konfliktraster + Bugbot-Fixes
+- [x] `CaveSession` Ready → Tick 1 + Catch-up + Demo-Level in App
+- [x] Spielauswahl „Höhle“ aktiv (Demo)
+- [x] Cave-Visual-Fix: kein Sokoban-Pixel-Floor/Wand/Kiste auf Cave;
+  Sand≠Tunnel, Fels grau `●`, Wand ohne Muster, Spieler = Sokoban-Sprite
+- [ ] Feinschliff Timing-Golden / volles Phase-4-Polishing
+- Danach: Kamera, Kampagne, Gegner (Phase 5), Cave-Musik-Asset
+
 ### Spielauswahl-Hülle – umgesetzt (2026-08-03)
 
 Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
@@ -372,7 +387,9 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Phase `gameSelection`: Sokoban | Höhle (disabled „Demnächst“) | Hilfe | Settings
 - [x] Boot → Spielauswahl; frisch + Sokoban → Tutorial; sonst Sokoban-Hub
 - [x] Escape / Zurück vom Hub zur Spielauswahl
+- [x] Escape / „Spielauswahl“ aus Pause (Sokoban + Höhle) → Spielauswahl
 - [x] Tests angepasst
+- [x] Cave-Gameplay-Spez in GAMEPLAY/ARCHITECTURE + Plan 3.7 / ADR 0005 (2026-08-03)
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
@@ -401,8 +418,6 @@ Arbeitspakete:
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
-- **Als Nächstes:** Phase 3.7 Cave-Spike (ADR Tick Semantics) — siehe Plan 3.9
-- Cave-Musik-Asset (MP3/OGG) wenn Phase 4 startet
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
@@ -415,3 +430,11 @@ Arbeitspakete:
 - [x] JSON `sokoban.campaign.001`–`090`, Manifest, DE-Titel
 - [x] Alte 20 Kampagnen-Level ersetzt; Catalog-Tests: 93 Level
 - [x] Hinweis in `THIRD_PARTY_NOTICES.md`
+
+### Hintergrundmusik-Auswahl (Settings) – 2026-08-03
+
+- [x] Musik-Track-Katalog `Audio/Music/tracks.json` mit Credits pro Song
+- [x] Settings-Picker: Puzzling (Default, CC0) + Prelude (CC-BY 3.0)
+- [x] Prelude aus [Old Music](https://opengameart.org/content/old-music) (nur dieser Track)
+- [x] Attribution in Settings + `THIRD_PARTY_NOTICES.md`
+- [x] Persistenz `settings.musicTrackID` + Director-Pfad-Override

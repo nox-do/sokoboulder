@@ -3,18 +3,15 @@ import Foundation
 /// Top-level game picker selection owned by ``SokobanPlayController``.
 enum GameSelectionAction: String, CaseIterable, Equatable, Sendable {
     case sokoban
-    /// Placeholder until Phase 4; not focusable / not activatable.
     case cave
     case help
     case settings
 
-    /// Keyboard focus skips disabled entries (Höhle).
-    static var focusOrder: [GameSelectionAction] { [.sokoban, .help, .settings] }
+    static var focusOrder: [GameSelectionAction] { [.sokoban, .cave, .help, .settings] }
 
     var isEnabled: Bool {
         switch self {
-        case .cave: false
-        case .sokoban, .help, .settings: true
+        case .sokoban, .cave, .help, .settings: true
         }
     }
 }

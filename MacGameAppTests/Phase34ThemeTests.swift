@@ -557,9 +557,13 @@ struct Phase34ThemeIntegrationTests {
 
     @Test("settings hide theme picker when only one theme is available")
     func settingsThemeFocusOrderWithoutPicker() {
-        let order = SettingsOverlay.keyboardFocusOrder(showsThemePicker: false)
+        let order = SettingsOverlay.keyboardFocusOrder(
+            showsThemePicker: false,
+            showsMusicTrackPicker: false
+        )
         #expect(order.first == "reduceMotion")
         #expect(!order.contains("theme"))
+        #expect(!order.contains("musicTrack"))
         #expect(
             KeyboardFocusCycle.move(from: "reduceMotion", in: order, offset: -1) == "back"
         )
@@ -567,10 +571,13 @@ struct Phase34ThemeIntegrationTests {
 
     @Test("settings theme row leads focus order when multiple themes exist")
     func settingsThemeFocusOrderWithPicker() {
-        let order = SettingsOverlay.keyboardFocusOrder(showsThemePicker: true)
+        let order = SettingsOverlay.keyboardFocusOrder(
+            showsThemePicker: true,
+            showsMusicTrackPicker: true
+        )
         #expect(order.first == "theme")
         #expect(
-            KeyboardFocusCycle.move(from: "theme", in: order, offset: 1) == "reduceMotion"
+            KeyboardFocusCycle.move(from: "theme", in: order, offset: 1) == "musicTrack"
         )
         #expect(
             KeyboardFocusCycle.move(from: "theme", in: order, offset: -1) == "back"

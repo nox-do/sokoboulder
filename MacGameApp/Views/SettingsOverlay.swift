@@ -8,6 +8,8 @@ struct SettingsOverlay: View {
     let onFocusChange: (String) -> Void
     let onThemeChange: (String) -> Void
     let onThemeCycle: (Int) -> Void
+    let onMusicTrackChange: (String) -> Void
+    let onMusicTrackCycle: (Int) -> Void
     let onReduceMotionChange: (Bool) -> Void
     let onMusicVolumeChange: (Double) -> Void
     let onEffectsVolumeChange: (Double) -> Void
@@ -16,6 +18,10 @@ struct SettingsOverlay: View {
 
     private var showsThemePicker: Bool {
         model.themeOptions.count > 1
+    }
+
+    private var showsMusicTrackPicker: Bool {
+        model.musicTrackOptions.count > 1
     }
 
     var body: some View {
@@ -38,43 +44,40 @@ struct SettingsOverlay: View {
                                 .font(.caption)
                                 .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
 
-                            HStack(spacing: 8) {
-                                ForEach(model.themeOptions) { option in
-                                    let selected = option.id == model.selectedThemeID
-                                    Button {
-                                        onFocusChange("theme")
-                                        onThemeChange(option.id)
-                                    } label: {
-                                        Text(option.title)
-                                            .font(.body.weight(selected ? .semibold : .regular))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .fill(
-                                                        selected
-                                                            ? theme.ui.primaryFill.swiftUIColor
-                                                            : theme.ui.secondaryFill.swiftUIColor
-                                                    )
-                                            )
-                                            .foregroundStyle(
-                                                selected
-                                                    ? theme.ui.primaryForeground.swiftUIColor
-                                                    : theme.ui.secondaryForeground.swiftUIColor
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityAddTraits(selected ? .isSelected : [])
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .themedFocus(isFocused: focusedID == "theme", isPrimary: true)
-                            .accessibilityLabel(model.themeTitle)
-                            .accessibilityValue(
-                                model.themeOptions.first { $0.id == model.selectedThemeID }?.title
-                                    ?? model.selectedThemeID
+                            optionChips(
+                                options: model.themeOptions.map { ($0.id, $0.title) },
+                                selectedID: model.selectedThemeID,
+                                focusID: "theme",
+                                accessibilityLabel: model.themeTitle,
+                                onSelect: onThemeChange
                             )
+                        }
+                    }
+
+                    if showsMusicTrackPicker {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(model.musicTrackTitle)
+                                .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
+                            Text(model.musicTrackHint)
+                                .font(.caption)
+                                .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
+
+                            optionChips(
+                                options: model.musicTrackOptions.map { ($0.id, $0.title) },
+                                selectedID: model.selectedMusicTrackID,
+                                focusID: "musicTrack",
+                                accessibilityLabel: model.musicTrackTitle,
+                                onSelect: onMusicTrackChange
+                            )
+
+                            Text(model.selectedMusicCreditSummary)
+                                .font(.caption)
+                                .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
+                            if let notice = model.selectedMusicAttributionNotice {
+                                Text(notice)
+                                    .font(.caption2)
+                                    .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
+                            }
                         }
                     }
 
@@ -167,12 +170,64 @@ struct SettingsOverlay: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
     }
+
+    @ViewBuilder
+    private func optionChips(
+        options: [(id: String, title: String)],
+        selectedID: String,
+        focusID: String,
+        accessibilityLabel: String,
+        onSelect: @escaping (String) -> Void
+    ) -> some View {
+        HStack(spacing: 8) {
+            ForEach(options, id: \.id) { option in
+                let selected = option.id == selectedID
+                Button {
+                    onFocusChange(focusID)
+                    onSelect(option.id)
+                } label: {
+                    Text(option.title)
+                        .font(.body.weight(selected ? .semibold : .regular))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(
+                                    selected
+                                        ? theme.ui.primaryFill.swiftUIColor
+                                        : theme.ui.secondaryFill.swiftUIColor
+                                )
+                        )
+                        .foregroundStyle(
+                            selected
+                                ? theme.ui.primaryForeground.swiftUIColor
+                                : theme.ui.secondaryForeground.swiftUIColor
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .themedFocus(isFocused: focusedID == focusID, isPrimary: true)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(
+            options.first { $0.id == selectedID }?.title ?? selectedID
+        )
+    }
 }
 
 extension SettingsOverlay {
     /// Focus order used by the settings keyboard contract.
-    static func keyboardFocusOrder(showsThemePicker: Bool) -> [String] {
+    static func keyboardFocusOrder(
+        showsThemePicker: Bool,
+        showsMusicTrackPicker: Bool
+    ) -> [String] {
         var order = ["reduceMotion", "music", "effects", "mute", "back"]
+        if showsMusicTrackPicker {
+            order.insert("musicTrack", at: 0)
+        }
         if showsThemePicker {
             order.insert("theme", at: 0)
         }

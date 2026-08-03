@@ -8,29 +8,41 @@ import GameCore
 ///
 /// User volumes / mute (Phase 3.3) are applied via ``applyOutputSettings(_:)``.
 /// Theme selection is mode-driven from ``AudioContext.game`` (Phase 3.5).
+/// Background music within a game may be overridden via ``applyMusicTrackID(_:)``.
 @MainActor
 final class AudioDirector {
     private let backend: any AudioPlaybackBackend
     private let catalog: AudioThemeCatalog
+    private let musicCatalog: MusicTrackCatalog
 
     private(set) var lastAppliedRevision: UInt64?
     private(set) var outputSettings: AudioOutputSettings = .default
     private(set) var activeTheme: AudioTheme
+    private(set) var selectedMusicTrackID: String
     private var desiredMusic: MusicPlaybackState = .stopped
     private var interrupted = false
 
     init(
         backend: any AudioPlaybackBackend = ProceduralAudioPlaybackBackend(),
-        catalog: AudioThemeCatalog? = nil
+        catalog: AudioThemeCatalog? = nil,
+        musicCatalog: MusicTrackCatalog? = nil
     ) {
         self.backend = backend
+        let resources = BundleContentResources(bundle: Bundle(for: AudioDirector.self))
         let resolvedCatalog =
             catalog
-            ?? AudioThemeCatalogLoader.load(
-                from: BundleContentResources(bundle: Bundle(for: AudioDirector.self))
-            )
+            ?? AudioThemeCatalogLoader.load(from: resources)
+        let resolvedMusic =
+            musicCatalog
+            ?? MusicTrackCatalogLoader.load(from: resources)
         self.catalog = resolvedCatalog
-        self.activeTheme = resolvedCatalog.resolvedTheme(for: .sokoban)
+        self.musicCatalog = resolvedMusic
+        self.selectedMusicTrackID = resolvedMusic.defaultTrackID
+        self.activeTheme = Self.effectiveTheme(
+            base: resolvedCatalog.resolvedTheme(for: .sokoban),
+            musicTrackID: resolvedMusic.defaultTrackID,
+            musicCatalog: resolvedMusic
+        )
         backend.applyTheme(activeTheme)
         backend.applyOutputSettings(outputSettings)
     }
@@ -39,6 +51,15 @@ final class AudioDirector {
     func applyOutputSettings(_ settings: AudioOutputSettings) {
         outputSettings = settings
         backend.applyOutputSettings(settings)
+    }
+
+    /// Applies the user's selected background track (settings). Reloads music path.
+    func applyMusicTrackID(_ id: String) {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        selectedMusicTrackID = trimmed
+        pushEffectiveTheme(for: activeTheme.game)
+        alignMusicIfAudible()
     }
 
     /// Applies one session audio emission. Never blocks presentation.
@@ -140,10 +161,30 @@ final class AudioDirector {
     }
 
     private func selectTheme(for game: AudioGameMode) {
-        let theme = catalog.resolvedTheme(for: game)
-        guard theme.id != activeTheme.id else { return }
+        pushEffectiveTheme(for: game)
+    }
+
+    private func pushEffectiveTheme(for game: AudioGameMode) {
+        let theme = Self.effectiveTheme(
+            base: catalog.resolvedTheme(for: game),
+            musicTrackID: selectedMusicTrackID,
+            musicCatalog: musicCatalog
+        )
+        guard theme != activeTheme else { return }
         activeTheme = theme
         backend.applyTheme(theme)
+    }
+
+    static func effectiveTheme(
+        base: AudioTheme,
+        musicTrackID: String,
+        musicCatalog: MusicTrackCatalog
+    ) -> AudioTheme {
+        guard let track = musicCatalog.resolvedTrack(preferredID: musicTrackID, for: base.game)
+        else {
+            return base
+        }
+        return base.replacingMusicPlayingPath(track.resourcePath)
     }
 
     private func playCues(from events: [GameEvent]) {

@@ -154,12 +154,12 @@ final class GameplayInputRouter {
             guard !event.isARepeat else {
                 return isPausedCommandKey(event) ? .consumed : .unhandled
             }
-            // Escape resumes; R/Z still reach the shell (session may resume first).
+            // Escape → shell (Spielauswahl); R/Z still reach the shell (may leave pause first).
             if let intent = InputMapper.intent(from: event) {
                 switch intent {
                 case .pause, .restart, .undo, .redo:
                     return .routed(.gameplay(intent))
-                case .move:
+                case .move, .wait:
                     return .unhandled
                 }
             }
@@ -196,7 +196,7 @@ final class GameplayInputRouter {
                 switch intent {
                 case .undo, .redo, .restart:
                     return .routed(.gameplay(intent))
-                case .move, .pause:
+                case .move, .wait, .pause:
                     return .unhandled
                 }
             }

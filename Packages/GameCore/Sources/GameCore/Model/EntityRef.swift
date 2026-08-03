@@ -16,4 +16,6 @@ public struct EntityRef: Equatable, Sendable {
 public enum EntityKind: Equatable, Sendable {
     case player
     case crate
+    case boulder
+    case diamond
 }

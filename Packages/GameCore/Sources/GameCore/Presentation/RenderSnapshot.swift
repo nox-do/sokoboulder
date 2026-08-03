@@ -6,7 +6,11 @@ public enum RenderTerrain: Equatable, Sendable {
     case void
     case floor
     case wall
+    case steelWall
+    case dirt
     case goal
+    case exitClosed
+    case exitOpen
 }
 
 /// One projected grid cell: terrain only. Occupants live in ``RenderEntity``.
@@ -143,6 +147,49 @@ extension RenderSnapshot {
             status: state.status
         )
     }
+
+    /// Projects authoritative cave state. HUD counters map as:
+    /// `completedGoalCount`/`totalGoalCount` = diamonds,
+    /// `moveCount` = remaining ticks, `pushCount` = score.
+    public static func project(_ state: CaveState) -> RenderSnapshot {
+        let width = state.grid.width
+        let height = state.grid.height
+        var cells: [RenderCell] = []
+        cells.reserveCapacity(width * height)
+        var entities: [RenderEntity] = []
+
+        for row in 0..<height {
+            for column in 0..<width {
+                let position = GridPosition(column: column, row: row)
+                let cell = state.grid[position]
+                cells.append(RenderCell(terrain: RenderTerrain(cell.terrain)))
+                if let occupant = cell.occupant {
+                    entities.append(
+                        RenderEntity(ref: occupant.entityRef, position: position)
+                    )
+                }
+            }
+        }
+
+        let playerPosition: GridPosition
+        switch state.player {
+        case .alive(let position), .dead(let position):
+            playerPosition = position
+        }
+
+        return RenderSnapshot(
+            width: width,
+            height: height,
+            cells: cells,
+            entities: entities,
+            player: RenderEntity(ref: state.playerRef, position: playerPosition),
+            moveCount: state.remainingTicks,
+            pushCount: state.score,
+            completedGoalCount: state.collectedDiamonds,
+            totalGoalCount: max(state.requiredDiamonds, state.collectedDiamonds),
+            status: state.status
+        )
+    }
 }
 
 extension RenderTerrain {
@@ -152,6 +199,18 @@ extension RenderTerrain {
         case .floor: self = .floor
         case .wall: self = .wall
         case .goal: self = .goal
+        }
+    }
+
+    fileprivate init(_ terrain: CaveTerrain) {
+        switch terrain {
+        case .void: self = .void
+        case .floor: self = .floor
+        case .wall: self = .wall
+        case .steelWall: self = .steelWall
+        case .dirt: self = .dirt
+        case .exit(.closed): self = .exitClosed
+        case .exit(.open): self = .exitOpen
         }
     }
 }

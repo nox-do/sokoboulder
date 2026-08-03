@@ -33,6 +33,7 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiGameSelectSokoban = "ui.game_select.sokoban"
     case uiGameSelectCave = "ui.game_select.cave"
     case uiGameSelectCaveComingSoon = "ui.game_select.cave_coming_soon"
+    case uiGameSelectCaveDemoHint = "ui.game_select.cave_demo_hint"
     case uiLaunchTitle = "ui.launch.title"
     case uiLaunchContinue = "ui.launch.continue"
     case uiLaunchSelectLevel = "ui.launch.select_level"
@@ -50,6 +51,9 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiHudMoves = "ui.hud.moves"
     case uiHudPushes = "ui.hud.pushes"
     case uiHudGoals = "ui.hud.goals"
+    case uiHudDiamonds = "ui.hud.diamonds"
+    case uiHudTime = "ui.hud.time"
+    case uiHudScore = "ui.hud.score"
     case uiHudUndo = "ui.hud.undo"
     case uiHudRedo = "ui.hud.redo"
     case uiHudAvailable = "ui.hud.available"
@@ -65,6 +69,7 @@ enum AppStringID: String, CaseIterable, Sendable {
     // Pause
     case uiPauseTitle = "ui.pause.title"
     case uiPauseHint = "ui.pause.hint"
+    case uiPauseHintCave = "ui.pause.hint_cave"
     case uiPauseResume = "ui.pause.resume"
     case uiPauseRestart = "ui.pause.restart"
     case uiPauseLevelSelect = "ui.pause.level_select"
@@ -92,6 +97,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiSettingsThemeHint = "ui.settings.theme_hint"
     case uiSettingsReduceMotion = "ui.settings.reduce_motion"
     case uiSettingsReduceMotionDetail = "ui.settings.reduce_motion_detail"
+    case uiSettingsMusicTrack = "ui.settings.music_track"
+    case uiSettingsMusicTrackHint = "ui.settings.music_track_hint"
     case uiSettingsMusicVolume = "ui.settings.music_volume"
     case uiSettingsEffectsVolume = "ui.settings.effects_volume"
     case uiSettingsMute = "ui.settings.mute"
@@ -100,6 +107,10 @@ enum AppStringID: String, CaseIterable, Sendable {
     case themeStandardName = "theme.standard.name"
     case themeDungeonName = "theme.dungeon.name"
     case themeKenneyName = "theme.kenney.name"
+
+    // Music tracks
+    case musicSokobanPuzzlingName = "music.sokoban.puzzling.name"
+    case musicSokobanPreludeName = "music.sokoban.prelude.name"
 
     // Recovery / fault
     case uiRecoveryTitle = "ui.recovery.title"
@@ -148,6 +159,7 @@ enum AppStrings {
         AppStringID.uiGameSelectSokoban.rawValue: "Sokoban",
         AppStringID.uiGameSelectCave.rawValue: "Höhle",
         AppStringID.uiGameSelectCaveComingSoon.rawValue: "Demnächst",
+        AppStringID.uiGameSelectCaveDemoHint.rawValue: "Demo · Pfeile bewegen · Leertaste warten",
         AppStringID.uiLaunchTitle.rawValue: "Sokoban",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
@@ -164,6 +176,9 @@ enum AppStrings {
         AppStringID.uiHudMoves.rawValue: "Züge",
         AppStringID.uiHudPushes.rawValue: "Schübe",
         AppStringID.uiHudGoals.rawValue: "Ziele",
+        AppStringID.uiHudDiamonds.rawValue: "Diamanten",
+        AppStringID.uiHudTime.rawValue: "Zeit",
+        AppStringID.uiHudScore.rawValue: "Punkte",
         AppStringID.uiHudUndo.rawValue: "Undo",
         AppStringID.uiHudRedo.rawValue: "Redo",
         AppStringID.uiHudAvailable.rawValue: "verfügbar",
@@ -179,7 +194,8 @@ enum AppStrings {
             "Festgefahrenen Spielstand bis vor den letzten irreversiblen Schub zurückgesetzt.",
 
         AppStringID.uiPauseTitle.rawValue: "Pause",
-        AppStringID.uiPauseHint.rawValue: "Escape setzt fort",
+        AppStringID.uiPauseHint.rawValue: "Escape → Spielauswahl · Fortsetzen im Menü",
+        AppStringID.uiPauseHintCave.rawValue: "Escape → Spielauswahl · Fortsetzen im Menü",
         AppStringID.uiPauseResume.rawValue: "Fortsetzen",
         AppStringID.uiPauseRestart.rawValue: "Neu starten",
         AppStringID.uiPauseLevelSelect.rawValue: "Levelauswahl",
@@ -206,6 +222,8 @@ enum AppStrings {
         AppStringID.uiSettingsReduceMotion.rawValue: "Bewegung reduzieren",
         AppStringID.uiSettingsReduceMotionDetail.rawValue:
             "Wirkt zusätzlich zur Systemeinstellung (nur Darstellung)",
+        AppStringID.uiSettingsMusicTrack.rawValue: "Hintergrundmusik",
+        AppStringID.uiSettingsMusicTrackHint.rawValue: "Pfeiltasten wechseln den Track",
         AppStringID.uiSettingsMusicVolume.rawValue: "Musiklautstärke",
         AppStringID.uiSettingsEffectsVolume.rawValue: "Effektlautstärke",
         AppStringID.uiSettingsMute.rawValue: "Stummschalten",
@@ -213,6 +231,9 @@ enum AppStrings {
         AppStringID.themeStandardName.rawValue: "Standard",
         AppStringID.themeDungeonName.rawValue: "Dungeon",
         AppStringID.themeKenneyName.rawValue: "Kenney",
+
+        AppStringID.musicSokobanPuzzlingName.rawValue: "Puzzling",
+        AppStringID.musicSokobanPreludeName.rawValue: "Prelude",
 
         AppStringID.uiRecoveryTitle.rawValue: "Spielstand nicht ladbar",
         AppStringID.uiRecoveryFallback.rawValue: "Der gespeicherte Lauf ist nicht nutzbar.",

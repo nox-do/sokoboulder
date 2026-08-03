@@ -116,7 +116,7 @@ final class GameSession {
         switch phase {
         case .playing, .outcomePresenting:
             true
-        case .created, .paused, .faulted:
+        case .created, .ready, .paused, .faulted:
             false
         }
     }

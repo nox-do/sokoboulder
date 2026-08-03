@@ -32,9 +32,11 @@ struct GameSelectionOverlay: View {
                     AppStrings.text(.uiGameSelectCave),
                     action: .cave,
                     primary: false,
-                    enabled: false,
-                    subtitle: AppStrings.text(.uiGameSelectCaveComingSoon)
-                ) {}
+                    enabled: true,
+                    subtitle: AppStrings.text(.uiGameSelectCaveDemoHint)
+                ) {
+                    controller.selectCaveFromGameSelection()
+                }
 
                 themedButton(
                     AppStrings.text(.uiLaunchHelp),

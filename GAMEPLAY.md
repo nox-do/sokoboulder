@@ -142,17 +142,18 @@ kurz, dass Kisten ausschließlich geschoben werden können.
 
 ### 4.3 Höhlenspiel-Einstieg
 
-Empfohlene Reihenfolge:
+Empfohlene Reihenfolge (entspricht dem Implementierungsaufbau Phase 4 → 5):
 
 1. Bewegung und Erde entfernen,
 2. Diamanten sammeln,
 3. Ausgang öffnen und erreichen,
-4. ruhender und fallender Fels,
+4. ruhender und fallender Fels (inkl. „unter dem Fels stehen“),
 5. Fels horizontal schieben,
 6. seitliches Abrollen,
 7. Zeitlimit,
-8. erster Gegner,
-9. Explosion und Kettenreaktion.
+8. erster Gegner (Firefly),
+9. Butterfly, Explosion und Kettenreaktion,
+10. optional später: Amöbe, magische Wand, Snap-Aktion.
 
 Kein Tutorial-Level führt zwei potenziell tödliche neue Mechaniken gleichzeitig
 ein.
@@ -247,7 +248,34 @@ beginnen. Inkompatible oder beschädigte Daten verhindern den App-Start nicht.
 
 ## 6. Höhlenspiel-Spielerlebnis
 
-### 6.1 Ready-State
+Das Höhlenspiel ist kein Plattformspiel, sondern ein echtzeitfähiger,
+zellbasierter Puzzle-Automat: Der Spieler gräbt Gänge, sammelt Diamanten und
+verändert eine Höhle, deren Objekte nach lokalen, deterministischen Regeln
+reagieren. Felsen und Diamanten fallen und rollen; Gegner folgen Wandregeln;
+Explosionen verändern jeweils einen 3×3-Bereich.
+
+Technische Raster-, Tick- und Modellverträge stehen in
+[ARCHITECTURE.md](ARCHITECTURE.md). Die Spielregeln hier sind spielerisch
+verbindlich; offene Engine-Entscheidungen (Scan vs. simultane Intents,
+Tickrate) schließt Phase 3.7 im ADR `Cave Tick Semantics`.
+
+### 6.1 Spielziel
+
+Jedes Level („Cave“) besitzt feste Breite und Höhe, Startposition, benötigte
+Diamanten, Zeitlimit, Punktwerte sowie Ausgang und Objektverteilung. Optionale
+Levelparameter (Amöbe, magische Wand) folgen in Phase 5.
+
+Der Spieler muss:
+
+1. mindestens die benötigte Diamantenzahl sammeln,
+2. überleben,
+3. vor Ablauf der Zeit den geöffneten Ausgang betreten.
+
+Sobald die erforderliche Zahl erreicht ist, öffnet sich der Ausgang. Zusätzliche
+Diamanten können einen höheren Punktwert erhalten. Der Level endet erst beim
+Betreten des offenen Ausgangs — nicht schon beim Öffnen.
+
+### 6.2 Ready-State
 
 Ein Höhlenlevel beginnt nicht sofort mit laufender Gravitation.
 
@@ -262,7 +290,7 @@ Die erste gültige Bewegungs- oder Warteingabe startet die Timing-Epoche und wir
 dem ersten Simulationstick zugeordnet. Alternativ kann ein kurzer, überspringbarer
 Countdown als Einstellung oder spätere Präsentationsvariante angeboten werden.
 
-### 6.2 HUD
+### 6.3 HUD
 
 Das Höhlen-HUD zeigt mindestens:
 
@@ -272,9 +300,10 @@ Das Höhlen-HUD zeigt mindestens:
 - klaren Zustand des Ausgangs.
 
 Zusätzliche Werte wie Leben oder Bonus werden erst angezeigt, wenn die
-entsprechenden Regeln existieren.
+entsprechenden Regeln existieren. Leben und globale Highscores bleiben von der
+Cave-Engine getrennt (App-/Fortschrittsschicht).
 
-### 6.3 Kamera
+### 6.4 Kamera
 
 Die Kamera folgt nicht bei jedem einzelnen Rasterschritt exakt dem Spieler.
 Stattdessen verwendet sie:
@@ -292,7 +321,7 @@ Gefahren dürfen nicht allein deshalb unfair werden, weil sie knapp außerhalb d
 sichtbaren Ausschnitts liegen. Leveldesign und Kamera werden gemeinsam
 playgetestet.
 
-### 6.4 Lesbarkeit und Fairness
+### 6.5 Lesbarkeit und Fairness
 
 - Ruhende und fallende Felsen sind klar unterscheidbar.
 - Diamanten unterscheiden sich durch Form und Bewegung von Felsen, nicht nur
@@ -305,7 +334,87 @@ playgetestet.
   deutlich.
 - Tödliche Kettenreaktionen bleiben nach Möglichkeit visuell nachvollziehbar.
 
-### 6.5 Tod
+### 6.6 Bewegung und Interaktion (Phase-4-Kern)
+
+Nur orthogonale Bewegung; keine Diagonalen. Pro Tick höchstens eine aufgelöste
+Absicht (`move`, später optional `snap`, oder `wait`).
+
+| Ziel | Ergebnis |
+| --- | --- |
+| Leerraum | Spieler betritt die Zelle |
+| Erde | Erde wird entfernt; Spieler betritt die Zelle |
+| ruhender Diamant | einsammeln; Zähler/Punkte steigen; Spieler betritt |
+| fallender Diamant / Fels | tödlich wie Einschlag (nicht sammelbar) |
+| Ziegel- oder Stahlwand | blockiert |
+| geschlossener Ausgang | blockiert |
+| offener Ausgang | Level abgeschlossen |
+| Gegner / Amöbe | Tod bzw. Explosion (Phase 5) |
+
+**Felsen schieben** nur horizontal:
+
+- Zielzelle enthält einen **ruhenden** Felsen,
+- Zelle dahinter ist leer,
+- kein vertikales Schieben, kein Mehrfachschub, kein Schieben in Erde/Diamant,
+  kein Schieben eines fallenden Felsens, kein Ziehen.
+
+**Schiebeverzögerung** und **Snap** (graben/sammeln ohne Bewegen) sind in
+Phase 4 **nicht** enthalten. Erst nach Playtest und expliziter Freigabe.
+
+### 6.7 Gravitation, Rollen und „unter dem Fels“
+
+- Felsen und Diamanten fallen in freien Raum und tragen den Zustand
+  `resting` / `falling`.
+- Nur ein **fallendes** Objekt zerquetscht Spieler oder Gegner. Ein **ruhender**
+  Fels auf dem Spielerkopf tötet nicht; der Spieler kann seitlich weggehen,
+  danach fällt der Fels in den freigewordenen Raum.
+- Auf runden Unterlagen (typisch: Felsen, Diamant; Wandoberkante je nach ADR)
+  können Objekte seitlich abrollen, wenn Seite und Seite-unten frei sind.
+- Rollrichtung ist deterministisch (Kandidat: links vor rechts). Nie zufällig.
+- Nach dem Rollen gilt das Objekt als fallend.
+- Ob ein Objekt bereits im ersten Tick nach Freilegen fällt, legt das Tick-ADR
+  fest; die Wahl muss golden getestet sein.
+
+### 6.8 Gegner, Explosionen, Amöbe, magische Wand (Phase 5)
+
+Gegner verfolgen nicht; sie folgen lokalen Wandregeln und betreten nur Leerraum:
+
+- **Firefly:** bevorzugt links (links frei → drehen+bewegen; sonst vorne; sonst
+  rechts drehen).
+- **Butterfly:** spiegelverkehrt rechts bevorzugt.
+
+Kontakt Spieler↔Gegner ist in unserer Engine **symmetrisch** tödlich/explosiv
+(Spieler neben Gegner oder Gegner neben Spieler). Historische Scan-Asymmetrien
+werden nicht als Produktregel übernommen.
+
+Explosionen sind Kernoperationen auf einem 3×3-Bereich:
+
+- Firefly → zerstörend, danach typisch leer,
+- Butterfly → diamantenerzeugend (bis zu neun Diamanten),
+- Stahlwand unzerstörbar; Ziegel, Erde, Felsen, Diamanten, Gegner, Amöbe u. a.
+  zerstörbar; Ausgang je nach Levelregel,
+- Kettenreaktionen über eine Explosions-Queue, nicht rekursiv in-place.
+
+**Amöbe:** wächst kontrolliert (nicht jede Zelle jeden Tick) in orthogonal
+angrenzendes `empty`/`dirt`; eingeschlossen → Diamanten; Übergröße/Dauer →
+Felsen. Parameter sind Levelregeln.
+
+**Magische Wand:** dormant → active (Timer) → expired; wandelt fallende Felsen
+in Diamanten und umgekehrt, wenn die Zelle darunter frei ist.
+
+### 6.9 Zeit, Punkte und Tod
+
+Klassisches Wertungsmodell (Phase 4 Mindestvertrag):
+
+- Pflichtdiamanten: `diamondValue`,
+- Extra-Diamanten: `extraDiamondValue`,
+- Restzeit nach Ausgang betreten: schrittweise Bonuspunkte (Präsentation;
+  autoritativer Abschluss bereits beim Betreten),
+- `remainingTicks == 0` → Tod.
+
+Todesursachen: fallender Fels/Diamant, Gegnerkontakt, Explosion, Amöbe,
+Zeitablauf. Ablauf spielerisch: terminal → kurze Todespräsentation →
+`caveFailed` → „Noch einmal“ / Menü. Neustart stellt den vollständigen
+Anfangszustand wieder her und kehrt in Ready.
 
 Beim Tod wird die Simulation sofort terminal. Die Präsentation zeigt anschließend
 kurz und überspringbar:
@@ -318,7 +427,7 @@ kurz und überspringbar:
 Ein Tastendruck, der den Tod verursacht oder unmittelbar davor gepuffert wurde,
 darf nicht versehentlich den Ergebnisdialog bestätigen oder den Neustart auslösen.
 
-### 6.6 Schneller Neustart
+### 6.10 Schneller Neustart
 
 „Noch einmal“ beziehungsweise `R` startet dasselbe Level ohne
 Bestätigungsdialog, erneuten langen Einführungstext oder unnötige Ladeansicht.
@@ -327,6 +436,22 @@ Die Höhle kehrt in den Ready-State zurück.
 Eine laufende Höhlenpartie wird in Version 1 nicht über einen App-Neustart hinweg
 fortgesetzt. Gespeichert werden Levelauswahl und Bestleistungen; beim Wiederöffnen
 beginnt die Höhle im Ready-State neu.
+
+### 6.11 Objektmatrix (Spielerregel)
+
+| Objekt | Begehbar | Grabbar | fällt | rollt | schiebbar | explodierbar |
+| --- | --- | --- | --- | --- | --- | --- |
+| Leerraum | ja | nein | nein | nein | nein | – |
+| Erde | ja (wird entfernt) | ja | nein | nein | nein | ja |
+| Ziegelwand | nein | nein | nein | nein | nein | ja |
+| Stahlwand | nein | nein | nein | nein | nein | nein |
+| Felsen | nein | nein | ja | ja | horizontal (ruhend) | ja |
+| Diamant | ja (sammeln, ruhend) | nein | ja | ja | nein | ja |
+| Firefly / Butterfly | nein | nein | nein | nein | nein | ja |
+| Amöbe | nein | nein | nein | nein | nein | ja |
+| Geschl. Ausgang | nein | nein | nein | nein | nein | konfigurierbar |
+| Offener Ausgang | ja (beendet) | nein | nein | nein | nein | konfigurierbar |
+| Magische Wand | nein | nein | nein | nein | nein | meist nein |
 
 ## 7. Präsentation terminaler Zustände
 
@@ -478,12 +603,17 @@ Fortschrittswährungen sind kein Ziel der ersten Version.
 
 - Sichere Startbereiche ermöglichen Orientierung.
 - Neue Gefahren werden zunächst einzeln und mit ausreichend Reaktionsraum gezeigt.
-- Zufällige oder nicht telegraphierte Tode werden vermieden.
+- Zufällige oder nicht telegraphierte Tode werden vermieden; Physik und Gegner
+  bleiben deterministisch (kein Zufall bei Rollen oder Gegnerentscheidungen).
 - Zeitlimits werden nach Playtests gesetzt, nicht nur rechnerisch geschätzt.
 - Kameraausschnitt und Levelgeometrie dürfen notwendige Information nicht
   verstecken.
 - Schwierigkeit steigt über Regelkombinationen, nicht lediglich über immer
   knappere Zeit.
+- Frühe Level nutzen nur Phase-4-Mechaniken; Gegner/Amöbe/magische Wand erst
+  nach Tutorial-Einführung.
+- Kleine ASCII-Testcaves (siehe Phase-3.7-Plan) bleiben die Spezifikation für
+  Konflikte; Kampagnenlevel folgen später.
 
 ## 13. Playtest-Strategie
 
@@ -536,6 +666,7 @@ Lokale Diagnosewerte dürfen für interne Playtests protokolliert werden. Eine
 - klare Diamant-, Zeit- und Ausgangsanzeige,
 - ruhige Kamera-Safe-Zone,
 - verständliche Fall-, Sammel- und Todesrückmeldung,
+- ruhender vs. fallender Fels unterscheidbar,
 - schneller Neustart zurück in Ready,
 - Höhlenmusik und zentrale Ereignis-Jingles,
 - visuelle Alternativen für alle Audiohinweise.

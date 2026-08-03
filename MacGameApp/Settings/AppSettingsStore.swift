@@ -10,6 +10,8 @@ struct AppSettingsSnapshot: Equatable, Sendable {
     var reduceMotionEnabled: Bool
     /// Selected visual theme ID (`theme.dungeon`, `theme.kenney`, …).
     var themeID: String
+    /// Selected Sokoban background track ID (`music.sokoban.puzzling`, …).
+    var musicTrackID: String
     /// Music bus gain in `0...1`.
     var musicVolume: Double
     /// Effects / jingles bus gain in `0...1`.
@@ -20,6 +22,7 @@ struct AppSettingsSnapshot: Equatable, Sendable {
     static let `default` = AppSettingsSnapshot(
         reduceMotionEnabled: false,
         themeID: VisualTheme.dungeonID,
+        musicTrackID: MusicTrack.puzzlingID,
         musicVolume: 0.8,
         effectsVolume: 1.0,
         isMuted: false
@@ -34,6 +37,7 @@ final class AppSettingsStore: ObservableObject {
     private enum Key {
         static let reduceMotion = "settings.reduceMotion"
         static let themeID = "settings.themeID"
+        static let musicTrackID = "settings.musicTrackID"
         static let musicVolume = "settings.musicVolume"
         static let effectsVolume = "settings.effectsVolume"
         static let isMuted = "settings.isMuted"
@@ -83,6 +87,11 @@ final class AppSettingsStore: ObservableObject {
         defaults.object(forKey: Key.themeID) != nil
     }
 
+    /// True when a music track preference has been persisted.
+    var hasPersistedMusicTrackID: Bool {
+        defaults.object(forKey: Key.musicTrackID) != nil
+    }
+
     /// Seeds the theme ID once from the theme catalog when no preference exists yet.
     func seedThemeIDFromCatalogIfUnset(_ catalogDefaultThemeID: String) {
         guard !hasPersistedThemeID else { return }
@@ -98,9 +107,27 @@ final class AppSettingsStore: ObservableObject {
         }
     }
 
+    /// Seeds the music track ID once from the catalog when no preference exists yet.
+    func seedMusicTrackIDFromCatalogIfUnset(_ catalogDefaultTrackID: String) {
+        guard !hasPersistedMusicTrackID else { return }
+        let normalized = Self.normalizeMusicTrackID(catalogDefaultTrackID)
+        var next = snapshot
+        next.musicTrackID = normalized
+        snapshot = next
+        write(next)
+        for handler in changeHandlers.values {
+            handler()
+        }
+    }
+
     var themeID: String {
         get { snapshot.themeID }
         set { update { $0.themeID = Self.normalizeThemeID(newValue) } }
+    }
+
+    var musicTrackID: String {
+        get { snapshot.musicTrackID }
+        set { update { $0.musicTrackID = Self.normalizeMusicTrackID(newValue) } }
     }
 
     var musicVolume: Double {
@@ -122,6 +149,7 @@ final class AppSettingsStore: ObservableObject {
         let clamped = AppSettingsSnapshot(
             reduceMotionEnabled: next.reduceMotionEnabled,
             themeID: Self.normalizeThemeID(next.themeID),
+            musicTrackID: Self.normalizeMusicTrackID(next.musicTrackID),
             musicVolume: Self.clampVolume(next.musicVolume),
             effectsVolume: Self.clampVolume(next.effectsVolume),
             isMuted: next.isMuted
@@ -144,6 +172,12 @@ final class AppSettingsStore: ObservableObject {
         return trimmed
     }
 
+    static func normalizeMusicTrackID(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return MusicTrack.puzzlingID }
+        return trimmed
+    }
+
     // MARK: - Private
 
     private func update(_ mutate: (inout AppSettingsSnapshot) -> Void) {
@@ -155,6 +189,7 @@ final class AppSettingsStore: ObservableObject {
     private func write(_ snapshot: AppSettingsSnapshot) {
         defaults.set(snapshot.reduceMotionEnabled, forKey: Key.reduceMotion)
         defaults.set(snapshot.themeID, forKey: Key.themeID)
+        defaults.set(snapshot.musicTrackID, forKey: Key.musicTrackID)
         defaults.set(snapshot.musicVolume, forKey: Key.musicVolume)
         defaults.set(snapshot.effectsVolume, forKey: Key.effectsVolume)
         defaults.set(snapshot.isMuted, forKey: Key.isMuted)
@@ -174,6 +209,13 @@ final class AppSettingsStore: ObservableObject {
             themeID = normalizeThemeID(stored)
         } else {
             themeID = defaultsSnapshot.themeID
+        }
+
+        let musicTrackID: String
+        if let stored = defaults.string(forKey: Key.musicTrackID) {
+            musicTrackID = normalizeMusicTrackID(stored)
+        } else {
+            musicTrackID = defaultsSnapshot.musicTrackID
         }
 
         let music: Double
@@ -200,6 +242,7 @@ final class AppSettingsStore: ObservableObject {
         return AppSettingsSnapshot(
             reduceMotionEnabled: reduceMotion,
             themeID: themeID,
+            musicTrackID: musicTrackID,
             musicVolume: music,
             effectsVolume: effects,
             isMuted: muted

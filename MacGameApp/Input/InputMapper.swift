@@ -6,6 +6,7 @@ import GameCore
 /// Independent of session phase, renderer, and UI mode.
 enum GameplayIntent: Equatable, Sendable {
     case move(Direction)
+    case wait
     case undo
     case redo
     case restart
@@ -37,6 +38,8 @@ enum InputMapper {
         }
 
         switch event.keyCode {
+        case KeyCode.space:
+            return .wait
         case KeyCode.z:
             return .undo
         case KeyCode.r:

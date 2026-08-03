@@ -19,14 +19,18 @@ final class SokobanPlayController: ObservableObject {
     let progressPersistence: ProgressPersistence
     let catalog: SokobanContentCatalog
     let themeCatalog: ThemeCatalog
+    let musicTrackCatalog: MusicTrackCatalog
     let settingsStore: AppSettingsStore
     let reduceMotionProvider: ReduceMotionProvider
 
     private(set) var session: GameSession?
+    private(set) var caveSession: CaveSession?
+    private let clock: any MonotonicClock = SystemUptimeClock()
 
     @Published private(set) var presentationPhase: GamePresentationPhase = .playing
     @Published private(set) var levelTitle = ""
     @Published private(set) var tutorialHintText = ""
+    @Published private(set) var isCaveMode = false
     @Published private(set) var moveCount = 0
     @Published private(set) var pushCount = 0
     @Published private(set) var completedGoalCount = 0
@@ -96,6 +100,9 @@ final class SokobanPlayController: ObservableObject {
             ?? ThemeCatalogLoader.load(
                 from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
             )
+        self.musicTrackCatalog = MusicTrackCatalogLoader.load(
+            from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        )
         self.settingsStore = settingsStore
         self.reduceMotionProvider = ReduceMotionProvider(
             settings: settingsStore,
@@ -109,6 +116,7 @@ final class SokobanPlayController: ObservableObject {
             self?.persistenceDiagnostic = message
         }
         bindMoveHoldRepeater()
+        bindSimulationClock()
         refreshPersistenceDiagnostic()
         bindSettingsSideEffects()
         bootstrapFromPersistence()
@@ -165,6 +173,10 @@ final class SokobanPlayController: ObservableObject {
             themes: BuiltInThemes.allFallbacks(),
             defaultThemeID: VisualTheme.standardID
         )
+        self.musicTrackCatalog = MusicTrackCatalog(
+            tracks: BuiltInMusicTracks.allFallbacks(),
+            defaultTrackID: MusicTrack.puzzlingID
+        )
         self.settingsStore = settingsStore
         self.reduceMotionProvider = ReduceMotionProvider(
             settings: settingsStore,
@@ -177,6 +189,7 @@ final class SokobanPlayController: ObservableObject {
         self.router.enterModalBlocked()
         self.audioDirector.reset()
         bindMoveHoldRepeater()
+        bindSimulationClock()
         bindSettingsSideEffects()
     }
 
@@ -194,11 +207,11 @@ final class SokobanPlayController: ObservableObject {
     var pausePresentation: PausePresentation {
         PausePresentation(
             title: AppStrings.text(.uiPauseTitle),
-            hint: AppStrings.text(.uiPauseHint),
+            hint: AppStrings.text(.uiPauseHintCave),
             resumeTitle: AppStrings.text(.uiPauseResume),
             restartTitle: AppStrings.text(.uiPauseRestart),
             settingsTitle: AppStrings.text(.uiPauseSettings),
-            levelSelectTitle: AppStrings.text(.uiPauseLevelSelect),
+            levelSelectTitle: AppStrings.text(.uiLaunchBackToGames),
             helpTitle: AppStrings.text(.uiPauseHelp)
         )
     }
@@ -243,6 +256,10 @@ final class SokobanPlayController: ObservableObject {
 
     var settingsPresentation: SettingsPresentation {
         let snap = settingsSnapshot
+        let musicOptions = musicTrackCatalog.selectableTracks(for: .sokoban)
+        let selectedMusic =
+            musicTrackCatalog.resolvedTrack(preferredID: snap.musicTrackID, for: .sokoban)
+            ?? musicOptions.first
         return SettingsPresentation(
             title: AppStrings.text(.uiSettingsTitle),
             backTitle: AppStrings.text(.uiSettingsBack),
@@ -254,6 +271,17 @@ final class SokobanPlayController: ObservableObject {
                 )
             },
             selectedThemeID: visualTheme.id,
+            musicTrackTitle: AppStrings.text(.uiSettingsMusicTrack),
+            musicTrackHint: AppStrings.text(.uiSettingsMusicTrackHint),
+            musicTrackOptions: musicOptions.map {
+                SettingsPresentation.MusicTrackOption(
+                    id: $0.id,
+                    title: AppStrings.text(id: $0.displayNameID)
+                )
+            },
+            selectedMusicTrackID: selectedMusic?.id ?? snap.musicTrackID,
+            selectedMusicCreditSummary: selectedMusic?.credit.summaryLine ?? "",
+            selectedMusicAttributionNotice: selectedMusic?.credit.attributionNotice,
             reduceMotionTitle: AppStrings.text(.uiSettingsReduceMotion),
             reduceMotionDetail: AppStrings.text(.uiSettingsReduceMotionDetail),
             reduceMotionEnabled: snap.reduceMotionEnabled,
@@ -445,10 +473,30 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    private func bindSimulationClock() {
+        scene.onSimulationFrame = { [weak self] in
+            self?.advanceCaveSimulation()
+        }
+    }
+
+    private func advanceCaveSimulation() {
+        guard isCaveMode, let caveSession else { return }
+        guard presentationPhase == .playing else { return }
+        guard caveSession.phase == .playing || caveSession.phase == .ready else { return }
+        guard let emission = caveSession.advance(to: clock.now()) else { return }
+        scene.apply(emission.render)
+        audioDirector.apply(emission.audio)
+        applyEmissionSideEffects(emission)
+        refreshPublishedState()
+    }
+
     private func handleMoveHoldKeyUp(_ event: NSEvent) -> Bool {
         guard event.type == .keyUp else { return false }
-        guard InputMapper.moveDirection(keyCode: event.keyCode) != nil else { return false }
+        guard let direction = InputMapper.moveDirection(keyCode: event.keyCode) else { return false }
         moveHoldRepeater.noteKeyUp(keyCode: event.keyCode)
+        if isCaveMode {
+            caveSession?.noteDirectionUp(direction)
+        }
         return true
     }
 
@@ -572,8 +620,10 @@ final class SokobanPlayController: ObservableObject {
             performFocusedPauseAction()
             return true
         case .cancel:
-            // Escape is already handled by the gameplay router while paused.
-            return false
+            // Escape while paused leaves to the top-level picker (router also routes Esc → pause).
+            guard !isRepeat else { return true }
+            openGameSelection()
+            return true
         }
     }
 
@@ -623,6 +673,8 @@ final class SokobanPlayController: ObservableObject {
         case .moveLeft:
             if focusedSettingsID == "theme" {
                 cycleTheme(by: -1)
+            } else if focusedSettingsID == "musicTrack" {
+                cycleMusicTrack(by: -1)
             } else {
                 focusedSettingsID =
                     KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
@@ -632,6 +684,8 @@ final class SokobanPlayController: ObservableObject {
         case .moveRight:
             if focusedSettingsID == "theme" {
                 cycleTheme(by: 1)
+            } else if focusedSettingsID == "musicTrack" {
+                cycleMusicTrack(by: 1)
             } else {
                 focusedSettingsID =
                     KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
@@ -682,7 +736,7 @@ final class SokobanPlayController: ObservableObject {
         case .sokoban:
             selectSokobanFromGameSelection()
         case .cave:
-            break
+            selectCaveFromGameSelection()
         case .help:
             openHelpFromGameSelection()
         case .settings:
@@ -736,6 +790,9 @@ final class SokobanPlayController: ObservableObject {
         case "theme":
             cycleTheme(by: 1)
             return true
+        case "musicTrack":
+            cycleMusicTrack(by: 1)
+            return true
         case "reduceMotion":
             updateReduceMotionEnabled(!settingsStore.reduceMotionEnabled)
             return true
@@ -781,7 +838,8 @@ final class SokobanPlayController: ObservableObject {
 
     private var settingsFocusOrder: [String] {
         SettingsOverlay.keyboardFocusOrder(
-            showsThemePicker: themeCatalog.selectableThemes.count > 1
+            showsThemePicker: themeCatalog.selectableThemes.count > 1,
+            showsMusicTrackPicker: musicTrackCatalog.selectableTracks(for: .sokoban).count > 1
         )
     }
 
@@ -812,6 +870,17 @@ final class SokobanPlayController: ObservableObject {
         router.clearPendingInputs()
         audioDirector.interrupt()
         Task { await runPersistence.flush() }
+
+        if isCaveMode, let caveSession {
+            switch (caveSession.phase, presentationPhase) {
+            case (.playing, .playing), (.ready, .playing):
+                pauseFromShell(alreadyInterrupted: true)
+            default:
+                break
+            }
+            return
+        }
+
         guard let session else { return }
 
         // Only pause when the player is actively playing — not during intro.
@@ -865,6 +934,10 @@ final class SokobanPlayController: ObservableObject {
     func restart() {
         guard canRestart else { return }
         guard presentationPhase != .help, presentationPhase != .settings else { return }
+        if isCaveMode {
+            restartCave()
+            return
+        }
         resumeIfPaused()
         clearCompletionRecordingState()
         cancelShowOutcome()
@@ -875,16 +948,49 @@ final class SokobanPlayController: ObservableObject {
         applySessionCommand(.restart)
     }
 
-    func togglePause() {
-        guard let session else { return }
-        switch presentationPhase {
-        case .playing where session.phase == .playing:
-            pauseFromShell()
-        case .paused:
-            resumeFromShell()
-        default:
-            break
+    private func restartCave() {
+        guard let caveSession else { return }
+        clearMoveHold()
+        cancelShowOutcome()
+        let emission = caveSession.restart()
+        scene.apply(emission.render)
+        audioDirector.apply(emission.audio)
+        presentationPhase = .playing
+        router.enterGameplay()
+        if appIsActive {
+            audioDirector.resumePlayback()
         }
+        refreshPublishedState()
+    }
+
+    func togglePause() {
+        if presentationPhase == .paused {
+            // Esc while paused → Spielauswahl (resume only via „Fortsetzen“).
+            openGameSelection()
+            return
+        }
+        if isCaveMode {
+            toggleCavePause()
+            return
+        }
+        guard let session else { return }
+        if presentationPhase == .playing, session.phase == .playing {
+            pauseFromShell()
+        }
+    }
+
+    /// Cave: Esc while playing opens pause; resume only via Pause-Menü „Fortsetzen“.
+    private func toggleCavePause() {
+        guard let caveSession else { return }
+        guard presentationPhase == .playing,
+              caveSession.phase == .playing || caveSession.phase == .ready
+        else { return }
+        caveSession.pause()
+        audioDirector.interrupt()
+        router.enterPaused()
+        presentationPhase = .paused
+        requestPauseOverlayFocus()
+        refreshPublishedState()
     }
 
     func resumeFromPauseOverlay() {
@@ -897,7 +1003,7 @@ final class SokobanPlayController: ObservableObject {
 
     func openLevelSelectionFromPauseOverlay() {
         guard presentationPhase == .paused else { return }
-        teardownSessionForNavigation(phase: .levelSelection)
+        openGameSelection()
     }
 
     func openHelpFromPause() {
@@ -965,10 +1071,62 @@ final class SokobanPlayController: ObservableObject {
     /// Enters Sokoban from the top-level picker.
     func selectSokobanFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
+        isCaveMode = false
+        caveSession = nil
         if progressPersistence.file.isFreshCampaign {
             startLevel(id: catalog.first.id, showIntro: true)
         } else {
             openLaunchMenu()
+        }
+    }
+
+    /// Starts the playable cave demo from the top-level picker.
+    func selectCaveFromGameSelection() {
+        guard presentationPhase == .gameSelection else { return }
+        startCaveDemo()
+    }
+
+    private func startCaveDemo() {
+        do {
+            let level = try CaveDemoLevel.makeLevel()
+            let newSession = try CaveSession(level: level, levelID: CaveDemoLevel.id)
+            session = nil
+            clearMoveHold()
+            cancelShowOutcome()
+            scene.prepareForNewSession()
+            scene.presentsCaveContent = true
+            audioDirector.reset()
+            applyAudioSettingsFromStore()
+
+            let emission = newSession.start()
+            caveSession = newSession
+            isCaveMode = true
+            currentLevelID = CaveDemoLevel.id
+            levelTitle = CaveDemoLevel.title
+            tutorialHintText =
+                "Sammle den Diamanten und erreiche den Ausgang. Leertaste = warten."
+            faultMessage = nil
+            recoveryMessage = nil
+            overlayReturnOrigin = nil
+            outcomePrimaryAction = .openLaunchMenu
+            outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
+            outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+            outcomeHint = AppStrings.text(.uiOutcomeHintBack)
+            outcomeBestMoveCount = nil
+            outcomeBestPushCount = nil
+            outcomeNewBestMoves = false
+            outcomeNewBestPushes = false
+
+            scene.apply(emission.render)
+            audioDirector.apply(emission.audio)
+            presentationPhase = .playing
+            router.enterGameplay()
+            refreshPublishedState()
+        } catch {
+            faultMessage = "Höhle konnte nicht geladen werden: \(error)"
+            presentationPhase = .faulted
+            router.enterModalBlocked()
+            refreshPublishedState()
         }
     }
 
@@ -1043,6 +1201,20 @@ final class SokobanPlayController: ObservableObject {
         settingsStore.themeID = options[nextIndex].id
     }
 
+    func updateMusicTrackID(_ trackID: String) {
+        settingsStore.musicTrackID = trackID
+    }
+
+    func cycleMusicTrack(by offset: Int) {
+        let options = musicTrackCatalog.selectableTracks(for: .sokoban)
+        guard !options.isEmpty else { return }
+        let currentID = settingsStore.musicTrackID
+        let currentIndex = options.firstIndex { $0.id == currentID } ?? 0
+        let count = options.count
+        let nextIndex = ((currentIndex + offset) % count + count) % count
+        settingsStore.musicTrackID = options[nextIndex].id
+    }
+
     func updateMusicVolume(_ volume: Double) {
         settingsStore.musicVolume = volume
     }
@@ -1062,8 +1234,16 @@ final class SokobanPlayController: ObservableObject {
             // Variant B: only show intro when the next hint is still unseen.
             startSelectedLevel(id: id)
         case .openLaunchMenu:
-            runPersistence.removeRunFile()
+            if !isCaveMode {
+                runPersistence.removeRunFile()
+            }
             openGameSelection()
+        case .playAgain:
+            if isCaveMode {
+                restartCave()
+            } else {
+                restartFromOutcomeOverlay()
+            }
         }
     }
 
@@ -1146,6 +1326,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func bindSettingsSideEffects() {
         settingsStore.seedThemeIDFromCatalogIfUnset(themeCatalog.defaultThemeID)
+        settingsStore.seedMusicTrackIDFromCatalogIfUnset(musicTrackCatalog.defaultTrackID)
         settingsSnapshot = settingsStore.snapshot
         applyAudioSettingsFromStore()
         applyVisualThemeFromStore()
@@ -1167,6 +1348,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func applyAudioSettingsFromStore() {
         audioDirector.applyOutputSettings(.from(settings: settingsStore.snapshot))
+        audioDirector.applyMusicTrackID(settingsStore.musicTrackID)
     }
 
     private func applyVisualThemeFromStore() {
@@ -1275,6 +1457,9 @@ final class SokobanPlayController: ObservableObject {
     ) {
         let emission = newSession.start()
         session = newSession
+        caveSession = nil
+        isCaveMode = false
+        scene.presentsCaveContent = false
         clearCompletionRecordingState()
         currentLevelID = descriptor.id
         faultMessage = nil
@@ -1355,6 +1540,9 @@ final class SokobanPlayController: ObservableObject {
         clearMoveHold()
         cancelShowOutcome()
         session = nil
+        caveSession = nil
+        isCaveMode = false
+        scene.presentsCaveContent = false
         scene.prepareForNewSession()
         audioDirector.reset()
         applyAudioSettingsFromStore()
@@ -1398,12 +1586,19 @@ final class SokobanPlayController: ObservableObject {
     // MARK: - Private gameplay
 
     private func handleGameplay(_ intent: GameplayIntent, keyCode: UInt16) {
+        if isCaveMode {
+            handleCaveGameplay(intent, keyCode: keyCode)
+            return
+        }
         switch intent {
         case .move(let direction):
             guard presentationPhase == .playing, let session, session.phase == .playing else {
                 return
             }
             moveHoldRepeater.noteKeyDown(keyCode: keyCode, direction: direction)
+
+        case .wait:
+            break
 
         case .undo:
             clearMoveHold()
@@ -1423,12 +1618,52 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    private func handleCaveGameplay(_ intent: GameplayIntent, keyCode: UInt16) {
+        guard let caveSession else { return }
+        switch intent {
+        case .move(let direction):
+            guard presentationPhase == .playing, caveSession.canAcceptInput else { return }
+            caveSession.noteDirectionDown(direction)
+            // Kick Tick 1 immediately when leaving Ready.
+            advanceCaveSimulation()
+
+        case .wait:
+            guard presentationPhase == .playing, caveSession.canAcceptInput else { return }
+            caveSession.noteWait()
+            advanceCaveSimulation()
+
+        case .restart:
+            restartCave()
+
+        case .pause:
+            togglePause()
+
+        case .undo, .redo:
+            break
+        }
+        _ = keyCode
+    }
+
     private func handleOutcomeAction() {
         guard presentationPhase == .outcomeAwaitingChoice else { return }
         performFocusedOutcomeAction()
     }
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
+        if isCaveMode, let caveSession {
+            guard caveSession.phase == .playing || caveSession.phase == .ready else { return }
+            clearMoveHold()
+            caveSession.pause()
+            if !alreadyInterrupted {
+                audioDirector.interrupt()
+            }
+            router.enterPaused()
+            presentationPhase = .paused
+            requestPauseOverlayFocus()
+            refreshPublishedState()
+            return
+        }
+
         guard let session, session.phase == .playing else { return }
         clearMoveHold()
         session.pause()
@@ -1446,6 +1681,16 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func resumeFromShell() {
+        if isCaveMode, let caveSession {
+            guard caveSession.phase == .paused else { return }
+            caveSession.resume()
+            audioDirector.resumePlayback()
+            router.enterGameplay()
+            presentationPhase = .playing
+            refreshPublishedState()
+            return
+        }
+
         guard let session, session.phase == .paused else { return }
         session.resume()
         audioDirector.resumePlayback()
@@ -1455,6 +1700,11 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func resumeIfPaused() {
+        if isCaveMode, let caveSession, caveSession.phase == .paused {
+            caveSession.resume()
+            audioDirector.resumePlayback()
+            return
+        }
         guard let session, session.phase == .paused else { return }
         session.resume()
         audioDirector.resumePlayback()
@@ -1498,7 +1748,22 @@ final class SokobanPlayController: ObservableObject {
         switch emission.appTransition {
         case .enterOutcomePresenting:
             clearMoveHold()
-            recordCompletionIfNeeded(snapshot: emission.render.snapshot)
+            if isCaveMode {
+                let failed = emission.render.snapshot.status == .failed
+                if failed {
+                    outcomeTitle = "Höhle gescheitert"
+                    outcomePrimaryAction = .playAgain
+                    outcomePrimaryTitle = AppStrings.text(.uiOutcomePlayAgain)
+                    outcomeHint = AppStrings.text(.uiOutcomeHintAgain)
+                } else {
+                    outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+                    outcomePrimaryAction = .openLaunchMenu
+                    outcomePrimaryTitle = AppStrings.text(.uiLaunchBackToGames)
+                    outcomeHint = AppStrings.text(.uiOutcomeHintBack)
+                }
+            } else {
+                recordCompletionIfNeeded(snapshot: emission.render.snapshot)
+            }
             router.enterOutcomePresenting()
             scheduleShowOutcome()
         case .returnToPlaying:
@@ -1508,6 +1773,15 @@ final class SokobanPlayController: ObservableObject {
             presentationPhase = .playing
             router.enterGameplay()
         case nil:
+            if isCaveMode {
+                if caveSession?.phase == .playing || caveSession?.phase == .ready {
+                    presentationPhase = .playing
+                    if router.mode != .gameplay {
+                        router.enterGameplay()
+                    }
+                }
+                return
+            }
             guard let session else { return }
             if session.phase == .playing {
                 // Keep intro until the player dismisses it; restart from intro dismisses first.
@@ -1565,12 +1839,17 @@ final class SokobanPlayController: ObservableObject {
         cancelShowOutcome()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            guard self.session?.phase == .outcomePresenting else { return }
+            let terminal =
+                self.session?.phase == .outcomePresenting
+                || self.caveSession?.phase == .outcomePresenting
+            guard terminal else { return }
             guard self.presentationPhase != .outcomeAwaitingChoice else { return }
             self.enterOutcomeAwaitingChoice()
         }
         showOutcomeWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+        // Cave: show outcome promptly so standing on the exit does not feel stuck.
+        let delay: TimeInterval = isCaveMode ? 0.35 : 1.5
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func cancelShowOutcome() {
@@ -1587,12 +1866,38 @@ final class SokobanPlayController: ObservableObject {
         // Open confirm gate; still-held keys stay in pressedKeyCodes so they are
         // not treated as a fresh Return/Space confirm.
         router.releaseOutcomeLocksPreservingPressedKeys()
-        configureOutcomeActions(for: currentLevelID)
+        if !isCaveMode {
+            configureOutcomeActions(for: currentLevelID)
+        }
         resetOverlayFocus(for: .outcomeAwaitingChoice)
         refreshPublishedState()
     }
 
     private func refreshPublishedState() {
+        if isCaveMode, let caveSession {
+            canUndo = false
+            canRedo = false
+            let sessionCommandsAllowed =
+                presentationPhase != .help && presentationPhase != .settings
+            canRestart =
+                sessionCommandsAllowed
+                && (caveSession.phase == .ready
+                    || caveSession.phase == .playing
+                    || caveSession.phase == .paused
+                    || caveSession.phase == .outcomePresenting)
+            canPause =
+                presentationPhase == .playing
+                && (caveSession.phase == .playing || caveSession.phase == .ready)
+            canResume = presentationPhase == .paused
+            if let snapshot = scene.currentSnapshot {
+                moveCount = snapshot.moveCount
+                pushCount = snapshot.pushCount
+                completedGoalCount = snapshot.completedGoalCount
+                totalGoalCount = snapshot.totalGoalCount
+            }
+            return
+        }
+
         guard let session else {
             canUndo = false
             canRedo = false

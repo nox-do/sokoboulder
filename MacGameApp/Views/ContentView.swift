@@ -42,7 +42,9 @@ struct ContentView: View {
 
     private var boardClaimsKeyboardFocus: Bool {
         controller.presentationPhase == .playing
-            && controller.session?.phase == .playing
+            && (controller.session?.phase == .playing
+                || controller.caveSession?.phase == .playing
+                || controller.caveSession?.phase == .ready)
     }
 
     private var showsHUD: Bool {
@@ -103,6 +105,8 @@ struct ContentView: View {
                     onFocusChange: { controller.setFocusedSettingsID($0) },
                     onThemeChange: { controller.updateThemeID($0) },
                     onThemeCycle: { controller.cycleTheme(by: $0) },
+                    onMusicTrackChange: { controller.updateMusicTrackID($0) },
+                    onMusicTrackCycle: { controller.cycleMusicTrack(by: $0) },
                     onReduceMotionChange: { controller.updateReduceMotionEnabled($0) },
                     onMusicVolumeChange: { controller.updateMusicVolume($0) },
                     onEffectsVolumeChange: { controller.updateEffectsVolume($0) },

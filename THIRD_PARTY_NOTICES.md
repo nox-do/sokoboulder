@@ -12,8 +12,24 @@
 - SHA-256 of the unchanged source file:
   `30e0b3fb95445181250ae9a5c1a6932cb49cbfffaa6d8f06d7360fe88b601f98`
 - Changes: renamed to `sokoban-puzzling.mp3`; audio data otherwise unchanged.
+- Settings ID: `music.sokoban.puzzling` (default)
 
 Attribution is not required by CC0. The author and source are listed voluntarily.
+
+## `audio.music.sokoban.prelude`
+
+- Title: `Prelude (Story)` / original: `Вступление (История) (1)`
+- Author: Alexandr Zhelanov
+- Source: <https://opengameart.org/content/old-music>
+- Original file: `Вступление (История) (1).mp3`
+- License: **CC-BY 3.0**
+- Local license: `MacGameApp/Resources/Audio/Licenses/CC-BY-3.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256 of the unchanged source file:
+  `45df4b87916ba36defb3605db77827864997830e0a9f41c9c59be387d2eeffdf`
+- Changes: renamed to `sokoban-prelude.mp3`; audio data otherwise unchanged.
+- Settings ID: `music.sokoban.prelude`
+- Attribution (required): Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov
 
 ## `audio.effect.sokoban.step` / `blocked` / `cratePushed`
 

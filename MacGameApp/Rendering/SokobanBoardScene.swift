@@ -2,10 +2,11 @@ import AppKit
 import GameCore
 import SpriteKit
 
-/// SpriteKit board scene for Sokoban.
+/// SpriteKit board scene for Sokoban and the cave demo.
 ///
-/// Nodes are presentation-only. Authoritative state stays in ``GameSession``.
-/// ``SKScene.update`` does **not** drain the session move queue.
+/// Nodes are presentation-only. Authoritative state stays in the session.
+/// ``SKScene.update`` wakes the cave simulation clock via ``onSimulationFrame``;
+/// it does **not** drain the Sokoban move queue.
 ///
 /// Animate updates are applied FIFO: at most one movement action runs at a time.
 /// If a new update arrives while an action is running, it is queued. Exceeding
@@ -23,6 +24,14 @@ final class SokobanBoardScene: SKScene {
 
     /// Effective reduce motion from settings / accessibility. Presentation only.
     var prefersReducedMotion = false
+
+    /// When true, draw cave-specific tiles/entities with distinct procedural look
+    /// instead of Sokoban pixel textures (crates/goals).
+    var presentsCaveContent = false
+
+    /// Called each frame with SpriteKit's display time; cave session maps this
+    /// through the injected monotonic clock instead of using the raw value.
+    var onSimulationFrame: (() -> Void)?
 
     /// Active visual theme (board tokens). Defaults to the built-in standard theme.
     private(set) var theme: VisualTheme = BuiltInThemes.standard
@@ -102,6 +111,11 @@ final class SokobanBoardScene: SKScene {
         }
     }
 
+    override func update(_ currentTime: TimeInterval) {
+        _ = currentTime
+        onSimulationFrame?()
+    }
+
     override init(size: CGSize) {
         super.init(size: size)
         commonInit()
@@ -147,6 +161,23 @@ final class SokobanBoardScene: SKScene {
 
     private var usesPixelTextures: Bool {
         theme.rendering.profile == .pixelNearest
+    }
+
+    /// Cave boards must not reuse Sokoban pixel crates/goals/floor marks.
+    private func isCaveBoard(_ snapshot: RenderSnapshot? = nil) -> Bool {
+        if presentsCaveContent { return true }
+        guard let snapshot else { return false }
+        if snapshot.cells.contains(where: {
+            switch $0.terrain {
+            case .dirt, .exitClosed, .exitOpen, .steelWall: true
+            default: false
+            }
+        }) {
+            return true
+        }
+        return snapshot.entities.contains {
+            $0.ref.kind == .boulder || $0.ref.kind == .diamond
+        }
     }
 
     private func syncGeometryProfile() {
@@ -310,6 +341,9 @@ final class SokobanBoardScene: SKScene {
     // MARK: - Node build / layout
 
     private func rebuild(from snapshot: RenderSnapshot) {
+        if isCaveBoard(snapshot) {
+            presentsCaveContent = true
+        }
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
         effectLayer.removeAllChildren()
@@ -501,7 +535,8 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func makeTerrainNode(_ terrain: RenderTerrain) -> SKSpriteNode {
-        if usesPixelTextures, let texture = terrainTexture(for: terrain) {
+        let cave = presentsCaveContent
+        if !cave, usesPixelTextures, let texture = terrainTexture(for: terrain) {
             let node = SKSpriteNode(texture: texture, size: .zero)
             node.name = "terrain.\(terrain)"
             node.zPosition = 0
@@ -514,43 +549,112 @@ final class SokobanBoardScene: SKScene {
         let fill: ThemeColor
         let stroke: ThemeColor?
         let symbol: String?
-        switch terrain {
-        case .void:
-            fill = tokens.voidFill
-            stroke = nil
-            symbol = nil
-        case .floor:
-            fill = tokens.floorFill
-            stroke = tokens.floorStroke
-            symbol = nil
-        case .wall:
-            fill = tokens.wallFill
-            stroke = tokens.wallStroke
-            symbol = tokens.wallSymbol
-        case .goal:
-            fill = tokens.goalFill
-            stroke = tokens.goalStroke
-            symbol = tokens.goalSymbol
+        if cave {
+            switch terrain {
+            case .void:
+                fill = tokens.voidFill
+                stroke = nil
+                symbol = nil
+            case .floor:
+                // Dug tunnel — near-black, clearly empty.
+                fill = ThemeColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)
+                stroke = ThemeColor(red: 0.18, green: 0.16, blue: 0.14, alpha: 1)
+                symbol = nil
+            case .dirt:
+                // Sand / earth — warm tan, dotted.
+                fill = ThemeColor(red: 0.72, green: 0.55, blue: 0.28, alpha: 1)
+                stroke = ThemeColor(red: 0.45, green: 0.32, blue: 0.12, alpha: 1)
+                symbol = "∷"
+            case .wall:
+                fill = ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
+                stroke = ThemeColor(red: 0.15, green: 0.12, blue: 0.10, alpha: 1)
+                symbol = nil
+            case .steelWall:
+                fill = ThemeColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)
+                stroke = ThemeColor(red: 0.25, green: 0.28, blue: 0.32, alpha: 1)
+                symbol = nil
+            case .goal:
+                fill = tokens.goalFill
+                stroke = tokens.goalStroke
+                symbol = tokens.goalSymbol
+            case .exitClosed:
+                fill = ThemeColor(red: 0.12, green: 0.16, blue: 0.22, alpha: 1)
+                stroke = ThemeColor(red: 0.45, green: 0.55, blue: 0.75, alpha: 1)
+                symbol = "E"
+            case .exitOpen:
+                fill = ThemeColor(red: 0.12, green: 0.55, blue: 0.32, alpha: 1)
+                stroke = ThemeColor(red: 0.75, green: 1.0, blue: 0.85, alpha: 1)
+                symbol = "E"
+            }
+        } else {
+            switch terrain {
+            case .void:
+                fill = tokens.voidFill
+                stroke = nil
+                symbol = nil
+            case .floor:
+                fill = tokens.floorFill
+                stroke = tokens.floorStroke
+                symbol = nil
+            case .wall, .steelWall:
+                fill = tokens.wallFill
+                stroke = tokens.wallStroke
+                symbol = tokens.wallSymbol
+            case .dirt:
+                fill = tokens.floorFill
+                stroke = tokens.wallStroke
+                symbol = "·"
+            case .goal:
+                fill = tokens.goalFill
+                stroke = tokens.goalStroke
+                symbol = tokens.goalSymbol
+            case .exitOpen:
+                fill = tokens.goalFill
+                stroke = tokens.goalStroke
+                symbol = "E"
+            case .exitClosed:
+                fill = tokens.wallFill
+                stroke = tokens.goalStroke
+                symbol = "E"
+            }
         }
 
         let node = SKSpriteNode(color: fill.skColor, size: .zero)
         node.name = "terrain.\(terrain)"
         node.zPosition = 0
+        node.texture = nil
         if let stroke {
             node.addChild(makeStrokeNode(color: stroke.skColor))
         }
         if let symbol {
-            let color =
-                terrain == .goal
-                ? theme.board.stateMarkers.emptyGoalAccent.skColor
-                : theme.board.terrain.wallStroke.skColor
+            let color: NSColor
+            switch terrain {
+            case .exitOpen:
+                color = NSColor(calibratedRed: 0.85, green: 1.0, blue: 0.9, alpha: 1)
+            case .dirt:
+                color = NSColor(calibratedRed: 0.4, green: 0.28, blue: 0.1, alpha: 1)
+            default:
+                color = stroke?.skColor ?? theme.board.terrain.wallStroke.skColor
+            }
             node.addChild(makeSemanticLabel(text: symbol, color: color))
         }
         return node
     }
 
     private func makeEntityNode(kind: EntityKind) -> SKSpriteNode {
-        if usesPixelTextures, let texture = entityTexture(for: kind, onGoal: false) {
+        let cave = presentsCaveContent
+
+        // Cave player reuses the Sokoban player sprite when a pixel theme is active.
+        if cave, kind == .player, usesPixelTextures, let texture = entityTexture(for: .player, onGoal: false) {
+            let node = SKSpriteNode(texture: texture, size: .zero)
+            node.name = "entity.\(kind)"
+            node.zPosition = 2
+            node.color = .white
+            node.colorBlendFactor = 0
+            return node
+        }
+
+        if !cave, usesPixelTextures, let texture = entityTexture(for: kind, onGoal: false) {
             let node = SKSpriteNode(texture: texture, size: .zero)
             node.name = "entity.\(kind)"
             node.zPosition = kind == .player ? 2 : 1
@@ -572,25 +676,37 @@ final class SokobanBoardScene: SKScene {
             fill = tokens.crateFill
             stroke = tokens.crateStroke
             symbol = tokens.crateSymbol
+        case .boulder:
+            // Gray rock — never a wooden crate.
+            fill = ThemeColor(red: 0.62, green: 0.62, blue: 0.65, alpha: 1)
+            stroke = ThemeColor(red: 0.22, green: 0.22, blue: 0.25, alpha: 1)
+            symbol = "●"
+        case .diamond:
+            fill = ThemeColor(red: 0.15, green: 0.85, blue: 0.95, alpha: 1)
+            stroke = ThemeColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1)
+            symbol = "◆"
         }
 
         let node = SKSpriteNode(color: fill.skColor, size: .zero)
         node.name = "entity.\(kind)"
         node.zPosition = kind == .player ? 2 : 1
+        node.texture = nil
         node.addChild(makeStrokeNode(color: stroke.skColor))
         node.addChild(makeSemanticLabel(text: symbol, color: stroke.skColor))
-        let goalMarker = makeSemanticLabel(
-            text: kind == .player
-                ? theme.board.stateMarkers.playerOnGoalSymbol
-                : theme.board.stateMarkers.crateOnGoalSymbol,
-            color: kind == .player
-                ? theme.board.stateMarkers.playerOnGoalColor.skColor
-                : theme.board.stateMarkers.crateOnGoalColor.skColor
-        )
-        goalMarker.name = "goalStateMarker"
-        goalMarker.alpha = 0
-        goalMarker.zPosition = 2
-        node.addChild(goalMarker)
+        if !cave {
+            let goalMarker = makeSemanticLabel(
+                text: kind == .player
+                    ? theme.board.stateMarkers.playerOnGoalSymbol
+                    : theme.board.stateMarkers.crateOnGoalSymbol,
+                color: kind == .player
+                    ? theme.board.stateMarkers.playerOnGoalColor.skColor
+                    : theme.board.stateMarkers.crateOnGoalColor.skColor
+            )
+            goalMarker.name = "goalStateMarker"
+            goalMarker.alpha = 0
+            goalMarker.zPosition = 2
+            node.addChild(goalMarker)
+        }
         return node
     }
 
@@ -598,9 +714,9 @@ final class SokobanBoardScene: SKScene {
         guard let paths = theme.rendering.textures else { return nil }
         switch terrain {
         case .void: return nil
-        case .floor: return cachedTexture(at: paths.floor)
-        case .wall: return cachedTexture(at: paths.wall)
-        case .goal: return cachedTexture(at: paths.goal)
+        case .floor, .dirt: return cachedTexture(at: paths.floor)
+        case .wall, .steelWall, .exitClosed: return cachedTexture(at: paths.wall)
+        case .goal, .exitOpen: return cachedTexture(at: paths.goal)
         }
     }
 
@@ -609,8 +725,10 @@ final class SokobanBoardScene: SKScene {
         switch kind {
         case .player:
             return cachedTexture(at: paths.player)
-        case .crate:
+        case .crate, .boulder:
             return cachedTexture(at: onGoal ? paths.crateOnGoal : paths.crate)
+        case .diamond:
+            return cachedTexture(at: paths.goal)
         }
     }
 
@@ -671,6 +789,9 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func updateGoalStateMarkers(using snapshot: RenderSnapshot) {
+        // Cave entities are not Sokoban crates — never swap in crate textures.
+        guard !isCaveBoard(snapshot) else { return }
+
         for entity in snapshot.entities {
             guard let node = entityNodes[entity.ref.id] else { continue }
             let onGoal = snapshot.cell(at: entity.position)?.terrain == .goal
@@ -798,6 +919,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func restoreTerrainColors(using snapshot: RenderSnapshot) {
+        let cave = isCaveBoard(snapshot)
         var index = 0
         for row in 0..<snapshot.height {
             for column in 0..<snapshot.width {
@@ -807,7 +929,12 @@ final class SokobanBoardScene: SKScene {
                 guard let cell = snapshot.cell(at: position) else { continue }
                 let node = terrainNodes[index]
                 node.removeAction(forKey: "goalPulse")
-                if usesPixelTextures {
+                if cave {
+                    // Never re-apply Sokoban pixel floor/wall onto cave dirt/tunnels.
+                    node.texture = nil
+                    node.colorBlendFactor = 1
+                    node.color = fillColor(for: cell.terrain).skColor
+                } else if usesPixelTextures {
                     node.color = .white
                     node.colorBlendFactor = 0
                     if let texture = terrainTexture(for: cell.terrain) {
@@ -821,11 +948,23 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func fillColor(for terrain: RenderTerrain) -> ThemeColor {
+        if presentsCaveContent || isCaveBoard(appliedSnapshot) {
+            switch terrain {
+            case .void: return theme.board.terrain.voidFill
+            case .floor: return ThemeColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)
+            case .dirt: return ThemeColor(red: 0.72, green: 0.55, blue: 0.28, alpha: 1)
+            case .wall: return ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
+            case .steelWall: return ThemeColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)
+            case .goal: return theme.board.terrain.goalFill
+            case .exitOpen: return ThemeColor(red: 0.12, green: 0.55, blue: 0.32, alpha: 1)
+            case .exitClosed: return ThemeColor(red: 0.12, green: 0.16, blue: 0.22, alpha: 1)
+            }
+        }
         switch terrain {
-        case .void: theme.board.terrain.voidFill
-        case .floor: theme.board.terrain.floorFill
-        case .wall: theme.board.terrain.wallFill
-        case .goal: theme.board.terrain.goalFill
+        case .void: return theme.board.terrain.voidFill
+        case .floor, .dirt: return theme.board.terrain.floorFill
+        case .wall, .steelWall, .exitClosed: return theme.board.terrain.wallFill
+        case .goal, .exitOpen: return theme.board.terrain.goalFill
         }
     }
 

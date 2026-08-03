@@ -10,12 +10,14 @@ enum SessionCommand: Equatable, Sendable {
     case restart
 }
 
-/// App-facing session phase for Sokoban in Phase 2.
+/// App-facing session phase for Sokoban and cave runs.
 enum SessionPhase: Equatable, Sendable {
     /// Constructed but not yet bootstrapped via ``GameSession/start()``.
     case created
+    /// Cave only: board visible, no simulation ticks until the first intent.
+    case ready
     case playing
-    /// Shell interruption; authoritative Sokoban state is unchanged.
+    /// Shell interruption; authoritative core state is unchanged.
     case paused
     case outcomePresenting
     case faulted

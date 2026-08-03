@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "defaultTrackID": "music.sokoban.puzzling",
+  "tracks": [
+    {
+      "id": "music.sokoban.puzzling",
+      "game": "sokoban",
+      "displayNameID": "music.sokoban.puzzling.name",
+      "resourcePath": "Audio/Music/sokoban-puzzling.mp3",
+      "credit": {
+        "title": "Puzzling",
+        "author": "Ruskerdax",
+        "sourceURL": "https://opengameart.org/content/puzzling",
+        "license": "CC0 1.0",
+        "attributionNotice": null
+      }
+    },
+    {
+      "id": "music.sokoban.prelude",
+      "game": "sokoban",
+      "displayNameID": "music.sokoban.prelude.name",
+      "resourcePath": "Audio/Music/sokoban-prelude.mp3",
+      "credit": {
+        "title": "Prelude (Story)",
+        "author": "Alexandr Zhelanov",
+        "sourceURL": "https://opengameart.org/content/old-music",
+        "license": "CC-BY 3.0",
+        "attributionNotice": "Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov"
+      }
+    }
+  ]
+}

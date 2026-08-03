@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Top HUD for Sokoban: level, counters, goal progress, undo/redo availability.
+/// Top HUD for Sokoban and the cave demo.
 struct SokobanHUDView: View {
     @ObservedObject var controller: SokobanPlayController
     @Environment(\.visualTheme) private var theme
@@ -25,16 +25,22 @@ struct SokobanHUDView: View {
 
             Spacer()
 
-            labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
-            labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
-            labeled(
-                AppStrings.text(.uiHudGoals),
-                value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
-            )
+            if controller.isCaveMode {
+                labeled(AppStrings.text(.uiHudDiamonds), value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)")
+                labeled(AppStrings.text(.uiHudTime), value: "\(controller.moveCount)")
+                labeled(AppStrings.text(.uiHudScore), value: "\(controller.pushCount)")
+            } else {
+                labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
+                labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
+                labeled(
+                    AppStrings.text(.uiHudGoals),
+                    value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
+                )
 
-            HStack(spacing: 8) {
-                availability("\(AppStrings.text(.uiHudUndo)) ⌘Z", enabled: controller.canUndo)
-                availability("\(AppStrings.text(.uiHudRedo)) ⇧⌘Z", enabled: controller.canRedo)
+                HStack(spacing: 8) {
+                    availability("\(AppStrings.text(.uiHudUndo)) ⌘Z", enabled: controller.canUndo)
+                    availability("\(AppStrings.text(.uiHudRedo)) ⇧⌘Z", enabled: controller.canRedo)
+                }
             }
         }
     }
@@ -47,15 +53,22 @@ struct SokobanHUDView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 12) {
-                labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
-                labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
-                labeled(
-                    AppStrings.text(.uiHudGoals),
-                    value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
-                )
+                if controller.isCaveMode {
+                    labeled(AppStrings.text(.uiHudDiamonds), value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)")
+                    labeled(AppStrings.text(.uiHudTime), value: "\(controller.moveCount)")
+                    labeled(AppStrings.text(.uiHudScore), value: "\(controller.pushCount)")
+                } else {
+                    labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
+                    labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
+                    labeled(
+                        AppStrings.text(.uiHudGoals),
+                        value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
+                    )
+                    Spacer(minLength: 0)
+                    availability("⌘Z", enabled: controller.canUndo)
+                    availability("⇧⌘Z", enabled: controller.canRedo)
+                }
                 Spacer(minLength: 0)
-                availability("⌘Z", enabled: controller.canUndo)
-                availability("⇧⌘Z", enabled: controller.canRedo)
             }
         }
     }

@@ -128,14 +128,29 @@ angehört und mit ihrer konkreten Quelldatei dokumentiert werden.
 
 ### 4.0 Aktueller Sokoban-Playtest
 
-- Rolle: provisorisches Sokoban-Thema
+- Rolle: wählbares Sokoban-Thema (Default)
 - Titel: Puzzling
 - Autor: Ruskerdax
 - Format: MP3, ungefähr 120 Sekunden
 - Lizenz: CC0 1.0 Universal / Public Domain
 - Quelle: <https://opengameart.org/content/puzzling>
+- Settings-ID: `music.sokoban.puzzling`
 - Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - Status: technisch eingebunden; musikalische Playtest-Abnahme offen
+
+- Rolle: alternatives Sokoban-Thema (Settings)
+- Titel: Prelude (Story) / Вступление (История)
+- Autor: Alexandr Zhelanov
+- Format: MP3, ~2.1 MB
+- Lizenz: CC-BY 3.0 (Attribution Pflicht)
+- Quelle: <https://opengameart.org/content/old-music>
+- Settings-ID: `music.sokoban.prelude`
+- Attribution: Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov
+- Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- Status: technisch eingebunden; Credits pro Song im Katalog + Settings
+
+Hintergrundmusik wird über Settings gewählt (`Audio/Music/tracks.json`);
+Audio-Themes bleiben spielmodus-getrieben (Cues).
 
 ### 4.1 Vorgemerkt
 
