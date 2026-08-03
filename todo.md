@@ -365,7 +365,37 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
+### 3.8 Pixel-Art-Theme (Vellidragon) – Vertrag geklärt, Umsetzung noch nicht gestartet
+
+Plan: `docs/plans/3.8-pixel-art-vellidragon.md`
+
+Vertrag (fest):
+- Pack: [Sokoban Clone Tiles](https://opengameart.org/content/sokoban-clone-tiles) (Vellidragon, CC0)
+- Basis: **32×32 bird’s-eye**; Skala in Points (`baseTilePoints = 32`); Retina ohne `@2x`
+- `theme.retro` opt-in; `theme.standard` bleibt Default + Vektorvertrag ADR 0003
+- Schema **V1 additiv** (`rendering` optional); Verzweigung nur über Profil, nie Theme-ID
+- Fehlende Textur / kaputtes bekanntes Theme → Fallback Standard; Catalog bleibt ladbar
+- Pixel: Entity-Inset 0; Brett-Symbole/Strokes aus; Event-×/✓ bleiben
+- `crateOnGoal`: eigene Kachel bevorzugt, sonst Overlay nach Sheet-Inspektion
+- Untermaß (`continuous < 32`): kein Vorab-Fallback; **Release-Gate** manuell
+- Lizenz wie Audio: `THIRD_PARTY_NOTICES` + SHA + lokale CC0-Kopie
+
+Arbeitspakete (Reihenfolge):
+- [ ] ADR 0004 (Pixel-Profil) + Verweis in 0003
+- [ ] Assets schneiden → `Resources/Textures/vellidragon/` + Notices + `crateOnGoal`-Entscheidung
+- [ ] Theme-Schema V1 additiv + Loader/Fallback/Tests
+- [ ] `GridGeometry` Integer-Scale + nearest
+- [ ] `SokobanBoardScene`: Texturen, Inset 0, Feedback ohne Color-Fill-Annahme
+- [ ] Theme `theme.retro` + Manifest; Settings-Picker
+- [ ] Tests + Playtest (Untermaß/Letterbox, Resize-Sprünge, Graustufen, Reduce Motion)
+
+Implikationen kurz: größerer Letterbox; Resize springt; Push-/Goal-Pulse → Blend/Overlay;
+StrictThemeJSON additiv; VoiceOver unverändert.
+
 - Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
+- Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Leichtgewicht-Push-Suche
+  beweist Tutorials + mind. campaign.001; ab ~002 oft Budget-Timeout (nicht „unlösbar“).
+  Test: `GameCoreTests/CampaignSolvabilityOneShotTests.swift` (manuell, kein CI-Gate)
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
