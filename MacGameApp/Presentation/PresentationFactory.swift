@@ -115,7 +115,7 @@ enum PresentationFactory {
                 title = AppStrings.text(.uiSettingsMusicTrackCave)
             }
             return SettingsPresentation.MusicTrackGroup(
-                id: SettingsOverlay.musicTrackFocusID(for: game),
+                id: SettingsFocusID.musicTrack(for: game),
                 game: game,
                 title: title,
                 hint: AppStrings.text(.uiSettingsMusicTrackHint),
@@ -172,26 +172,21 @@ enum PresentationFactory {
     }
 
     static func outcome(_ input: OutcomeInput) -> OutcomePresentation {
+        let counters = PlayMetricCounters(
+            moveCount: input.moveCount,
+            pushCount: input.pushCount,
+            completedGoalCount: input.completedGoalCount,
+            totalGoalCount: input.totalGoalCount
+        )
+        let metrics = PlayMetricsPresentation.outcomeMetricLines(
+            isCaveMode: input.isCaveMode,
+            counters: counters
+        )
+
         if input.isCaveMode {
             return OutcomePresentation(
                 title: input.title,
-                metrics: [
-                    OutcomeMetricLine(
-                        id: "diamonds",
-                        title: AppStrings.text(.uiHudDiamonds),
-                        value: "\(input.completedGoalCount)/\(input.totalGoalCount)"
-                    ),
-                    OutcomeMetricLine(
-                        id: "time",
-                        title: AppStrings.text(.uiHudTime),
-                        value: String(input.moveCount)
-                    ),
-                    OutcomeMetricLine(
-                        id: "score",
-                        title: AppStrings.text(.uiHudScore),
-                        value: String(input.pushCount)
-                    ),
-                ],
+                metrics: metrics,
                 records: [],
                 hint: input.hint,
                 primaryTitle: input.primaryTitle,
@@ -226,23 +221,7 @@ enum PresentationFactory {
         }
         return OutcomePresentation(
             title: input.title,
-            metrics: [
-                OutcomeMetricLine(
-                    id: "moves",
-                    title: AppStrings.text(.uiHudMoves),
-                    value: String(input.moveCount)
-                ),
-                OutcomeMetricLine(
-                    id: "pushes",
-                    title: AppStrings.text(.uiHudPushes),
-                    value: String(input.pushCount)
-                ),
-                OutcomeMetricLine(
-                    id: "goals",
-                    title: AppStrings.text(.uiHudGoals),
-                    value: "\(input.completedGoalCount)/\(input.totalGoalCount)"
-                ),
-            ],
+            metrics: metrics,
             records: records,
             hint: input.hint,
             primaryTitle: input.primaryTitle,
@@ -270,17 +249,10 @@ enum PresentationFactory {
             "\(AppStrings.text(.uiBoardPlayer)) "
             + "\(AppStrings.text(.uiBoardColumn)) \(player.column + 1), "
             + "\(AppStrings.text(.uiBoardRow)) \(player.row + 1). "
-        if isCaveMode {
-            return position
-                + "\(AppStrings.text(.uiHudDiamonds)) "
-                + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
-                + "\(AppStrings.text(.uiHudTime)) \(snapshot.moveCount), "
-                + "\(AppStrings.text(.uiHudScore)) \(snapshot.pushCount)."
-        }
         return position
-            + "\(AppStrings.text(.uiHudGoals)) "
-            + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
-            + "\(AppStrings.text(.uiHudMoves)) \(snapshot.moveCount), "
-            + "\(AppStrings.text(.uiHudPushes)) \(snapshot.pushCount)."
+            + PlayMetricsPresentation.accessibilityMetrics(
+                isCaveMode: isCaveMode,
+                counters: PlayMetricCounters(snapshot: snapshot)
+            )
     }
 }

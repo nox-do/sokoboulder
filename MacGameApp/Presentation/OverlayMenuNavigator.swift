@@ -94,7 +94,7 @@ enum OverlayMenuNavigator {
             next.levelSelectionID =
                 context.levelSelectionOrder.first ?? context.levelSelectionBackID
         case .settings:
-            next.settingsID = context.settingsOrder.first ?? "back"
+            next.settingsID = context.settingsOrder.first ?? SettingsFocusID.back
         case .outcomeAwaitingChoice:
             next.outcome = .primary
         default:
@@ -246,15 +246,15 @@ enum OverlayMenuNavigator {
         case .moveUp:
             next.settingsID =
                 KeyboardFocusCycle.move(from: focus.settingsID, in: order, offset: -1)
-                ?? order.first ?? "back"
+                ?? order.first ?? SettingsFocusID.back
             return .updateFocus(next)
         case .moveDown:
             next.settingsID =
                 KeyboardFocusCycle.move(from: focus.settingsID, in: order, offset: 1)
-                ?? order.first ?? "back"
+                ?? order.first ?? SettingsFocusID.back
             return .updateFocus(next)
         case .moveLeft:
-            if focus.settingsID == "theme" {
+            if focus.settingsID == SettingsFocusID.theme {
                 return .action(.cycleTheme(by: -1))
             }
             if let game = context.musicTrackFocusGames[focus.settingsID] {
@@ -262,10 +262,10 @@ enum OverlayMenuNavigator {
             }
             next.settingsID =
                 KeyboardFocusCycle.move(from: focus.settingsID, in: order, offset: -1)
-                ?? order.first ?? "back"
+                ?? order.first ?? SettingsFocusID.back
             return .updateFocus(next)
         case .moveRight:
-            if focus.settingsID == "theme" {
+            if focus.settingsID == SettingsFocusID.theme {
                 return .action(.cycleTheme(by: 1))
             }
             if let game = context.musicTrackFocusGames[focus.settingsID] {
@@ -273,7 +273,7 @@ enum OverlayMenuNavigator {
             }
             next.settingsID =
                 KeyboardFocusCycle.move(from: focus.settingsID, in: order, offset: 1)
-                ?? order.first ?? "back"
+                ?? order.first ?? SettingsFocusID.back
             return .updateFocus(next)
         case .activate:
             guard !isRepeat else { return .consumed }
@@ -289,13 +289,13 @@ enum OverlayMenuNavigator {
         context: OverlayNavigationContext
     ) -> OverlayNavigationResult {
         switch focusedID {
-        case "theme":
+        case SettingsFocusID.theme:
             return .action(.cycleTheme(by: 1))
-        case "reduceMotion":
+        case SettingsFocusID.reduceMotion:
             return .action(.toggleReduceMotion)
-        case "mute":
+        case SettingsFocusID.mute:
             return .action(.toggleMute)
-        case "back":
+        case SettingsFocusID.back:
             return .action(.dismissHelpOrSettings)
         default:
             if let game = context.musicTrackFocusGames[focusedID] {

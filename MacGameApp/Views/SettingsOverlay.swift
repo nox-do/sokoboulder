@@ -43,7 +43,7 @@ struct SettingsOverlay: View {
                             optionChips(
                                 options: model.themeOptions.map { ($0.id, $0.title) },
                                 selectedID: model.selectedThemeID,
-                                focusID: "theme",
+                                focusID: SettingsFocusID.theme,
                                 accessibilityLabel: model.themeTitle,
                                 onSelect: onThemeChange
                             )
@@ -81,7 +81,7 @@ struct SettingsOverlay: View {
                         isOn: Binding(
                             get: { model.reduceMotionEnabled },
                             set: {
-                                onFocusChange("reduceMotion")
+                                onFocusChange(SettingsFocusID.reduceMotion)
                                 onReduceMotionChange($0)
                             }
                         )
@@ -93,7 +93,7 @@ struct SettingsOverlay: View {
                                 .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
                         }
                     }
-                    .themedFocus(isFocused: focusedID == "reduceMotion", isPrimary: false)
+                    .themedFocus(isFocused: focusedID == SettingsFocusID.reduceMotion, isPrimary: false)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(model.musicVolumeTitle)
@@ -102,7 +102,7 @@ struct SettingsOverlay: View {
                             value: Binding(
                                 get: { model.musicVolume },
                                 set: {
-                                    onFocusChange("music")
+                                    onFocusChange(SettingsFocusID.music)
                                     onMusicVolumeChange($0)
                                 }
                             ),
@@ -110,7 +110,7 @@ struct SettingsOverlay: View {
                         )
                         .tint(theme.ui.focusRing.swiftUIColor)
                     }
-                    .themedFocus(isFocused: focusedID == "music", isPrimary: false)
+                    .themedFocus(isFocused: focusedID == SettingsFocusID.music, isPrimary: false)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(model.effectsVolumeTitle)
@@ -119,7 +119,7 @@ struct SettingsOverlay: View {
                             value: Binding(
                                 get: { model.effectsVolume },
                                 set: {
-                                    onFocusChange("effects")
+                                    onFocusChange(SettingsFocusID.effects)
                                     onEffectsVolumeChange($0)
                                 }
                             ),
@@ -127,26 +127,26 @@ struct SettingsOverlay: View {
                         )
                         .tint(theme.ui.focusRing.swiftUIColor)
                     }
-                    .themedFocus(isFocused: focusedID == "effects", isPrimary: false)
+                    .themedFocus(isFocused: focusedID == SettingsFocusID.effects, isPrimary: false)
 
                     Toggle(
                         model.muteTitle,
                         isOn: Binding(
                             get: { model.isMuted },
                             set: {
-                                onFocusChange("mute")
+                                onFocusChange(SettingsFocusID.mute)
                                 onMuteChange($0)
                             }
                         )
                     )
-                    .themedFocus(isFocused: focusedID == "mute", isPrimary: false)
+                    .themedFocus(isFocused: focusedID == SettingsFocusID.mute, isPrimary: false)
 
                     Button(model.backTitle) {
-                        onFocusChange("back")
+                        onFocusChange(SettingsFocusID.back)
                         onBack()
                     }
                     .buttonStyle(.plain)
-                    .themedFocus(isFocused: focusedID == "back", isPrimary: true)
+                    .themedFocus(isFocused: focusedID == SettingsFocusID.back, isPrimary: true)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 8)
                 }
@@ -220,17 +220,13 @@ extension SettingsOverlay {
         showsThemePicker: Bool,
         musicTrackFocusIDs: [String]
     ) -> [String] {
-        var order = ["reduceMotion", "music", "effects", "mute", "back"]
-        for focusID in musicTrackFocusIDs.reversed() {
-            order.insert(focusID, at: 0)
-        }
-        if showsThemePicker {
-            order.insert("theme", at: 0)
-        }
-        return order
+        SettingsFocusID.keyboardFocusOrder(
+            showsThemePicker: showsThemePicker,
+            musicTrackFocusIDs: musicTrackFocusIDs
+        )
     }
 
     static func musicTrackFocusID(for game: AudioGameMode) -> String {
-        "musicTrack.\(game.rawValue)"
+        SettingsFocusID.musicTrack(for: game)
     }
 }

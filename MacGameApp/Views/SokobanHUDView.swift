@@ -5,6 +5,18 @@ struct SokobanHUDView: View {
     @ObservedObject var controller: SokobanPlayController
     @Environment(\.visualTheme) private var theme
 
+    private var metricLines: [PlayMetricLine] {
+        PlayMetricsPresentation.lines(
+            isCaveMode: controller.isCaveMode,
+            counters: PlayMetricCounters(
+                moveCount: controller.moveCount,
+                pushCount: controller.pushCount,
+                completedGoalCount: controller.completedGoalCount,
+                totalGoalCount: controller.totalGoalCount
+            )
+        )
+    }
+
     var body: some View {
         ViewThatFits(in: .horizontal) {
             regularHUD
@@ -25,18 +37,11 @@ struct SokobanHUDView: View {
 
             Spacer()
 
-            if controller.isCaveMode {
-                labeled(AppStrings.text(.uiHudDiamonds), value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)")
-                labeled(AppStrings.text(.uiHudTime), value: "\(controller.moveCount)")
-                labeled(AppStrings.text(.uiHudScore), value: "\(controller.pushCount)")
-            } else {
-                labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
-                labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
-                labeled(
-                    AppStrings.text(.uiHudGoals),
-                    value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
-                )
+            ForEach(metricLines) { line in
+                labeled(line.title, value: line.value)
+            }
 
+            if !controller.isCaveMode {
                 HStack(spacing: 8) {
                     availability("\(AppStrings.text(.uiHudUndo)) ⌘Z", enabled: controller.canUndo)
                     availability("\(AppStrings.text(.uiHudRedo)) ⇧⌘Z", enabled: controller.canRedo)
@@ -53,17 +58,10 @@ struct SokobanHUDView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 12) {
-                if controller.isCaveMode {
-                    labeled(AppStrings.text(.uiHudDiamonds), value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)")
-                    labeled(AppStrings.text(.uiHudTime), value: "\(controller.moveCount)")
-                    labeled(AppStrings.text(.uiHudScore), value: "\(controller.pushCount)")
-                } else {
-                    labeled(AppStrings.text(.uiHudMoves), value: "\(controller.moveCount)")
-                    labeled(AppStrings.text(.uiHudPushes), value: "\(controller.pushCount)")
-                    labeled(
-                        AppStrings.text(.uiHudGoals),
-                        value: "\(controller.completedGoalCount)/\(controller.totalGoalCount)"
-                    )
+                ForEach(metricLines) { line in
+                    labeled(line.title, value: line.value)
+                }
+                if !controller.isCaveMode {
                     Spacer(minLength: 0)
                     availability("⌘Z", enabled: controller.canUndo)
                     availability("⇧⌘Z", enabled: controller.canRedo)

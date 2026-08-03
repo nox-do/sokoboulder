@@ -445,6 +445,15 @@ Extraktion leicht→schwer; Controller bleibt Orchestrierung, Views unverändert
 - [x] `PlayBootstrapCoordinator` + Restore-Messages/ContentChangePolicy
   (Restore-Edge-Cases bleiben im Controller, Entscheidungen/Copy ausgelagert)
 
+Nachzug SoC (2026-08-03, Review-Smells):
+
+- [x] `PlayMetricsPresentation` — HUD/Outcome/A11y eine Metrik-Quelle
+- [x] `SettingsFocusID` — Fokus-IDs/Order zentral
+- [x] `SettingsAudioBridge` — Settings↔Audio aus dem Play-Controller
+- [x] `ActivePlaySession` — Outcome-Delay / Board-Focus-Flags
+- [x] `SokobanBoardScene` — Mode nur via `presentsCaveContent` (keine Heuristik)
+- [ ] Später: Mode-Facades für Gameplay/Restart-Branches; Scene Visual-Factory
+
 - Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
 - Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Leichtgewicht-Push-Suche
   beweist Tutorials + mind. campaign.001; ab ~002 oft Budget-Timeout (nicht „unlösbar“).

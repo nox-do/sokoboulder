@@ -50,6 +50,24 @@ enum ActivePlaySession {
 
     var isOutcomePresenting: Bool { phase == .outcomePresenting }
 
+    /// Delay before the choice overlay after a terminal emission.
+    var outcomeOverlayDelay: TimeInterval {
+        switch self {
+        case .cave: 1.2
+        case .sokoban: 1.5
+        }
+    }
+
+    /// Whether the SpriteKit board should claim keyboard first-responder while playing.
+    var claimsBoardKeyboardFocus: Bool {
+        switch self {
+        case .sokoban(let session):
+            session.phase == .playing
+        case .cave(let session):
+            session.phase == .playing || session.phase == .ready
+        }
+    }
+
     func pause() {
         switch self {
         case .sokoban(let session): session.pause()

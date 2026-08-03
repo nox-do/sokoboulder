@@ -163,23 +163,6 @@ final class SokobanBoardScene: SKScene {
         theme.rendering.profile == .pixelNearest
     }
 
-    /// Cave boards must not reuse Sokoban pixel crates/goals/floor marks.
-    private func isCaveBoard(_ snapshot: RenderSnapshot? = nil) -> Bool {
-        if presentsCaveContent { return true }
-        guard let snapshot else { return false }
-        if snapshot.cells.contains(where: {
-            switch $0.terrain {
-            case .dirt, .exitClosed, .exitOpen, .steelWall: true
-            default: false
-            }
-        }) {
-            return true
-        }
-        return snapshot.entities.contains {
-            $0.ref.kind == .boulder || $0.ref.kind == .diamond
-        }
-    }
-
     private func syncGeometryProfile() {
         geometry.renderingProfile = theme.rendering.profile
         geometry.baseTilePoints = theme.rendering.baseTilePoints
@@ -230,6 +213,7 @@ final class SokobanBoardScene: SKScene {
         appliedRevision = 0
         settledRevision = 0
         appliedSnapshot = nil
+        presentsCaveContent = false
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
         effectLayer.removeAllChildren()
@@ -341,9 +325,6 @@ final class SokobanBoardScene: SKScene {
     // MARK: - Node build / layout
 
     private func rebuild(from snapshot: RenderSnapshot) {
-        if isCaveBoard(snapshot) {
-            presentsCaveContent = true
-        }
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
         effectLayer.removeAllChildren()
@@ -790,7 +771,7 @@ final class SokobanBoardScene: SKScene {
 
     private func updateGoalStateMarkers(using snapshot: RenderSnapshot) {
         // Cave entities are not Sokoban crates — never swap in crate textures.
-        guard !isCaveBoard(snapshot) else { return }
+        guard !presentsCaveContent else { return }
 
         for entity in snapshot.entities {
             guard let node = entityNodes[entity.ref.id] else { continue }
@@ -919,7 +900,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func restoreTerrainColors(using snapshot: RenderSnapshot) {
-        let cave = isCaveBoard(snapshot)
+        let cave = presentsCaveContent
         var index = 0
         for row in 0..<snapshot.height {
             for column in 0..<snapshot.width {
@@ -948,7 +929,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func fillColor(for terrain: RenderTerrain) -> ThemeColor {
-        if presentsCaveContent || isCaveBoard(appliedSnapshot) {
+        if presentsCaveContent {
             switch terrain {
             case .void: return theme.board.terrain.voidFill
             case .floor: return ThemeColor(red: 0.08, green: 0.07, blue: 0.06, alpha: 1)

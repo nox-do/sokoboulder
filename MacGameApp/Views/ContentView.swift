@@ -42,9 +42,7 @@ struct ContentView: View {
 
     private var boardClaimsKeyboardFocus: Bool {
         controller.presentationPhase == .playing
-            && (controller.session?.phase == .playing
-                || controller.caveSession?.phase == .playing
-                || controller.caveSession?.phase == .ready)
+            && (controller.activePlay?.claimsBoardKeyboardFocus == true)
     }
 
     private var showsHUD: Bool {

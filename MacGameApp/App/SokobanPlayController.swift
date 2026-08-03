@@ -69,7 +69,7 @@ final class SokobanPlayController: ObservableObject {
     /// Level-selection keyboard selection (`navigation.back` or a level id).
     @Published private(set) var focusedLevelSelectionID: String = "navigation.back"
     /// Settings keyboard selection id (`theme`, `mute`, `back`, …).
-    @Published private(set) var focusedSettingsID: String = "back"
+    @Published private(set) var focusedSettingsID: String = SettingsFocusID.back
     /// Where help / settings return when dismissed.
     @Published private(set) var overlayReturnOrigin: OverlayReturnOrigin?
     /// Published mirror so SwiftUI invalidates when the nested settings store changes.
@@ -83,6 +83,7 @@ final class SokobanPlayController: ObservableObject {
     private var appIsActive = true
     private let moveHoldRepeater = SokobanMoveHoldRepeater()
     private let emissions: EmissionApplicator
+    private let settingsAudio: SettingsAudioBridge
 
     private(set) var currentLevelID: String
 
@@ -99,6 +100,10 @@ final class SokobanPlayController: ObservableObject {
         let boardScene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         self.scene = boardScene
         self.emissions = EmissionApplicator(scene: boardScene, audioDirector: audioDirector)
+        self.settingsAudio = SettingsAudioBridge(
+            audioDirector: audioDirector,
+            settingsStore: settingsStore
+        )
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = catalog
@@ -169,6 +174,10 @@ final class SokobanPlayController: ObservableObject {
         let boardScene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         self.scene = boardScene
         self.emissions = EmissionApplicator(scene: boardScene, audioDirector: audioDirector)
+        self.settingsAudio = SettingsAudioBridge(
+            audioDirector: audioDirector,
+            settingsStore: settingsStore
+        )
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = SokobanContentCatalog(
@@ -470,7 +479,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private var settingsFocusOrder: [String] {
-        SettingsOverlay.keyboardFocusOrder(
+        SettingsFocusID.keyboardFocusOrder(
             showsThemePicker: themeCatalog.selectableThemes.count > 1,
             musicTrackFocusIDs: settingsPresentation.musicTrackGroups.map(\.id)
         )
@@ -1029,14 +1038,14 @@ final class SokobanPlayController: ObservableObject {
             caveDefault: musicTrackCatalog.defaultTrackID(for: .cave)
         )
         settingsSnapshot = settingsStore.snapshot
-        applyAudioSettingsFromStore()
+        settingsAudio.applyFromStore()
         applyVisualThemeFromStore()
         scene.prefersReducedMotion = reduceMotionProvider.isReduceMotionEffective
 
         settingsHandlerID = settingsStore.addChangeHandler { [weak self] in
             guard let self else { return }
             self.settingsSnapshot = self.settingsStore.snapshot
-            self.applyAudioSettingsFromStore()
+            self.settingsAudio.applyFromStore()
             self.applyVisualThemeFromStore()
         }
 
@@ -1048,9 +1057,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func applyAudioSettingsFromStore() {
-        audioDirector.applyOutputSettings(.from(settings: settingsStore.snapshot))
-        audioDirector.applyMusicTrackID(settingsStore.sokobanMusicTrackID, for: .sokoban)
-        audioDirector.applyMusicTrackID(settingsStore.caveMusicTrackID, for: .cave)
+        settingsAudio.applyFromStore()
     }
 
     private func applyVisualThemeFromStore() {
@@ -1214,7 +1221,6 @@ final class SokobanPlayController: ObservableObject {
         clearMoveHold()
         cancelShowOutcome()
         setActivePlay(nil)
-        scene.presentsCaveContent = false
         scene.prepareForNewSession()
         audioDirector.reset()
         applyAudioSettingsFromStore()
@@ -1457,7 +1463,7 @@ final class SokobanPlayController: ObservableObject {
         }
         showOutcomeWorkItem = work
         // Let the win/death jingle breathe; cave WAV is ~1.35s.
-        let delay: TimeInterval = isCaveMode ? 1.2 : 1.5
+        let delay = activePlay?.outcomeOverlayDelay ?? 1.5
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
