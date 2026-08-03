@@ -4,7 +4,7 @@ import Foundation
 ///
 /// The app owns this traversal instead of depending on the macOS
 /// "Full Keyboard Access" setting. Overlay key events are handled by
-/// ``SokobanPlayController`` via the window local monitor.
+/// ``SokobanPlayController`` via the window local monitor / ``OverlayMenuNavigator``.
 enum KeyboardFocusCycle {
     static func move<Item: Equatable>(
         from current: Item?,

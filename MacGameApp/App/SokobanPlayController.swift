@@ -23,9 +23,13 @@ final class SokobanPlayController: ObservableObject {
     let settingsStore: AppSettingsStore
     let reduceMotionProvider: ReduceMotionProvider
 
-    private(set) var session: GameSession?
-    private(set) var caveSession: CaveSession?
+    private(set) var activePlay: ActivePlaySession?
     private let clock: any MonotonicClock = SystemUptimeClock()
+
+    /// Sokoban session when ``activePlay`` is `.sokoban`; otherwise `nil`.
+    var session: GameSession? { activePlay?.sokoban }
+    /// Cave session when ``activePlay`` is `.cave`; otherwise `nil`.
+    var caveSession: CaveSession? { activePlay?.cave }
 
     @Published private(set) var presentationPhase: GamePresentationPhase = .playing
     @Published private(set) var levelTitle = ""
@@ -78,6 +82,7 @@ final class SokobanPlayController: ObservableObject {
     private var settingsHandlerID: UUID?
     private var appIsActive = true
     private let moveHoldRepeater = SokobanMoveHoldRepeater()
+    private let emissions: EmissionApplicator
 
     private(set) var currentLevelID: String
 
@@ -91,7 +96,9 @@ final class SokobanPlayController: ObservableObject {
         themeCatalog: ThemeCatalog? = nil
     ) {
         self.audioDirector = audioDirector
-        self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        let boardScene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        self.scene = boardScene
+        self.emissions = EmissionApplicator(scene: boardScene, audioDirector: audioDirector)
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = catalog
@@ -159,7 +166,9 @@ final class SokobanPlayController: ObservableObject {
         reduceMotionSource: (any SystemReduceMotionSource)? = nil
     ) {
         self.audioDirector = audioDirector
-        self.scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        let boardScene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
+        self.scene = boardScene
+        self.emissions = EmissionApplicator(scene: boardScene, audioDirector: audioDirector)
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = SokobanContentCatalog(
@@ -183,7 +192,7 @@ final class SokobanPlayController: ObservableObject {
             systemSource: reduceMotionSource ?? WorkspaceReduceMotionSource()
         )
         self.currentLevelID = ""
-        self.session = nil
+        self.activePlay = nil
         self.presentationPhase = .faulted
         self.faultMessage = contentLoadFailureMessage
         self.router.enterModalBlocked()
@@ -193,263 +202,64 @@ final class SokobanPlayController: ObservableObject {
         bindSettingsSideEffects()
     }
 
+    private func setActivePlay(_ play: ActivePlaySession?) {
+        activePlay = play
+        isCaveMode = play?.isCave ?? false
+    }
+
     // MARK: - Presentation models
 
     var levelIntroPresentation: LevelIntroPresentation {
-        LevelIntroPresentation(
-            title: levelTitle,
-            body: tutorialHintText,
-            continueTitle: AppStrings.text(.uiIntroClose),
-            skipHint: AppStrings.text(.uiIntroSkipHint)
-        )
+        PresentationFactory.levelIntro(title: levelTitle, body: tutorialHintText)
     }
 
     var pausePresentation: PausePresentation {
-        PausePresentation(
-            title: AppStrings.text(.uiPauseTitle),
-            hint: AppStrings.text(isCaveMode ? .uiPauseHintCave : .uiPauseHint),
-            resumeTitle: AppStrings.text(.uiPauseResume),
-            restartTitle: AppStrings.text(.uiPauseRestart),
-            settingsTitle: AppStrings.text(.uiPauseSettings),
-            levelSelectTitle: AppStrings.text(.uiLaunchBackToGames),
-            helpTitle: AppStrings.text(.uiPauseHelp)
-        )
+        PresentationFactory.pause(isCaveMode: isCaveMode)
     }
 
     var helpPresentation: HelpPresentation {
-        if isCaveMode {
-            return HelpPresentation(
-                title: AppStrings.text(.uiHelpTitle),
-                backTitle: AppStrings.text(.uiHelpBack),
-                controls: [
-                    HelpControlRow(
-                        id: "move",
-                        title: AppStrings.text(.uiHelpMoveTitle),
-                        detail: AppStrings.text(.uiHelpMoveDetail)
-                    ),
-                    HelpControlRow(
-                        id: "wait",
-                        title: AppStrings.text(.uiHelpWaitTitle),
-                        detail: AppStrings.text(.uiHelpWaitDetail)
-                    ),
-                    HelpControlRow(
-                        id: "restart",
-                        title: AppStrings.text(.uiHelpRestartTitle),
-                        detail: AppStrings.text(.uiHelpRestartDetail)
-                    ),
-                    HelpControlRow(
-                        id: "pause",
-                        title: AppStrings.text(.uiHelpPauseTitle),
-                        detail: AppStrings.text(.uiHelpPauseDetail)
-                    ),
-                ],
-                tutorialSectionTitle: "",
-                tutorialHints: []
-            )
-        }
-        return HelpPresentation(
-            title: AppStrings.text(.uiHelpTitle),
-            backTitle: AppStrings.text(.uiHelpBack),
-            controls: [
-                HelpControlRow(
-                    id: "move",
-                    title: AppStrings.text(.uiHelpMoveTitle),
-                    detail: AppStrings.text(.uiHelpMoveDetail)
-                ),
-                HelpControlRow(
-                    id: "undo_redo",
-                    title: AppStrings.text(.uiHelpUndoRedoTitle),
-                    detail: AppStrings.text(.uiHelpUndoRedoDetail)
-                ),
-                HelpControlRow(
-                    id: "restart",
-                    title: AppStrings.text(.uiHelpRestartTitle),
-                    detail: AppStrings.text(.uiHelpRestartDetail)
-                ),
-                HelpControlRow(
-                    id: "pause",
-                    title: AppStrings.text(.uiHelpPauseTitle),
-                    detail: AppStrings.text(.uiHelpPauseDetail)
-                ),
-            ],
-            tutorialSectionTitle: AppStrings.text(.uiHelpTutorialSection),
-            tutorialHints: catalog.levels.compactMap { descriptor in
-                guard let hintID = descriptor.tutorialHintID, !hintID.isEmpty else { return nil }
-                return HelpTutorialHint(
-                    id: hintID,
-                    title: catalog.title(for: descriptor),
-                    body: catalog.tutorialHint(for: descriptor)
-                )
-            }
-        )
+        PresentationFactory.help(isCaveMode: isCaveMode, catalog: catalog)
     }
 
     var settingsPresentation: SettingsPresentation {
-        let snap = settingsSnapshot
-        let musicGroups: [SettingsPresentation.MusicTrackGroup] = AudioGameMode.allCases.compactMap {
-            game in
-            let options = musicTrackCatalog.selectableTracks(for: game)
-            guard options.count > 1 else { return nil }
-            let selected =
-                musicTrackCatalog.resolvedTrack(
-                    preferredID: snap.musicTrackID(for: game),
-                    for: game
-                ) ?? options.first
-            let title: String
-            switch game {
-            case .sokoban:
-                title = AppStrings.text(.uiSettingsMusicTrackSokoban)
-            case .cave:
-                title = AppStrings.text(.uiSettingsMusicTrackCave)
-            }
-            return SettingsPresentation.MusicTrackGroup(
-                id: SettingsOverlay.musicTrackFocusID(for: game),
-                game: game,
-                title: title,
-                hint: AppStrings.text(.uiSettingsMusicTrackHint),
-                options: options.map {
-                    SettingsPresentation.MusicTrackOption(
-                        id: $0.id,
-                        title: AppStrings.text(id: $0.displayNameID)
-                    )
-                },
-                selectedTrackID: selected?.id ?? snap.musicTrackID(for: game),
-                creditSummary: selected?.credit.summaryLine ?? "",
-                attributionNotice: selected?.credit.attributionNotice
-            )
-        }
-        return SettingsPresentation(
-            title: AppStrings.text(.uiSettingsTitle),
-            backTitle: AppStrings.text(.uiSettingsBack),
-            themeTitle: AppStrings.text(.uiSettingsTheme),
-            themeOptions: themeCatalog.selectableThemes.map {
-                SettingsPresentation.ThemeOption(
-                    id: $0.id,
-                    title: AppStrings.text(id: $0.displayNameID)
-                )
-            },
-            selectedThemeID: visualTheme.id,
-            musicTrackGroups: musicGroups,
-            reduceMotionTitle: AppStrings.text(.uiSettingsReduceMotion),
-            reduceMotionDetail: AppStrings.text(.uiSettingsReduceMotionDetail),
-            reduceMotionEnabled: snap.reduceMotionEnabled,
-            musicVolumeTitle: AppStrings.text(.uiSettingsMusicVolume),
-            musicVolume: snap.musicVolume,
-            effectsVolumeTitle: AppStrings.text(.uiSettingsEffectsVolume),
-            effectsVolume: snap.effectsVolume,
-            muteTitle: AppStrings.text(.uiSettingsMute),
-            isMuted: snap.isMuted
+        PresentationFactory.settings(
+            snapshot: settingsSnapshot,
+            musicTrackCatalog: musicTrackCatalog,
+            themeCatalog: themeCatalog,
+            selectedThemeID: visualTheme.id
         )
     }
 
     var outcomePresentation: OutcomePresentation {
-        if isCaveMode {
-            return OutcomePresentation(
+        PresentationFactory.outcome(
+            PresentationFactory.OutcomeInput(
+                isCaveMode: isCaveMode,
                 title: outcomeTitle,
-                metrics: [
-                    OutcomeMetricLine(
-                        id: "diamonds",
-                        title: AppStrings.text(.uiHudDiamonds),
-                        value: "\(completedGoalCount)/\(totalGoalCount)"
-                    ),
-                    OutcomeMetricLine(
-                        id: "time",
-                        title: AppStrings.text(.uiHudTime),
-                        value: String(moveCount)
-                    ),
-                    OutcomeMetricLine(
-                        id: "score",
-                        title: AppStrings.text(.uiHudScore),
-                        value: String(pushCount)
-                    ),
-                ],
-                records: [],
                 hint: outcomeHint,
                 primaryTitle: outcomePrimaryTitle,
-                playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
-                playAgainEnabled: canRestart,
-                undoTitle: AppStrings.text(.uiOutcomeUndo),
-                undoEnabled: false,
-                levelSelectTitle: AppStrings.text(.uiLaunchBackToGames)
+                moveCount: moveCount,
+                pushCount: pushCount,
+                completedGoalCount: completedGoalCount,
+                totalGoalCount: totalGoalCount,
+                canRestart: canRestart,
+                canUndo: canUndo,
+                bestMoveCount: outcomeBestMoveCount,
+                bestPushCount: outcomeBestPushCount,
+                newBestMoves: outcomeNewBestMoves,
+                newBestPushes: outcomeNewBestPushes
             )
-        }
-
-        var records: [OutcomeRecordLine] = []
-        if let bestMoves = outcomeBestMoveCount {
-            records.append(
-                OutcomeRecordLine(
-                    title: AppStrings.text(.uiOutcomeBestMoves),
-                    value: String(bestMoves),
-                    isNewRecord: outcomeNewBestMoves,
-                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordMoves)
-                )
-            )
-        }
-        if let bestPushes = outcomeBestPushCount {
-            records.append(
-                OutcomeRecordLine(
-                    title: AppStrings.text(.uiOutcomeBestPushes),
-                    value: String(bestPushes),
-                    isNewRecord: outcomeNewBestPushes,
-                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordPushes)
-                )
-            )
-        }
-        return OutcomePresentation(
-            title: outcomeTitle,
-            metrics: [
-                OutcomeMetricLine(
-                    id: "moves",
-                    title: AppStrings.text(.uiHudMoves),
-                    value: String(moveCount)
-                ),
-                OutcomeMetricLine(
-                    id: "pushes",
-                    title: AppStrings.text(.uiHudPushes),
-                    value: String(pushCount)
-                ),
-                OutcomeMetricLine(
-                    id: "goals",
-                    title: AppStrings.text(.uiHudGoals),
-                    value: "\(completedGoalCount)/\(totalGoalCount)"
-                ),
-            ],
-            records: records,
-            hint: outcomeHint,
-            primaryTitle: outcomePrimaryTitle,
-            playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
-            playAgainEnabled: canRestart,
-            undoTitle: AppStrings.text(.uiOutcomeUndo),
-            undoEnabled: canUndo,
-            levelSelectTitle: AppStrings.text(.uiOutcomeLevelSelect)
         )
     }
 
     var boardAccessibilityLabel: String {
-        "\(levelTitle), \(AppStrings.text(.uiBoardLabel))"
+        PresentationFactory.boardAccessibilityLabel(levelTitle: levelTitle)
     }
 
     var boardAccessibilityValue: String {
-        guard let snapshot = scene.currentSnapshot else {
-            return AppStrings.text(.uiBoardUnavailable)
-        }
-        let player = snapshot.player.position
-        let position =
-            "\(AppStrings.text(.uiBoardPlayer)) "
-            + "\(AppStrings.text(.uiBoardColumn)) \(player.column + 1), "
-            + "\(AppStrings.text(.uiBoardRow)) \(player.row + 1). "
-        if isCaveMode {
-            return position
-                + "\(AppStrings.text(.uiHudDiamonds)) "
-                + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
-                + "\(AppStrings.text(.uiHudTime)) \(snapshot.moveCount), "
-                + "\(AppStrings.text(.uiHudScore)) \(snapshot.pushCount)."
-        }
-        return position
-            + "\(AppStrings.text(.uiHudGoals)) "
-            + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
-            + "\(AppStrings.text(.uiHudMoves)) \(snapshot.moveCount), "
-            + "\(AppStrings.text(.uiHudPushes)) \(snapshot.pushCount)."
+        PresentationFactory.boardAccessibilityValue(
+            snapshot: scene.currentSnapshot,
+            isCaveMode: isCaveMode
+        )
     }
 
     // MARK: - Lifecycle
@@ -470,7 +280,7 @@ final class SokobanPlayController: ObservableObject {
 
         let levelID = id ?? currentLevelID
         guard let descriptor = catalog.descriptor(id: levelID) else {
-            session = nil
+            setActivePlay(nil)
             presentationPhase = .faulted
             faultMessage = "Unknown level: \(levelID)"
             router.enterModalBlocked()
@@ -490,7 +300,7 @@ final class SokobanPlayController: ObservableObject {
             let resolvedShowIntro = shouldShowIntro(for: descriptor, override: showIntro)
             bootstrapSession(newSession, descriptor: descriptor, showIntro: resolvedShowIntro)
         } catch {
-            session = nil
+            setActivePlay(nil)
             presentationPhase = .faulted
             faultMessage = "Failed to load level: \(error)"
             router.enterModalBlocked()
@@ -568,12 +378,11 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func advanceCaveSimulation() {
-        guard isCaveMode, let caveSession else { return }
+        guard case .cave(let caveSession) = activePlay else { return }
         guard presentationPhase == .playing else { return }
         guard caveSession.phase == .playing || caveSession.phase == .ready else { return }
         guard let emission = caveSession.advance(to: clock.now()) else { return }
-        scene.apply(emission.render)
-        audioDirector.apply(emission.audio)
+        emissions.apply(emission)
         applyEmissionSideEffects(emission)
         refreshPublishedState()
     }
@@ -582,8 +391,8 @@ final class SokobanPlayController: ObservableObject {
         guard event.type == .keyUp else { return false }
         guard let direction = InputMapper.moveDirection(keyCode: event.keyCode) else { return false }
         moveHoldRepeater.noteKeyUp(keyCode: event.keyCode)
-        if isCaveMode {
-            caveSession?.noteDirectionUp(direction)
+        if case .cave(let caveSession) = activePlay {
+            caveSession.noteDirectionUp(direction)
         }
         return true
     }
@@ -609,213 +418,119 @@ final class SokobanPlayController: ObservableObject {
         guard let command = OverlayMenuCommandMapper.command(from: event) else {
             return false
         }
-        switch presentationPhase {
-        case .gameSelection:
-            return handleGameSelectionCommand(command, isRepeat: event.isARepeat)
-        case .launchMenu:
-            return handleLaunchMenuCommand(command, isRepeat: event.isARepeat)
-        case .paused:
-            return handlePauseMenuCommand(command, isRepeat: event.isARepeat)
-        case .levelSelection:
-            return handleLevelSelectionCommand(command, isRepeat: event.isARepeat)
-        case .settings:
-            return handleSettingsMenuCommand(command, isRepeat: event.isARepeat)
-        case .help:
-            return handleHelpMenuCommand(command, isRepeat: event.isARepeat)
-        case .outcomeAwaitingChoice:
-            return handleOutcomeMenuCommand(command, isRepeat: event.isARepeat)
-        default:
+        let result = OverlayMenuNavigator.resolve(
+            phase: presentationPhase,
+            command: command,
+            isRepeat: event.isARepeat,
+            focus: overlayFocusState,
+            context: overlayNavigationContext
+        )
+        return applyOverlayNavigationResult(result)
+    }
+
+    private var overlayFocusState: OverlayFocusState {
+        OverlayFocusState(
+            gameSelection: focusedGameSelectionAction,
+            launch: focusedLaunchAction,
+            pause: focusedPauseAction,
+            levelSelectionID: focusedLevelSelectionID,
+            settingsID: focusedSettingsID,
+            outcome: focusedOutcomeAction
+        )
+    }
+
+    private var overlayNavigationContext: OverlayNavigationContext {
+        OverlayNavigationContext(
+            levelSelectionOrder: levelSelectionFocusOrder,
+            settingsOrder: settingsFocusOrder,
+            outcomeOrder: outcomeFocusOrder,
+            musicTrackFocusGames: Dictionary(
+                uniqueKeysWithValues: settingsPresentation.musicTrackGroups.map { ($0.id, $0.game) }
+            ),
+            levelSelectionBackID: Self.levelSelectionBackID
+        )
+    }
+
+    private var outcomeFocusOrder: [OutcomeFocusedAction] {
+        var actions: [OutcomeFocusedAction] = [.primary]
+        if canRestart {
+            actions.append(.again)
+        }
+        if canUndo {
+            actions.append(.undo)
+        }
+        actions.append(.levelSelection)
+        return actions
+    }
+
+    private var levelSelectionFocusOrder: [String] {
+        catalog.levels.compactMap { descriptor in
+            levelAvailability(for: descriptor) == .locked ? nil : descriptor.id
+        } + [Self.levelSelectionBackID]
+    }
+
+    private var settingsFocusOrder: [String] {
+        SettingsOverlay.keyboardFocusOrder(
+            showsThemePicker: themeCatalog.selectableThemes.count > 1,
+            musicTrackFocusIDs: settingsPresentation.musicTrackGroups.map(\.id)
+        )
+    }
+
+    private static let levelSelectionBackID = "navigation.back"
+
+    @discardableResult
+    private func applyOverlayNavigationResult(_ result: OverlayNavigationResult) -> Bool {
+        switch result {
+        case .unhandled:
             return false
+        case .consumed:
+            return true
+        case .updateFocus(let focus):
+            applyOverlayFocus(focus)
+            return true
+        case .action(let action):
+            applyOverlayNavigationAction(action)
+            return true
         }
     }
 
-    private func handleGameSelectionCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        switch command {
-        case .moveUp, .moveLeft:
-            focusedGameSelectionAction =
-                KeyboardFocusCycle.move(
-                    from: focusedGameSelectionAction,
-                    in: GameSelectionAction.focusOrder,
-                    offset: -1
-                ) ?? .sokoban
-            return true
-        case .moveDown, .moveRight:
-            focusedGameSelectionAction =
-                KeyboardFocusCycle.move(
-                    from: focusedGameSelectionAction,
-                    in: GameSelectionAction.focusOrder,
-                    offset: 1
-                ) ?? .sokoban
-            return true
-        case .activate:
-            guard !isRepeat else { return true }
+    private func applyOverlayFocus(_ focus: OverlayFocusState) {
+        focusedGameSelectionAction = focus.gameSelection
+        focusedLaunchAction = focus.launch
+        focusedPauseAction = focus.pause
+        focusedLevelSelectionID = focus.levelSelectionID
+        focusedSettingsID = focus.settingsID
+        setFocusedOutcomeAction(focus.outcome)
+    }
+
+    private func applyOverlayNavigationAction(_ action: OverlayNavigationAction) {
+        switch action {
+        case .activateGameSelection:
             performFocusedGameSelectionAction()
-            return true
-        case .cancel:
-            return false
-        }
-    }
-
-    private func handleLaunchMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        switch command {
-        case .moveUp, .moveLeft:
-            focusedLaunchAction =
-                KeyboardFocusCycle.move(
-                    from: focusedLaunchAction,
-                    in: LaunchMenuAction.allCases,
-                    offset: -1
-                ) ?? .continueCampaign
-            return true
-        case .moveDown, .moveRight:
-            focusedLaunchAction =
-                KeyboardFocusCycle.move(
-                    from: focusedLaunchAction,
-                    in: LaunchMenuAction.allCases,
-                    offset: 1
-                ) ?? .continueCampaign
-            return true
-        case .activate:
-            guard !isRepeat else { return true }
+        case .activateLaunch:
             performFocusedLaunchAction()
-            return true
-        case .cancel:
-            guard !isRepeat else { return true }
-            returnToGameSelectionFromLaunchMenu()
-            return true
-        }
-    }
-
-    private func handlePauseMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        switch command {
-        case .moveUp, .moveLeft:
-            focusedPauseAction =
-                KeyboardFocusCycle.move(
-                    from: focusedPauseAction,
-                    in: PauseMenuAction.allCases,
-                    offset: -1
-                ) ?? .resume
-            return true
-        case .moveDown, .moveRight:
-            focusedPauseAction =
-                KeyboardFocusCycle.move(
-                    from: focusedPauseAction,
-                    in: PauseMenuAction.allCases,
-                    offset: 1
-                ) ?? .resume
-            return true
-        case .activate:
-            guard !isRepeat else { return true }
+        case .activatePause:
             performFocusedPauseAction()
-            return true
-        case .cancel:
-            // Escape while paused leaves to the top-level picker (router also routes Esc → pause).
-            guard !isRepeat else { return true }
-            openGameSelection()
-            return true
-        }
-    }
-
-    private func handleLevelSelectionCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        let order = levelSelectionFocusOrder
-        switch command {
-        case .moveUp, .moveLeft:
-            focusedLevelSelectionID =
-                KeyboardFocusCycle.move(
-                    from: focusedLevelSelectionID,
-                    in: order,
-                    offset: -1
-                ) ?? order.first ?? Self.levelSelectionBackID
-            return true
-        case .moveDown, .moveRight:
-            focusedLevelSelectionID =
-                KeyboardFocusCycle.move(
-                    from: focusedLevelSelectionID,
-                    in: order,
-                    offset: 1
-                ) ?? order.first ?? Self.levelSelectionBackID
-            return true
-        case .activate:
-            guard !isRepeat else { return true }
+        case .activateLevelSelection:
             performFocusedLevelSelectionAction()
-            return true
-        case .cancel:
-            guard !isRepeat else { return true }
+        case .cycleTheme(let offset):
+            cycleTheme(by: offset)
+        case .cycleMusicTrack(let game, let offset):
+            cycleMusicTrack(for: game, by: offset)
+        case .toggleReduceMotion:
+            updateReduceMotionEnabled(!settingsStore.reduceMotionEnabled)
+        case .toggleMute:
+            updateMuted(!settingsStore.isMuted)
+        case .dismissHelpOrSettings:
+            dismissHelpOrSettings()
+        case .cancelPauseToGameSelection:
+            openGameSelection()
+        case .cancelLaunchToGameSelection:
+            returnToGameSelectionFromLaunchMenu()
+        case .cancelLevelSelectionToLaunch:
             returnToLaunchMenu()
-            return true
-        }
-    }
-
-    private func handleSettingsMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        let order = settingsFocusOrder
-        switch command {
-        case .moveUp:
-            focusedSettingsID =
-                KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
-                ?? order.first ?? "back"
-            return true
-        case .moveDown:
-            focusedSettingsID =
-                KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
-                ?? order.first ?? "back"
-            return true
-        case .moveLeft:
-            if focusedSettingsID == "theme" {
-                cycleTheme(by: -1)
-            } else if let game = musicTrackGame(forFocusID: focusedSettingsID) {
-                cycleMusicTrack(for: game, by: -1)
-            } else {
-                focusedSettingsID =
-                    KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
-                    ?? order.first ?? "back"
-            }
-            return true
-        case .moveRight:
-            if focusedSettingsID == "theme" {
-                cycleTheme(by: 1)
-            } else if let game = musicTrackGame(forFocusID: focusedSettingsID) {
-                cycleMusicTrack(for: game, by: 1)
-            } else {
-                focusedSettingsID =
-                    KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
-                    ?? order.first ?? "back"
-            }
-            return true
-        case .activate:
-            guard !isRepeat else { return true }
-            return performFocusedSettingsAction()
-        case .cancel:
-            guard !isRepeat else { return true }
-            dismissHelpOrSettings()
-            return true
-        }
-    }
-
-    private func handleHelpMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        switch command {
-        case .activate, .cancel:
-            guard !isRepeat else { return true }
-            dismissHelpOrSettings()
-            return true
-        case .moveUp, .moveDown, .moveLeft, .moveRight:
-            return false
-        }
-    }
-
-    private func handleOutcomeMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
-        switch command {
-        case .moveUp, .moveLeft:
-            moveOutcomeFocus(by: -1)
-            return true
-        case .moveDown, .moveRight:
-            moveOutcomeFocus(by: 1)
-            return true
-        case .activate:
-            // Return/Space confirm is owned by ``GameplayInputRouter``.
-            return false
-        case .cancel:
-            guard !isRepeat else { return true }
+        case .performOutcomePrimary:
             performOutcomePrimaryAction()
-            return true
         }
     }
 
@@ -872,90 +587,14 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    @discardableResult
-    private func performFocusedSettingsAction() -> Bool {
-        switch focusedSettingsID {
-        case "theme":
-            cycleTheme(by: 1)
-            return true
-        case let id where musicTrackGame(forFocusID: id) != nil:
-            if let game = musicTrackGame(forFocusID: id) {
-                cycleMusicTrack(for: game, by: 1)
-            }
-            return true
-        case "reduceMotion":
-            updateReduceMotionEnabled(!settingsStore.reduceMotionEnabled)
-            return true
-        case "mute":
-            updateMuted(!settingsStore.isMuted)
-            return true
-        case "back":
-            dismissHelpOrSettings()
-            return true
-        default:
-            return false
-        }
-    }
-
-    private func moveOutcomeFocus(by offset: Int) {
-        let next = KeyboardFocusCycle.move(
-            from: focusedOutcomeAction,
-            in: outcomeFocusOrder,
-            offset: offset
-        )
-        if let next {
-            setFocusedOutcomeAction(next)
-        }
-    }
-
-    private var outcomeFocusOrder: [OutcomeFocusedAction] {
-        var actions: [OutcomeFocusedAction] = [.primary]
-        if canRestart {
-            actions.append(.again)
-        }
-        if canUndo {
-            actions.append(.undo)
-        }
-        actions.append(.levelSelection)
-        return actions
-    }
-
-    private var levelSelectionFocusOrder: [String] {
-        catalog.levels.compactMap { descriptor in
-            levelAvailability(for: descriptor) == .locked ? nil : descriptor.id
-        } + [Self.levelSelectionBackID]
-    }
-
-    private var settingsFocusOrder: [String] {
-        SettingsOverlay.keyboardFocusOrder(
-            showsThemePicker: themeCatalog.selectableThemes.count > 1,
-            musicTrackFocusIDs: settingsPresentation.musicTrackGroups.map(\.id)
-        )
-    }
-
-    private func musicTrackGame(forFocusID id: String) -> AudioGameMode? {
-        settingsPresentation.musicTrackGroups.first { $0.id == id }?.game
-    }
-
-    private static let levelSelectionBackID = "navigation.back"
-
     private func resetOverlayFocus(for phase: GamePresentationPhase) {
-        switch phase {
-        case .gameSelection:
-            focusedGameSelectionAction = .sokoban
-        case .launchMenu:
-            focusedLaunchAction = .continueCampaign
-        case .paused:
-            focusedPauseAction = .resume
-        case .levelSelection:
-            focusedLevelSelectionID = levelSelectionFocusOrder.first ?? Self.levelSelectionBackID
-        case .settings:
-            focusedSettingsID = settingsFocusOrder.first ?? "back"
-        case .outcomeAwaitingChoice:
-            focusedOutcomeAction = .primary
-        default:
-            break
-        }
+        applyOverlayFocus(
+            OverlayMenuNavigator.resetFocus(
+                for: phase,
+                focus: overlayFocusState,
+                context: overlayNavigationContext
+            )
+        )
     }
 
     func handleAppDeactivation() {
@@ -965,24 +604,10 @@ final class SokobanPlayController: ObservableObject {
         audioDirector.interrupt()
         Task { await runPersistence.flush() }
 
-        if isCaveMode, let caveSession {
-            switch (caveSession.phase, presentationPhase) {
-            case (.playing, .playing), (.ready, .playing):
-                pauseFromShell(alreadyInterrupted: true)
-            default:
-                break
-            }
-            return
-        }
-
-        guard let session else { return }
-
+        guard let play = activePlay, presentationPhase == .playing else { return }
         // Only pause when the player is actively playing — not during intro.
-        switch (session.phase, presentationPhase) {
-        case (.playing, .playing):
+        if play.canEnterPauseFromPlaying {
             pauseFromShell(alreadyInterrupted: true)
-        default:
-            break
         }
     }
 
@@ -1047,8 +672,7 @@ final class SokobanPlayController: ObservableObject {
         clearMoveHold()
         cancelShowOutcome()
         let emission = caveSession.restart()
-        scene.apply(emission.render)
-        audioDirector.apply(emission.audio)
+        emissions.apply(emission)
         presentationPhase = .playing
         router.enterGameplay()
         if appIsActive {
@@ -1063,28 +687,8 @@ final class SokobanPlayController: ObservableObject {
             openGameSelection()
             return
         }
-        if isCaveMode {
-            toggleCavePause()
-            return
-        }
-        guard let session else { return }
-        if presentationPhase == .playing, session.phase == .playing {
-            pauseFromShell()
-        }
-    }
-
-    /// Cave: Esc while playing opens pause; resume only via Pause-Menü „Fortsetzen“.
-    private func toggleCavePause() {
-        guard let caveSession else { return }
-        guard presentationPhase == .playing,
-              caveSession.phase == .playing || caveSession.phase == .ready
-        else { return }
-        caveSession.pause()
-        audioDirector.interrupt()
-        router.enterPaused()
-        presentationPhase = .paused
-        requestPauseOverlayFocus()
-        refreshPublishedState()
+        guard presentationPhase == .playing else { return }
+        pauseFromShell()
     }
 
     func resumeFromPauseOverlay() {
@@ -1165,8 +769,7 @@ final class SokobanPlayController: ObservableObject {
     /// Enters Sokoban from the top-level picker.
     func selectSokobanFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
-        isCaveMode = false
-        caveSession = nil
+        setActivePlay(nil)
         if progressPersistence.file.isFreshCampaign {
             startLevel(id: catalog.first.id, showIntro: true)
         } else {
@@ -1184,7 +787,6 @@ final class SokobanPlayController: ObservableObject {
         do {
             let level = try CaveDemoLevel.makeLevel()
             let newSession = try CaveSession(level: level, levelID: CaveDemoLevel.id)
-            session = nil
             clearMoveHold()
             cancelShowOutcome()
             scene.prepareForNewSession()
@@ -1193,8 +795,7 @@ final class SokobanPlayController: ObservableObject {
             applyAudioSettingsFromStore()
 
             let emission = newSession.start()
-            caveSession = newSession
-            isCaveMode = true
+            setActivePlay(.cave(newSession))
             currentLevelID = CaveDemoLevel.id
             levelTitle = CaveDemoLevel.title
             tutorialHintText = AppStrings.text(.uiCaveDemoHint)
@@ -1210,12 +811,12 @@ final class SokobanPlayController: ObservableObject {
             outcomeNewBestMoves = false
             outcomeNewBestPushes = false
 
-            scene.apply(emission.render)
-            audioDirector.apply(emission.audio)
+            emissions.apply(emission)
             presentationPhase = .playing
             router.enterGameplay()
             refreshPublishedState()
         } catch {
+            setActivePlay(nil)
             faultMessage = "Höhle konnte nicht geladen werden: \(error)"
             presentationPhase = .faulted
             router.enterModalBlocked()
@@ -1473,24 +1074,16 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func bootstrapFromPersistence() {
-        switch runPersistence.load() {
-        case .absent:
+        let decision = PlayBootstrapCoordinator.decide(
+            loadResult: runPersistence.load(),
+            isFreshCampaign: progressPersistence.file.isFreshCampaign
+        )
+        switch decision {
+        case .openGameSelection:
             openGameSelection()
-
-        case .loaded(let file):
-            if progressPersistence.file.isFreshCampaign {
-                // Mid-first-tutorial resume: still a fresh campaign, restore directly.
-                restoreRun(file)
-            } else {
-                // Non-fresh campaigns land on game selection; Sokoban hub via Continue.
-                openGameSelection()
-            }
-
-        case .invalid(let message, _):
-            enterRunRecovery(message: message)
-
-        case .readFailed(let message):
-            // Do not move the file; still allow a fresh start via recovery UI.
+        case .restoreRun(let file):
+            restoreRun(file)
+        case .enterRecovery(let message):
             enterRunRecovery(message: message)
         }
     }
@@ -1517,38 +1110,21 @@ final class SokobanPlayController: ObservableObject {
                 gameplayNotice = AppStrings.text(.uiDeadlockRecovered)
             }
         } catch {
-            if canRestartRunAfterContentChange(file, error: error) {
+            if SokobanRunContentChangePolicy.canRestartAfterContentChange(
+                file: file,
+                error: error,
+                levelExists: catalog.descriptor(id: file.levelID) != nil,
+                restartableSupersededHashes: Self.restartableSupersededTutorialHashes
+            ) {
                 // Known tutorial revisions restart in place; a generic content
                 // mismatch is only replaced when the run is untouched.
                 startLevel(id: file.levelID)
                 return
             }
-            let message = restoreFailureMessage(error)
+            let message = SokobanRunRestoreMessages.text(for: error)
             _ = runPersistence.quarantineLoadedInvalidFile(message: message)
             enterRunRecovery(message: message)
         }
-    }
-
-    private func canRestartRunAfterContentChange(
-        _ file: SokobanRunFileV1,
-        error: Error
-    ) -> Bool {
-        guard let failure = error as? SokobanRunRestoreFailure,
-            failure == .contentHashMismatch,
-            catalog.descriptor(id: file.levelID) != nil
-        else { return false }
-
-        if Self.restartableSupersededTutorialHashes[file.levelID]?
-            .contains(file.contentHash) == true
-        {
-            return true
-        }
-
-        return file.commands.isEmpty
-            && file.cursor == 0
-            && file.checkpoint.moveCount == 0
-            && file.checkpoint.pushCount == 0
-            && file.checkpoint.status == .playing
     }
 
     private func bootstrapSession(
@@ -1557,9 +1133,7 @@ final class SokobanPlayController: ObservableObject {
         showIntro: Bool
     ) {
         let emission = newSession.start()
-        session = newSession
-        caveSession = nil
-        isCaveMode = false
+        setActivePlay(.sokoban(newSession))
         scene.presentsCaveContent = false
         clearCompletionRecordingState()
         currentLevelID = descriptor.id
@@ -1569,8 +1143,7 @@ final class SokobanPlayController: ObservableObject {
         levelTitle = catalog.title(for: descriptor)
         tutorialHintText = catalog.tutorialHint(for: descriptor)
         configureOutcomeActions(for: descriptor.id)
-        scene.apply(emission.render)
-        audioDirector.apply(emission.audio)
+        emissions.apply(emission)
         applyEmissionSideEffects(emission)
         // Restored/completed runs use synchronize (no completion jingle).
         if newSession.phase == .outcomePresenting {
@@ -1627,7 +1200,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func enterRunRecovery(message: String) {
-        session = nil
+        setActivePlay(nil)
         presentationPhase = .runRecovery
         recoveryMessage = message
         faultMessage = nil
@@ -1640,9 +1213,7 @@ final class SokobanPlayController: ObservableObject {
     private func teardownSessionForNavigation(phase: GamePresentationPhase) {
         clearMoveHold()
         cancelShowOutcome()
-        session = nil
-        caveSession = nil
-        isCaveMode = false
+        setActivePlay(nil)
         scene.presentsCaveContent = false
         scene.prepareForNewSession()
         audioDirector.reset()
@@ -1652,36 +1223,6 @@ final class SokobanPlayController: ObservableObject {
         router.enterModalBlocked()
         resetOverlayFocus(for: phase)
         refreshPublishedState()
-    }
-
-    private func restoreFailureMessage(_ error: Error) -> String {
-        if let failure = error as? SokobanRunRestoreFailure {
-            switch failure {
-            case .unknownSchemaVersion(let version):
-                return "Run file schema version \(version) is not supported."
-            case .unknownCheckpointSchemaVersion(let version):
-                return "Checkpoint schema version \(version) is not supported."
-            case .unknownLevelID(let id):
-                return "Saved level “\(id)” is unknown."
-            case .contentHashMismatch:
-                return "Saved level content no longer matches this build."
-            case .ruleVersionMismatch(let found, let expected):
-                return "Rule version \(found) is incompatible (expected \(expected))."
-            case .tooManyCommands(let count):
-                return "Run file has too many commands (\(count))."
-            case .cursorOutOfRange(let cursor, let count):
-                return "Run file cursor \(cursor) is outside 0...\(count)."
-            case .checkpointInvalid(let detail):
-                return "Saved checkpoint is invalid: \(detail)"
-            case .commandBlockedDuringReplay(let index):
-                return "Saved move \(index) is blocked and cannot be replayed."
-            case .commandAfterTerminal(let index):
-                return "Saved move \(index) appears after the level already finished."
-            case .engineFault(let detail):
-                return "Could not restore run: \(detail)"
-            }
-        }
-        return "Could not restore run: \(error.localizedDescription)"
     }
 
     // MARK: - Private gameplay
@@ -1751,23 +1292,9 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
-        if isCaveMode, let caveSession {
-            guard caveSession.phase == .playing || caveSession.phase == .ready else { return }
-            clearMoveHold()
-            caveSession.pause()
-            if !alreadyInterrupted {
-                audioDirector.interrupt()
-            }
-            router.enterPaused()
-            presentationPhase = .paused
-            requestPauseOverlayFocus()
-            refreshPublishedState()
-            return
-        }
-
-        guard let session, session.phase == .playing else { return }
+        guard let play = activePlay, play.canEnterPauseFromPlaying else { return }
         clearMoveHold()
-        session.pause()
+        play.pause()
         if !alreadyInterrupted {
             audioDirector.interrupt()
         }
@@ -1782,18 +1309,8 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func resumeFromShell() {
-        if isCaveMode, let caveSession {
-            guard caveSession.phase == .paused else { return }
-            caveSession.resume()
-            audioDirector.resumePlayback()
-            router.enterGameplay()
-            presentationPhase = .playing
-            refreshPublishedState()
-            return
-        }
-
-        guard let session, session.phase == .paused else { return }
-        session.resume()
+        guard let play = activePlay, play.isPaused else { return }
+        play.resume()
         audioDirector.resumePlayback()
         router.enterGameplay()
         presentationPhase = .playing
@@ -1801,13 +1318,8 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func resumeIfPaused() {
-        if isCaveMode, let caveSession, caveSession.phase == .paused {
-            caveSession.resume()
-            audioDirector.resumePlayback()
-            return
-        }
-        guard let session, session.phase == .paused else { return }
-        session.resume()
+        guard let play = activePlay, play.isPaused else { return }
+        play.resume()
         audioDirector.resumePlayback()
     }
 
@@ -1825,8 +1337,7 @@ final class SokobanPlayController: ObservableObject {
                 continue
 
             case .emitted(let emission):
-                scene.apply(emission.render)
-                audioDirector.apply(emission.audio)
+                emissions.apply(emission)
                 applyEmissionSideEffects(emission)
 
             case .faulted(let message):
@@ -1837,7 +1348,7 @@ final class SokobanPlayController: ObservableObject {
                 router.enterModalBlocked()
                 scene.discardPendingPresentation()
                 audioDirector.reset()
-                session = nil
+                setActivePlay(nil)
                 refreshPublishedState()
                 return
             }
@@ -1874,17 +1385,17 @@ final class SokobanPlayController: ObservableObject {
             presentationPhase = .playing
             router.enterGameplay()
         case nil:
-            if isCaveMode {
-                if caveSession?.phase == .playing || caveSession?.phase == .ready {
+            guard let play = activePlay else { return }
+            switch play {
+            case .cave:
+                if play.phase == .playing || play.phase == .ready {
                     presentationPhase = .playing
                     if router.mode != .gameplay {
                         router.enterGameplay()
                     }
                 }
-                return
-            }
-            guard let session else { return }
-            if session.phase == .playing {
+            case .sokoban:
+                guard play.phase == .playing else { return }
                 // Keep intro until the player dismisses it; restart from intro dismisses first.
                 if presentationPhase != .levelIntro {
                     presentationPhase = .playing
@@ -1940,10 +1451,7 @@ final class SokobanPlayController: ObservableObject {
         cancelShowOutcome()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let terminal =
-                self.session?.phase == .outcomePresenting
-                || self.caveSession?.phase == .outcomePresenting
-            guard terminal else { return }
+            guard self.activePlay?.isOutcomePresenting == true else { return }
             guard self.presentationPhase != .outcomeAwaitingChoice else { return }
             self.enterOutcomeAwaitingChoice()
         }
@@ -1975,31 +1483,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func refreshPublishedState() {
-        if isCaveMode, let caveSession {
-            canUndo = false
-            canRedo = false
-            let sessionCommandsAllowed =
-                presentationPhase != .help && presentationPhase != .settings
-            canRestart =
-                sessionCommandsAllowed
-                && (caveSession.phase == .ready
-                    || caveSession.phase == .playing
-                    || caveSession.phase == .paused
-                    || caveSession.phase == .outcomePresenting)
-            canPause =
-                presentationPhase == .playing
-                && (caveSession.phase == .playing || caveSession.phase == .ready)
-            canResume = presentationPhase == .paused
-            if let snapshot = scene.currentSnapshot {
-                moveCount = snapshot.moveCount
-                pushCount = snapshot.pushCount
-                completedGoalCount = snapshot.completedGoalCount
-                totalGoalCount = snapshot.totalGoalCount
-            }
-            return
-        }
-
-        guard let session else {
+        guard let play = activePlay else {
             canUndo = false
             canRedo = false
             canPause = false
@@ -2008,27 +1492,12 @@ final class SokobanPlayController: ObservableObject {
             return
         }
 
-        // Help/settings overlays are modal: keep the paused session intact, but
-        // do not expose Undo/Redo/Restart (menu shortcuts would resumeIfPaused).
-        let sessionCommandsAllowed =
-            presentationPhase != .help
-            && presentationPhase != .settings
-
-        canUndo =
-            sessionCommandsAllowed
-            && session.undoCount > 0
-            && (session.canAcceptSessionCommand || session.phase == .paused)
-        canRedo =
-            sessionCommandsAllowed
-            && session.redoCount > 0
-            && (session.canAcceptSessionCommand || session.phase == .paused)
-        canRestart =
-            sessionCommandsAllowed
-            && (session.phase == .playing
-                || session.phase == .paused
-                || session.phase == .outcomePresenting)
-        canPause = presentationPhase == .playing && session.phase == .playing
-        canResume = presentationPhase == .paused
+        let caps = play.publishedCapabilities(presentationPhase: presentationPhase)
+        canUndo = caps.canUndo
+        canRedo = caps.canRedo
+        canRestart = caps.canRestart
+        canPause = caps.canPause
+        canResume = caps.canResume
 
         if let snapshot = scene.currentSnapshot {
             moveCount = snapshot.moveCount

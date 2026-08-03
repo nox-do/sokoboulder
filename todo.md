@@ -434,6 +434,16 @@ Arbeitspakete:
 - [x] Hygiene 2026-08-03: Profil-Rename, Docs/ADR, orphan `theme.standard.json`, `.tmp` gitignore
 - [ ] Manueller Playtest / Release-Gate
 
+### Shell-Refactor SokobanPlayController (2026-08-03)
+
+Extraktion leicht→schwer; Controller bleibt Orchestrierung, Views unverändert:
+
+- [x] `PresentationFactory` — Intro/Pause/Help/Settings/Outcome/A11y Mapping
+- [x] `OverlayMenuNavigator` — Fokus + Overlay-Commands (resolve → apply)
+- [x] `EmissionApplicator` — Scene+Audio paired halten
+- [x] `ActivePlaySession` — Sokoban|Cave Adapter; Pause/Resume/HUD-Caps
+- [x] `PlayBootstrapCoordinator` + Restore-Messages/ContentChangePolicy
+  (Restore-Edge-Cases bleiben im Controller, Entscheidungen/Copy ausgelagert)
 
 - Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
 - Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Leichtgewicht-Push-Suche

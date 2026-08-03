@@ -58,9 +58,9 @@ struct InputMapperTests {
         #expect(InputMapper.intent(from: event) == nil)
     }
 
-    @Test("unsupported keys are ignored")
+    @Test("Space maps to wait; unsupported keys are ignored")
     func unsupportedIgnored() {
-        #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.space)) == nil)
+        #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.space)) == .wait)
         #expect(InputMapper.intent(from: TestKeyEvent.keyDown(9, characters: "v")) == nil)
     }
 

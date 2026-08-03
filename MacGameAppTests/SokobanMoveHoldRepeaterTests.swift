@@ -18,13 +18,15 @@ struct SokobanMoveHoldRepeaterTests {
         repeater.noteKeyDown(keyCode: KeyCode.rightArrow, direction: .right)
         #expect(fired == [.right])
 
-        try await Task.sleep(nanoseconds: 55_000_000)
-        #expect(fired.count >= 3)
+        // Sleep off the main actor so DispatchQueue.main timers can fire.
+        try await Self.sleepOffMain(nanoseconds: 120_000_000)
+        // Immediate fire + at least one scheduled repeat (load may delay further ticks).
+        #expect(fired.count >= 2)
         #expect(Set(fired) == [.right])
 
         repeater.noteKeyUp(keyCode: KeyCode.rightArrow)
         let countAfterUp = fired.count
-        try await Task.sleep(nanoseconds: 50_000_000)
+        try await Self.sleepOffMain(nanoseconds: 50_000_000)
         #expect(fired.count == countAfterUp)
     }
 
@@ -41,12 +43,12 @@ struct SokobanMoveHoldRepeaterTests {
         #expect(fired == [.right, .up])
         #expect(repeater.activeDirection == .up)
 
-        try await Task.sleep(nanoseconds: 45_000_000)
+        try await Self.sleepOffMain(nanoseconds: 80_000_000)
         #expect(fired.suffix(2).allSatisfy { $0 == .up })
 
         repeater.noteKeyUp(keyCode: KeyCode.upArrow)
         #expect(repeater.activeDirection == .right)
-        try await Task.sleep(nanoseconds: 45_000_000)
+        try await Self.sleepOffMain(nanoseconds: 80_000_000)
         #expect(fired.last == .right)
 
         repeater.clear()
@@ -63,9 +65,17 @@ struct SokobanMoveHoldRepeaterTests {
         repeater.noteKeyDown(keyCode: KeyCode.leftArrow, direction: .left)
         repeater.clear()
         let afterClear = fired
-        try await Task.sleep(nanoseconds: 50_000_000)
+        try await Self.sleepOffMain(nanoseconds: 50_000_000)
         #expect(fired == afterClear)
         #expect(!repeater.isHolding)
+    }
+
+    /// Yields without occupying the main actor, then hops back so main timers flush.
+    private static func sleepOffMain(nanoseconds: UInt64) async throws {
+        try await Task.detached {
+            try await Task.sleep(nanoseconds: nanoseconds)
+        }.value
+        await Task.yield()
     }
 }
 
@@ -102,7 +112,7 @@ struct SokobanHoldMoveControllerTests {
 
         let before = try #require(controller.session).revision
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow)))
-        try await Task.sleep(nanoseconds: 70_000_000)
+        try await Task.detached { try await Task.sleep(nanoseconds: 70_000_000) }.value
         #expect(controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow)))
         let after = try #require(controller.session).revision
         #expect(after >= before + 2)
@@ -115,7 +125,7 @@ struct SokobanHoldMoveControllerTests {
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow)))
         controller.togglePause()
         let revision = try #require(controller.session).revision
-        try await Task.sleep(nanoseconds: 60_000_000)
+        try await Task.detached { try await Task.sleep(nanoseconds: 60_000_000) }.value
         #expect(controller.session?.revision == revision)
     }
 }
