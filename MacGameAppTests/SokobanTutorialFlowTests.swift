@@ -162,8 +162,7 @@ struct SokobanTutorialFlowTests {
         playMoves(controller, SokobanTutorialSolutions.level001)
         awaitOutcome(controller)
 
-        // Overlay Escape is wired to primary; exercise the same controller path.
-        controller.performOutcomePrimaryAction()
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.escape)))
         #expect(controller.currentLevelID == "sokoban.tutorial.002")
         #expect(controller.presentationPhase != .levelSelection)
         #expect(controller.presentationPhase != .launchMenu)

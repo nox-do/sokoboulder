@@ -4,21 +4,13 @@ import SwiftUI
 struct PauseOverlay: View {
     @Environment(\.visualTheme) private var theme
     let model: PausePresentation
-    let pauseFocusEpoch: UInt64
+    let focusedAction: PauseMenuAction
+    let onFocusChange: (PauseMenuAction) -> Void
     let onResume: () -> Void
     let onRestart: () -> Void
     let onSettings: () -> Void
     let onLevelSelection: () -> Void
     let onHelp: () -> Void
-    @FocusState private var focusedAction: PauseAction?
-
-    private enum PauseAction: Hashable, CaseIterable {
-        case resume
-        case restart
-        case settings
-        case levelSelection
-        case help
-    }
 
     var body: some View {
         ZStack {
@@ -56,67 +48,20 @@ struct PauseOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .defaultFocus($focusedAction, .resume)
-        .onAppear {
-            focusResumeButton()
-        }
-        .onChange(of: pauseFocusEpoch) { _, _ in
-            focusResumeButton()
-        }
-        .onMoveCommand { direction in
-            switch direction {
-            case .up, .left:
-                moveFocus(by: -1)
-            case .down, .right:
-                moveFocus(by: 1)
-            @unknown default:
-                break
-            }
-        }
-        .onKeyPress(.return) {
-            performFocusedAction()
-            return .handled
-        }
-        .onKeyPress(.space) {
-            performFocusedAction()
-            return .handled
-        }
     }
 
     private func themedButton(
         _ title: String,
-        action: PauseAction,
+        action: PauseMenuAction,
         primary: Bool,
         _ handler: @escaping () -> Void
     ) -> some View {
-        Button(title, action: handler)
-            .buttonStyle(.plain)
-            .focused($focusedAction, equals: action)
-            .themedFocus(isFocused: focusedAction == action, isPrimary: primary)
-            .frame(maxWidth: .infinity)
-    }
-
-    private func focusResumeButton() {
-        DispatchQueue.main.async {
-            focusedAction = .resume
+        Button(title) {
+            onFocusChange(action)
+            handler()
         }
-    }
-
-    private func moveFocus(by offset: Int) {
-        focusedAction = KeyboardFocusCycle.move(
-            from: focusedAction,
-            in: PauseAction.allCases,
-            offset: offset
-        )
-    }
-
-    private func performFocusedAction() {
-        switch focusedAction ?? .resume {
-        case .resume: onResume()
-        case .restart: onRestart()
-        case .settings: onSettings()
-        case .levelSelection: onLevelSelection()
-        case .help: onHelp()
-        }
+        .buttonStyle(.plain)
+        .themedFocus(isFocused: focusedAction == action, isPrimary: primary)
+        .frame(maxWidth: .infinity)
     }
 }

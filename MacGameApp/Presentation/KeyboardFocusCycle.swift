@@ -3,8 +3,8 @@ import Foundation
 /// Deterministic focus traversal used by game-style menus.
 ///
 /// The app owns this traversal instead of depending on the macOS
-/// "Full Keyboard Access" setting. Views map arrow commands to an offset and
-/// keep Return / Space activation aligned with the resulting focused item.
+/// "Full Keyboard Access" setting. Overlay key events are handled by
+/// ``SokobanPlayController`` via the window local monitor.
 enum KeyboardFocusCycle {
     static func move<Item: Equatable>(
         from current: Item?,

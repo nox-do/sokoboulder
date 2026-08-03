@@ -365,6 +365,7 @@ Vertragsentscheidungen:
 
 - Playtest der 20 Kampagnen-Level (nach 3 Tutorials freischaltbar)
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
+- [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
 - Phase 3.7 Cave-Spike (ADR Tick Semantics) / Phase 4+: Cave…
 - Cave-Musik-Asset (MP3/OGG) wenn Phase 4 startet

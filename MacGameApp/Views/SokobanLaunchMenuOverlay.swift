@@ -4,15 +4,6 @@ import SwiftUI
 struct SokobanLaunchMenuOverlay: View {
     @ObservedObject var controller: SokobanPlayController
     @Environment(\.visualTheme) private var theme
-    @FocusState private var focusedAction: LaunchAction?
-
-    private enum LaunchAction: Hashable, CaseIterable {
-        case continueCampaign
-        case selectLevel
-        case help
-        case settings
-        case resetProgress
-    }
 
     var body: some View {
         ZStack {
@@ -65,63 +56,24 @@ struct SokobanLaunchMenuOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .onAppear {
-            focusedAction = .continueCampaign
-        }
-        .onMoveCommand { direction in
-            switch direction {
-            case .up, .left:
-                focusedAction = KeyboardFocusCycle.move(
-                    from: focusedAction,
-                    in: LaunchAction.allCases,
-                    offset: -1
-                )
-            case .down, .right:
-                focusedAction = KeyboardFocusCycle.move(
-                    from: focusedAction,
-                    in: LaunchAction.allCases,
-                    offset: 1
-                )
-            @unknown default:
-                break
-            }
-        }
-        .onKeyPress(.return) {
-            performFocusedAction()
-            return .handled
-        }
-        .onKeyPress(.space) {
-            performFocusedAction()
-            return .handled
-        }
     }
 
     private func themedButton(
         _ title: String,
-        action: LaunchAction,
+        action: LaunchMenuAction,
         primary: Bool,
         _ handler: @escaping () -> Void
     ) -> some View {
-        Button(title, action: handler)
-            .buttonStyle(.plain)
-            .focused($focusedAction, equals: action)
-            .themedFocus(isFocused: focusedAction == action, isPrimary: primary)
-            .frame(maxWidth: .infinity)
-            .controlSize(.large)
-    }
-
-    private func performFocusedAction() {
-        switch focusedAction ?? .continueCampaign {
-        case .continueCampaign:
-            controller.continueCampaign()
-        case .selectLevel:
-            controller.openLevelSelection()
-        case .help:
-            controller.openHelpFromLaunchMenu()
-        case .settings:
-            controller.openSettingsFromLaunchMenu()
-        case .resetProgress:
-            controller.resetCampaignProgressFromLaunchMenu()
+        Button(title) {
+            controller.setFocusedLaunchAction(action)
+            handler()
         }
+        .buttonStyle(.plain)
+        .themedFocus(
+            isFocused: controller.focusedLaunchAction == action,
+            isPrimary: primary
+        )
+        .frame(maxWidth: .infinity)
+        .controlSize(.large)
     }
 }

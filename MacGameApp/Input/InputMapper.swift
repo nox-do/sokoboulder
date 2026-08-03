@@ -67,5 +67,6 @@ enum KeyCode {
     static let downArrow: UInt16 = 125
     static let upArrow: UInt16 = 126
     static let `return`: UInt16 = 36
+    static let keypadEnter: UInt16 = 76
     static let space: UInt16 = 49
 }

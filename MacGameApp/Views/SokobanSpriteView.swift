@@ -36,7 +36,7 @@ final class KeyHandlingSKView: SKView {
 
     override func keyDown(with event: NSEvent) {
         // While overlays own the keyboard, do not swallow events as first
-        // responder — forward so SwiftUI `.onMoveCommand` / `.onKeyPress` work.
+        // responder — unused keys can still reach AppKit menus / system handlers.
         guard claimsKeyboardFocus else {
             nextResponder?.keyDown(with: event)
             return

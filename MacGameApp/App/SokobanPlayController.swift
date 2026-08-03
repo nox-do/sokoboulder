@@ -52,8 +52,14 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var outcomeBestPushCount: Int?
     /// Keyboard-confirm target while the result overlay is visible.
     @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
-    /// Bumped when the pause overlay should reclaim keyboard focus (e.g. after Alt-Tab).
-    @Published private(set) var pauseFocusEpoch: UInt64 = 0
+    /// Launch-menu keyboard selection.
+    @Published private(set) var focusedLaunchAction: LaunchMenuAction = .continueCampaign
+    /// Pause-menu keyboard selection.
+    @Published private(set) var focusedPauseAction: PauseMenuAction = .resume
+    /// Level-selection keyboard selection (`navigation.back` or a level id).
+    @Published private(set) var focusedLevelSelectionID: String = "navigation.back"
+    /// Settings keyboard selection id (`theme`, `mute`, `back`, …).
+    @Published private(set) var focusedSettingsID: String = "back"
     /// Where help / settings return when dismissed.
     @Published private(set) var overlayReturnOrigin: OverlayReturnOrigin?
     /// Published mirror so SwiftUI invalidates when the nested settings store changes.
@@ -408,7 +414,7 @@ final class SokobanPlayController: ObservableObject {
         }
         switch router.routeDecision(event) {
         case .unhandled:
-            return false
+            return handleOverlayMenuKeyEvent(event)
         case .consumed:
             return true
         case .routed(let routed):
@@ -421,6 +427,296 @@ final class SokobanPlayController: ObservableObject {
                 dismissLevelIntro()
             }
             return true
+        }
+    }
+
+    /// Menu navigation / activate / cancel owned by the local key monitor path.
+    private func handleOverlayMenuKeyEvent(_ event: NSEvent) -> Bool {
+        guard let command = OverlayMenuCommandMapper.command(from: event) else {
+            return false
+        }
+        switch presentationPhase {
+        case .launchMenu:
+            return handleLaunchMenuCommand(command, isRepeat: event.isARepeat)
+        case .paused:
+            return handlePauseMenuCommand(command, isRepeat: event.isARepeat)
+        case .levelSelection:
+            return handleLevelSelectionCommand(command, isRepeat: event.isARepeat)
+        case .settings:
+            return handleSettingsMenuCommand(command, isRepeat: event.isARepeat)
+        case .help:
+            return handleHelpMenuCommand(command, isRepeat: event.isARepeat)
+        case .outcomeAwaitingChoice:
+            return handleOutcomeMenuCommand(command, isRepeat: event.isARepeat)
+        default:
+            return false
+        }
+    }
+
+    private func handleLaunchMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        switch command {
+        case .moveUp, .moveLeft:
+            focusedLaunchAction =
+                KeyboardFocusCycle.move(
+                    from: focusedLaunchAction,
+                    in: LaunchMenuAction.allCases,
+                    offset: -1
+                ) ?? .continueCampaign
+            return true
+        case .moveDown, .moveRight:
+            focusedLaunchAction =
+                KeyboardFocusCycle.move(
+                    from: focusedLaunchAction,
+                    in: LaunchMenuAction.allCases,
+                    offset: 1
+                ) ?? .continueCampaign
+            return true
+        case .activate:
+            guard !isRepeat else { return true }
+            performFocusedLaunchAction()
+            return true
+        case .cancel:
+            return false
+        }
+    }
+
+    private func handlePauseMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        switch command {
+        case .moveUp, .moveLeft:
+            focusedPauseAction =
+                KeyboardFocusCycle.move(
+                    from: focusedPauseAction,
+                    in: PauseMenuAction.allCases,
+                    offset: -1
+                ) ?? .resume
+            return true
+        case .moveDown, .moveRight:
+            focusedPauseAction =
+                KeyboardFocusCycle.move(
+                    from: focusedPauseAction,
+                    in: PauseMenuAction.allCases,
+                    offset: 1
+                ) ?? .resume
+            return true
+        case .activate:
+            guard !isRepeat else { return true }
+            performFocusedPauseAction()
+            return true
+        case .cancel:
+            // Escape is already handled by the gameplay router while paused.
+            return false
+        }
+    }
+
+    private func handleLevelSelectionCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        let order = levelSelectionFocusOrder
+        switch command {
+        case .moveUp, .moveLeft:
+            focusedLevelSelectionID =
+                KeyboardFocusCycle.move(
+                    from: focusedLevelSelectionID,
+                    in: order,
+                    offset: -1
+                ) ?? order.first ?? Self.levelSelectionBackID
+            return true
+        case .moveDown, .moveRight:
+            focusedLevelSelectionID =
+                KeyboardFocusCycle.move(
+                    from: focusedLevelSelectionID,
+                    in: order,
+                    offset: 1
+                ) ?? order.first ?? Self.levelSelectionBackID
+            return true
+        case .activate:
+            guard !isRepeat else { return true }
+            performFocusedLevelSelectionAction()
+            return true
+        case .cancel:
+            guard !isRepeat else { return true }
+            returnToLaunchMenu()
+            return true
+        }
+    }
+
+    private func handleSettingsMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        let order = settingsFocusOrder
+        switch command {
+        case .moveUp:
+            focusedSettingsID =
+                KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
+                ?? order.first ?? "back"
+            return true
+        case .moveDown:
+            focusedSettingsID =
+                KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
+                ?? order.first ?? "back"
+            return true
+        case .moveLeft:
+            if focusedSettingsID == "theme" {
+                cycleTheme(by: -1)
+            } else {
+                focusedSettingsID =
+                    KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
+                    ?? order.first ?? "back"
+            }
+            return true
+        case .moveRight:
+            if focusedSettingsID == "theme" {
+                cycleTheme(by: 1)
+            } else {
+                focusedSettingsID =
+                    KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
+                    ?? order.first ?? "back"
+            }
+            return true
+        case .activate:
+            guard !isRepeat else { return true }
+            return performFocusedSettingsAction()
+        case .cancel:
+            guard !isRepeat else { return true }
+            dismissHelpOrSettings()
+            return true
+        }
+    }
+
+    private func handleHelpMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        switch command {
+        case .activate, .cancel:
+            guard !isRepeat else { return true }
+            dismissHelpOrSettings()
+            return true
+        case .moveUp, .moveDown, .moveLeft, .moveRight:
+            return false
+        }
+    }
+
+    private func handleOutcomeMenuCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        switch command {
+        case .moveUp, .moveLeft:
+            moveOutcomeFocus(by: -1)
+            return true
+        case .moveDown, .moveRight:
+            moveOutcomeFocus(by: 1)
+            return true
+        case .activate:
+            // Return/Space confirm is owned by ``GameplayInputRouter``.
+            return false
+        case .cancel:
+            guard !isRepeat else { return true }
+            performOutcomePrimaryAction()
+            return true
+        }
+    }
+
+    private func performFocusedLaunchAction() {
+        switch focusedLaunchAction {
+        case .continueCampaign:
+            continueCampaign()
+        case .selectLevel:
+            openLevelSelection()
+        case .help:
+            openHelpFromLaunchMenu()
+        case .settings:
+            openSettingsFromLaunchMenu()
+        case .resetProgress:
+            resetCampaignProgressFromLaunchMenu()
+        }
+    }
+
+    private func performFocusedPauseAction() {
+        switch focusedPauseAction {
+        case .resume:
+            resumeFromPauseOverlay()
+        case .restart:
+            restartFromPauseOverlay()
+        case .settings:
+            openSettingsFromPause()
+        case .levelSelection:
+            openLevelSelectionFromPauseOverlay()
+        case .help:
+            openHelpFromPause()
+        }
+    }
+
+    private func performFocusedLevelSelectionAction() {
+        if focusedLevelSelectionID == Self.levelSelectionBackID {
+            returnToLaunchMenu()
+        } else {
+            startSelectedLevel(id: focusedLevelSelectionID)
+        }
+    }
+
+    @discardableResult
+    private func performFocusedSettingsAction() -> Bool {
+        switch focusedSettingsID {
+        case "theme":
+            cycleTheme(by: 1)
+            return true
+        case "reduceMotion":
+            updateReduceMotionEnabled(!settingsStore.reduceMotionEnabled)
+            return true
+        case "mute":
+            updateMuted(!settingsStore.isMuted)
+            return true
+        case "back":
+            dismissHelpOrSettings()
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func moveOutcomeFocus(by offset: Int) {
+        let next = KeyboardFocusCycle.move(
+            from: focusedOutcomeAction,
+            in: outcomeFocusOrder,
+            offset: offset
+        )
+        if let next {
+            setFocusedOutcomeAction(next)
+        }
+    }
+
+    private var outcomeFocusOrder: [OutcomeFocusedAction] {
+        var actions: [OutcomeFocusedAction] = [.primary]
+        if canRestart {
+            actions.append(.again)
+        }
+        if canUndo {
+            actions.append(.undo)
+        }
+        actions.append(.levelSelection)
+        return actions
+    }
+
+    private var levelSelectionFocusOrder: [String] {
+        catalog.levels.compactMap { descriptor in
+            levelAvailability(for: descriptor) == .locked ? nil : descriptor.id
+        } + [Self.levelSelectionBackID]
+    }
+
+    private var settingsFocusOrder: [String] {
+        SettingsOverlay.keyboardFocusOrder(
+            showsThemePicker: themeCatalog.selectableThemes.count > 1
+        )
+    }
+
+    private static let levelSelectionBackID = "navigation.back"
+
+    private func resetOverlayFocus(for phase: GamePresentationPhase) {
+        switch phase {
+        case .launchMenu:
+            focusedLaunchAction = .continueCampaign
+        case .paused:
+            focusedPauseAction = .resume
+        case .levelSelection:
+            focusedLevelSelectionID = levelSelectionFocusOrder.first ?? Self.levelSelectionBackID
+        case .settings:
+            focusedSettingsID = settingsFocusOrder.first ?? "back"
+        case .outcomeAwaitingChoice:
+            focusedOutcomeAction = .primary
+        default:
+            break
         }
     }
 
@@ -548,6 +844,7 @@ final class SokobanPlayController: ObservableObject {
         case .launchMenu:
             presentationPhase = .launchMenu
             router.enterModalBlocked()
+            resetOverlayFocus(for: .launchMenu)
         case .paused:
             presentationPhase = .paused
             router.enterPaused()
@@ -568,6 +865,7 @@ final class SokobanPlayController: ObservableObject {
         guard presentationPhase == .levelSelection else { return }
         presentationPhase = .launchMenu
         router.enterModalBlocked()
+        resetOverlayFocus(for: .launchMenu)
         refreshPublishedState()
     }
 
@@ -665,13 +963,29 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    /// Keeps router confirm and overlay Tab-focus aligned.
+    /// Keeps router confirm and overlay selection aligned.
     func setFocusedOutcomeAction(_ action: OutcomeFocusedAction) {
         if action == .undo, !canUndo {
             focusedOutcomeAction = .primary
             return
         }
         focusedOutcomeAction = action
+    }
+
+    func setFocusedLaunchAction(_ action: LaunchMenuAction) {
+        focusedLaunchAction = action
+    }
+
+    func setFocusedPauseAction(_ action: PauseMenuAction) {
+        focusedPauseAction = action
+    }
+
+    func setFocusedLevelSelectionID(_ id: String) {
+        focusedLevelSelectionID = id
+    }
+
+    func setFocusedSettingsID(_ id: String) {
+        focusedSettingsID = id
     }
 
     func restartFromOutcomeOverlay() {
@@ -875,6 +1189,7 @@ final class SokobanPlayController: ObservableObject {
         overlayReturnOrigin = origin
         presentationPhase = .settings
         router.enterModalBlocked()
+        resetOverlayFocus(for: .settings)
         refreshPublishedState()
     }
 
@@ -912,6 +1227,7 @@ final class SokobanPlayController: ObservableObject {
         presentationPhase = phase
         overlayReturnOrigin = nil
         router.enterModalBlocked()
+        resetOverlayFocus(for: phase)
         refreshPublishedState()
     }
 
@@ -991,7 +1307,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func requestPauseOverlayFocus() {
-        pauseFocusEpoch &+= 1
+        focusedPauseAction = .resume
     }
 
     private func resumeFromShell() {
@@ -1133,8 +1449,8 @@ final class SokobanPlayController: ObservableObject {
         // Open confirm gate; still-held keys stay in pressedKeyCodes so they are
         // not treated as a fresh Return/Space confirm.
         router.releaseOutcomeLocksPreservingPressedKeys()
-        focusedOutcomeAction = .primary
         configureOutcomeActions(for: currentLevelID)
+        resetOverlayFocus(for: .outcomeAwaitingChoice)
         refreshPublishedState()
     }
 

@@ -4,15 +4,8 @@ import SwiftUI
 struct SokobanLevelSelectionOverlay: View {
     @ObservedObject var controller: SokobanPlayController
     @Environment(\.visualTheme) private var theme
-    @FocusState private var focusedID: String?
 
     private static let backID = "navigation.back"
-
-    private var focusOrder: [String] {
-        controller.catalog.levels.compactMap { descriptor in
-            controller.levelAvailability(for: descriptor) == .locked ? nil : descriptor.id
-        } + [Self.backID]
-    }
 
     var body: some View {
         ZStack {
@@ -34,12 +27,14 @@ struct SokobanLevelSelectionOverlay: View {
                 .frame(maxHeight: 300)
 
                 Button(AppStrings.text(.uiLevelSelectBack)) {
+                    controller.setFocusedLevelSelectionID(Self.backID)
                     controller.returnToLaunchMenu()
                 }
                 .buttonStyle(.plain)
-                .focused($focusedID, equals: Self.backID)
-                .themedFocus(isFocused: focusedID == Self.backID, isPrimary: true)
-                .keyboardShortcut(.cancelAction)
+                .themedFocus(
+                    isFocused: controller.focusedLevelSelectionID == Self.backID,
+                    isPrimary: true
+                )
                 .frame(maxWidth: .infinity)
             }
             .padding(32)
@@ -51,36 +46,13 @@ struct SokobanLevelSelectionOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .onAppear {
-            focusedID = focusOrder.first
-        }
-        .onMoveCommand { direction in
-            switch direction {
-            case .up, .left:
-                moveFocus(by: -1)
-            case .down, .right:
-                moveFocus(by: 1)
-            @unknown default:
-                break
-            }
-        }
-        .onKeyPress(.return) {
-            performFocusedAction()
-            return .handled
-        }
-        .onKeyPress(.space) {
-            performFocusedAction()
-            return .handled
-        }
-        .onExitCommand {
-            controller.returnToLaunchMenu()
-        }
     }
 
     private func levelButton(for descriptor: SokobanLevelDescriptor) -> some View {
         let availability = controller.levelAvailability(for: descriptor)
         let enabled = availability != .locked
         return Button {
+            controller.setFocusedLevelSelectionID(descriptor.id)
             controller.startSelectedLevel(id: descriptor.id)
         } label: {
             HStack {
@@ -92,9 +64,8 @@ struct SokobanLevelSelectionOverlay: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
-        .focused($focusedID, equals: descriptor.id)
         .themedFocus(
-            isFocused: focusedID == descriptor.id,
+            isFocused: controller.focusedLevelSelectionID == descriptor.id,
             isEnabled: enabled,
             isPrimary: false
         )
@@ -108,23 +79,6 @@ struct SokobanLevelSelectionOverlay: View {
             AppStrings.text(.uiLevelSelectAvailable)
         case .completed:
             AppStrings.text(.uiLevelSelectCompleted)
-        }
-    }
-
-    private func moveFocus(by offset: Int) {
-        focusedID = KeyboardFocusCycle.move(
-            from: focusedID,
-            in: focusOrder,
-            offset: offset
-        )
-    }
-
-    private func performFocusedAction() {
-        guard let focusedID else { return }
-        if focusedID == Self.backID {
-            controller.returnToLaunchMenu()
-        } else {
-            controller.startSelectedLevel(id: focusedID)
         }
     }
 }

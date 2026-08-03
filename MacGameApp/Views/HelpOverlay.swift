@@ -5,7 +5,6 @@ struct HelpOverlay: View {
     @Environment(\.visualTheme) private var theme
     let model: HelpPresentation
     let onBack: () -> Void
-    @FocusState private var focusedID: String?
 
     var body: some View {
         ZStack {
@@ -65,15 +64,11 @@ struct HelpOverlay: View {
                 }
                 .frame(maxHeight: 280)
 
-                Button(model.backTitle) {
-                    onBack()
-                }
-                .focused($focusedID, equals: "back")
-                .keyboardShortcut(.cancelAction)
-                .buttonStyle(.plain)
-                .themedFocus(isFocused: focusedID == "back", isPrimary: true)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
+                Button(model.backTitle, action: onBack)
+                    .buttonStyle(.plain)
+                    .themedFocus(isFocused: true, isPrimary: true)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
             }
             .padding(32)
             .background(
@@ -85,17 +80,5 @@ struct HelpOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .onAppear {
-            focusedID = "back"
-        }
-        .onKeyPress(.return) {
-            onBack()
-            return .handled
-        }
-        .onKeyPress(.space) {
-            onBack()
-            return .handled
-        }
-        .onExitCommand(perform: onBack)
     }
 }

@@ -84,7 +84,8 @@ struct ContentView: View {
             case .paused:
                 PauseOverlay(
                     model: controller.pausePresentation,
-                    pauseFocusEpoch: controller.pauseFocusEpoch,
+                    focusedAction: controller.focusedPauseAction,
+                    onFocusChange: { controller.setFocusedPauseAction($0) },
                     onResume: { controller.resumeFromPauseOverlay() },
                     onRestart: { controller.restartFromPauseOverlay() },
                     onSettings: { controller.openSettingsFromPause() },
@@ -98,6 +99,8 @@ struct ContentView: View {
             case .settings:
                 SettingsOverlay(
                     model: controller.settingsPresentation,
+                    focusedID: controller.focusedSettingsID,
+                    onFocusChange: { controller.setFocusedSettingsID($0) },
                     onThemeChange: { controller.updateThemeID($0) },
                     onThemeCycle: { controller.cycleTheme(by: $0) },
                     onReduceMotionChange: { controller.updateReduceMotionEnabled($0) },
@@ -167,8 +170,8 @@ struct ContentView: View {
     /// Routes keys for this window independently of AppKit first-responder changes.
     ///
     /// During gameplay this is the reliable primary path; returning `nil` keeps the
-    /// same event from reaching ``KeyHandlingSKView`` a second time. Overlay keys
-    /// that the router does not own continue into SwiftUI's native focus system.
+    /// same event from reaching ``KeyHandlingSKView`` a second time. Overlay menu
+    /// keys are also owned here via ``SokobanPlayController/handleKeyEvent``.
     private func syncWindowKeyMonitor() {
         removeWindowKeyMonitor()
         guard let owningWindowNumber else { return }

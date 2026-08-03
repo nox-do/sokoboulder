@@ -4,6 +4,8 @@ import SwiftUI
 struct SettingsOverlay: View {
     @Environment(\.visualTheme) private var theme
     let model: SettingsPresentation
+    let focusedID: String
+    let onFocusChange: (String) -> Void
     let onThemeChange: (String) -> Void
     let onThemeCycle: (Int) -> Void
     let onReduceMotionChange: (Bool) -> Void
@@ -11,14 +13,9 @@ struct SettingsOverlay: View {
     let onEffectsVolumeChange: (Double) -> Void
     let onMuteChange: (Bool) -> Void
     let onBack: () -> Void
-    @FocusState private var focusedID: String?
 
     private var showsThemePicker: Bool {
         model.themeOptions.count > 1
-    }
-
-    private var focusOrder: [String] {
-        Self.keyboardFocusOrder(showsThemePicker: showsThemePicker)
     }
 
     var body: some View {
@@ -45,6 +42,7 @@ struct SettingsOverlay: View {
                                 ForEach(model.themeOptions) { option in
                                     let selected = option.id == model.selectedThemeID
                                     Button {
+                                        onFocusChange("theme")
                                         onThemeChange(option.id)
                                     } label: {
                                         Text(option.title)
@@ -66,16 +64,11 @@ struct SettingsOverlay: View {
                                             )
                                     }
                                     .buttonStyle(.plain)
-                                    // The row owns keyboard focus; each option remains a direct
-                                    // mouse and accessibility target without joining the focus cycle.
-                                    .focusable(false)
                                     .accessibilityAddTraits(selected ? .isSelected : [])
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
-                            .focusable()
-                            .focused($focusedID, equals: "theme")
                             .themedFocus(isFocused: focusedID == "theme", isPrimary: true)
                             .accessibilityLabel(model.themeTitle)
                             .accessibilityValue(
@@ -88,7 +81,10 @@ struct SettingsOverlay: View {
                     Toggle(
                         isOn: Binding(
                             get: { model.reduceMotionEnabled },
-                            set: onReduceMotionChange
+                            set: {
+                                onFocusChange("reduceMotion")
+                                onReduceMotionChange($0)
+                            }
                         )
                     ) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -98,7 +94,6 @@ struct SettingsOverlay: View {
                                 .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
                         }
                     }
-                    .focused($focusedID, equals: "reduceMotion")
                     .themedFocus(isFocused: focusedID == "reduceMotion", isPrimary: false)
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -107,11 +102,13 @@ struct SettingsOverlay: View {
                         Slider(
                             value: Binding(
                                 get: { model.musicVolume },
-                                set: onMusicVolumeChange
+                                set: {
+                                    onFocusChange("music")
+                                    onMusicVolumeChange($0)
+                                }
                             ),
                             in: 0...1
                         )
-                        .focused($focusedID, equals: "music")
                         .tint(theme.ui.focusRing.swiftUIColor)
                     }
                     .themedFocus(isFocused: focusedID == "music", isPrimary: false)
@@ -122,11 +119,13 @@ struct SettingsOverlay: View {
                         Slider(
                             value: Binding(
                                 get: { model.effectsVolume },
-                                set: onEffectsVolumeChange
+                                set: {
+                                    onFocusChange("effects")
+                                    onEffectsVolumeChange($0)
+                                }
                             ),
                             in: 0...1
                         )
-                        .focused($focusedID, equals: "effects")
                         .tint(theme.ui.focusRing.swiftUIColor)
                     }
                     .themedFocus(isFocused: focusedID == "effects", isPrimary: false)
@@ -135,17 +134,18 @@ struct SettingsOverlay: View {
                         model.muteTitle,
                         isOn: Binding(
                             get: { model.isMuted },
-                            set: onMuteChange
+                            set: {
+                                onFocusChange("mute")
+                                onMuteChange($0)
+                            }
                         )
                     )
-                    .focused($focusedID, equals: "mute")
                     .themedFocus(isFocused: focusedID == "mute", isPrimary: false)
 
                     Button(model.backTitle) {
+                        onFocusChange("back")
                         onBack()
                     }
-                    .focused($focusedID, equals: "back")
-                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.plain)
                     .themedFocus(isFocused: focusedID == "back", isPrimary: true)
                     .frame(maxWidth: .infinity)
@@ -166,61 +166,6 @@ struct SettingsOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .onAppear {
-            focusedID = focusOrder.first
-        }
-        .onMoveCommand { direction in
-            switch direction {
-            case .up:
-                moveFocus(by: -1)
-            case .down:
-                moveFocus(by: 1)
-            case .left:
-                if focusedID == "theme" {
-                    onThemeCycle(-1)
-                }
-            case .right:
-                if focusedID == "theme" {
-                    onThemeCycle(1)
-                }
-            @unknown default:
-                break
-            }
-        }
-        .onKeyPress(.return) {
-            performFocusedAction()
-        }
-        .onKeyPress(.space) {
-            performFocusedAction()
-        }
-        .onExitCommand(perform: onBack)
-    }
-
-    private func moveFocus(by offset: Int) {
-        focusedID = KeyboardFocusCycle.move(
-            from: focusedID,
-            in: focusOrder,
-            offset: offset
-        )
-    }
-
-    private func performFocusedAction() -> KeyPress.Result {
-        switch focusedID {
-        case "theme":
-            onThemeCycle(1)
-            return .handled
-        case "reduceMotion":
-            onReduceMotionChange(!model.reduceMotionEnabled)
-            return .handled
-        case "mute":
-            onMuteChange(!model.isMuted)
-            return .handled
-        case "back":
-            onBack()
-            return .handled
-        default:
-            return .ignored
-        }
     }
 }
 

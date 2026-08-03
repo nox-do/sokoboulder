@@ -3,7 +3,7 @@ import SwiftUI
 /// Shared result overlay driven by ``OutcomePresentation``.
 ///
 /// Return/Space confirmation is routed through ``GameplayInputRouter`` only —
-/// no `.defaultAction` shortcut, so a skip-Return cannot also confirm.
+/// no `.defaultAction` shortcut, so a held completing-move key cannot also confirm.
 struct OutcomeOverlay: View {
     @Environment(\.visualTheme) private var theme
     let model: OutcomePresentation
@@ -13,15 +13,6 @@ struct OutcomeOverlay: View {
     let onPlayAgain: () -> Void
     let onUndo: () -> Void
     let onLevelSelection: () -> Void
-    @FocusState private var focusedActionState: OutcomeFocusedAction?
-
-    private var focusOrder: [OutcomeFocusedAction] {
-        var actions: [OutcomeFocusedAction] = [.primary]
-        if model.playAgainEnabled { actions.append(.again) }
-        if model.undoEnabled { actions.append(.undo) }
-        actions.append(.levelSelection)
-        return actions
-    }
 
     var body: some View {
         ZStack {
@@ -111,30 +102,6 @@ struct OutcomeOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
-        .onAppear {
-            focusedActionState = focusedAction
-            onFocusChange(focusedAction)
-        }
-        .onChange(of: focusedActionState) { _, newValue in
-            if let newValue {
-                onFocusChange(newValue)
-            }
-        }
-        .onMoveCommand { direction in
-            switch direction {
-            case .up, .left:
-                moveFocus(by: -1)
-            case .down, .right:
-                moveFocus(by: 1)
-            @unknown default:
-                break
-            }
-        }
-        .onExitCommand {
-            // Escape continues the run (next level / overview), matching Return on
-            // the primary action — not Levelauswahl, which breaks campaign flow.
-            onPrimary()
-        }
     }
 
     private func themedButton(
@@ -144,27 +111,17 @@ struct OutcomeOverlay: View {
         primary: Bool,
         _ handler: @escaping () -> Void
     ) -> some View {
-        Button(title, action: handler)
-            .buttonStyle(.plain)
-            .focused($focusedActionState, equals: action)
-            .disabled(!enabled)
-            .themedFocus(
-                isFocused: focusedActionState == action,
-                isEnabled: enabled,
-                isPrimary: primary
-            )
-            .frame(maxWidth: .infinity)
-    }
-
-    private func moveFocus(by offset: Int) {
-        let next = KeyboardFocusCycle.move(
-            from: focusedActionState,
-            in: focusOrder,
-            offset: offset
-        )
-        focusedActionState = next
-        if let next {
-            onFocusChange(next)
+        Button(title) {
+            onFocusChange(action)
+            handler()
         }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .themedFocus(
+            isFocused: focusedAction == action,
+            isEnabled: enabled,
+            isPrimary: primary
+        )
+        .frame(maxWidth: .infinity)
     }
 }

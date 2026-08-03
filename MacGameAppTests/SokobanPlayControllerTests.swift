@@ -66,14 +66,55 @@ struct SokobanPlayControllerTests {
         #expect(controller.faultMessage == "Failed to load game content: missing manifest")
     }
 
-    @Test("activation while paused bumps pause focus epoch")
+    @Test("activation while paused resets pause focus to resume")
     func activationWhilePausedRequestsResumeFocus() {
         let controller = makeController()
         controller.togglePause()
         #expect(controller.presentationPhase == .paused)
-        let before = controller.pauseFocusEpoch
+        controller.setFocusedPauseAction(.settings)
         controller.handleAppActivation()
-        #expect(controller.pauseFocusEpoch == before + 1)
+        #expect(controller.focusedPauseAction == .resume)
+    }
+
+    @Test("pause menu arrows and return are owned by the controller")
+    func pauseMenuKeyboardOwnedByController() {
+        let controller = makeController()
+        controller.togglePause()
+        #expect(controller.focusedPauseAction == .resume)
+
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
+        #expect(controller.focusedPauseAction == .restart)
+
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return)))
+        #expect(controller.presentationPhase == .playing)
+    }
+
+    @Test("launch menu arrows move selection")
+    func launchMenuArrowsMoveSelection() throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        _ = progress.recordCompletion(
+            levelID: catalog.first.id,
+            contentHash: catalog.first.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            moveCount: 1,
+            pushCount: 1,
+            nextLevelID: catalog.descriptor(after: catalog.first.id)?.id
+        )
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral()
+        )
+        #expect(controller.presentationPhase == .launchMenu)
+        #expect(controller.focusedLaunchAction == .continueCampaign)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
+        #expect(controller.focusedLaunchAction == .selectLevel)
     }
 
     @Test("completed campaign progress without a run opens launch menu")
