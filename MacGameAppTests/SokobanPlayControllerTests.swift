@@ -105,6 +105,47 @@ struct SokobanPlayControllerTests {
         #expect(controller.session == nil)
     }
 
+    @Test("launch menu reset clears progress and restarts tutorial 1")
+    func resetCampaignProgressFromLaunchMenu() throws {
+        let runPersistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        _ = progress.recordCompletion(
+            levelID: catalog.first.id,
+            contentHash: catalog.first.contentHash,
+            ruleVersion: SokobanRules.ruleVersion,
+            moveCount: 1,
+            pushCount: 1,
+            nextLevelID: catalog.descriptor(after: catalog.first.id)?.id
+        )
+        progress.markHintSeen("hint.already.seen")
+
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: runPersistence,
+            progressPersistence: progress,
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral()
+        )
+        #expect(controller.presentationPhase == .launchMenu)
+        #expect(!progress.file.isFreshCampaign)
+
+        controller.resetCampaignProgressFromLaunchMenu()
+
+        #expect(progress.file.isFreshCampaign)
+        #expect(progress.file.seenTutorialHintIDs.isEmpty)
+        #expect(progress.file.completedLevelIDs.isEmpty)
+        #expect(controller.currentLevelID == catalog.first.id)
+        #expect(controller.presentationPhase == .levelIntro)
+        if case .absent = runPersistence.load() {
+            // expected: run file removed
+        } else {
+            Issue.record("expected run file to be absent after reset")
+        }
+    }
+
     @Test("non-fresh campaign with a saved run still opens launch menu")
     func nonFreshProgressWithRunBootsToLaunchMenu() async throws {
         let directory = FileManager.default.temporaryDirectory

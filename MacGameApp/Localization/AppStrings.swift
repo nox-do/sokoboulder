@@ -36,6 +36,7 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiLaunchSelectLevel = "ui.launch.select_level"
     case uiLaunchHelp = "ui.launch.help"
     case uiLaunchSettings = "ui.launch.settings"
+    case uiLaunchResetProgress = "ui.launch.reset_progress"
     case uiLevelSelectTitle = "ui.level_select.title"
     case uiLevelSelectBack = "ui.level_select.back"
     case uiLevelSelectLocked = "ui.level_select.locked"
@@ -147,6 +148,7 @@ enum AppStrings {
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
         AppStringID.uiLaunchHelp.rawValue: "Hilfe",
         AppStringID.uiLaunchSettings.rawValue: "Einstellungen",
+        AppStringID.uiLaunchResetProgress.rawValue: "Spielstand zurücksetzen",
         AppStringID.uiLevelSelectTitle.rawValue: "Levelauswahl",
         AppStringID.uiLevelSelectBack.rawValue: "Zurück",
         AppStringID.uiLevelSelectLocked.rawValue: "Gesperrt",
@@ -171,7 +173,7 @@ enum AppStrings {
             "Festgefahrenen Spielstand bis vor den letzten irreversiblen Schub zurückgesetzt.",
 
         AppStringID.uiPauseTitle.rawValue: "Pause",
-        AppStringID.uiPauseHint.rawValue: "Escape setzt fort · Spielzug-Eingabe gesperrt",
+        AppStringID.uiPauseHint.rawValue: "Escape setzt fort",
         AppStringID.uiPauseResume.rawValue: "Fortsetzen",
         AppStringID.uiPauseRestart.rawValue: "Neu starten",
         AppStringID.uiPauseLevelSelect.rawValue: "Levelauswahl",

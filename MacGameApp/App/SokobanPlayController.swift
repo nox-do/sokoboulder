@@ -599,6 +599,15 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    /// Wipes run + campaign progress and restarts the first catalog level.
+    func resetCampaignProgressFromLaunchMenu() {
+        guard presentationPhase == .launchMenu else { return }
+        runPersistence.removeRunFile()
+        progressPersistence.resetToFresh(firstLevelID: catalog.first.id)
+        clearCompletionRecordingState()
+        startLevel(id: catalog.first.id, showIntro: true)
+    }
+
     func startSelectedLevel(id: String, showIntro: Bool? = nil) {
         guard progressPersistence.availability(for: id, in: catalog) != .locked else { return }
         progressPersistence.selectLevel(id)

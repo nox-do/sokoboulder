@@ -250,6 +250,12 @@ final class ProgressPersistence {
         persist()
     }
 
+    /// Clears unlocks, completions, records, and seen hints back to a fresh campaign.
+    func resetToFresh(firstLevelID: String) {
+        file = .fresh(firstLevelID: firstLevelID)
+        persist()
+    }
+
     func availability(
         for levelID: String,
         in catalog: SokobanContentCatalog

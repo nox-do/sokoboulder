@@ -327,6 +327,12 @@ Manuelles Playtest-Protokoll (kurz, vor Abnahme abhaken):
 6. Hard-Resync via Undo/Redo nach Abschluss: keine Feier-Wiederholung,
    Ziele wieder in Theme-Farbe, kein Erfolgsrahmen
 
+### 3.4 Playtest-Nachzug (2026-08-02)
+
+- [x] Pause-Hinweis: „Spielzug-Eingabe gesperrt“ entfernt (nur noch „Escape setzt fort“)
+- [x] Ergebnis: Escape → Primäraktion (nächstes Level), nicht Levelauswahl — Spielfluss
+- [x] Hauptmenü-Button „Spielstand zurücksetzen“ (Run + Progress → Tutorial 1)
+
 ## Als Nächstes
 
 - Manuelles 3.4-Playtest-Protokoll abhaken

@@ -11,6 +11,7 @@ struct SokobanLaunchMenuOverlay: View {
         case selectLevel
         case help
         case settings
+        case resetProgress
     }
 
     var body: some View {
@@ -45,6 +46,14 @@ struct SokobanLaunchMenuOverlay: View {
 
                 themedButton(AppStrings.text(.uiLaunchSettings), action: .settings, primary: false) {
                     controller.openSettingsFromLaunchMenu()
+                }
+
+                themedButton(
+                    AppStrings.text(.uiLaunchResetProgress),
+                    action: .resetProgress,
+                    primary: false
+                ) {
+                    controller.resetCampaignProgressFromLaunchMenu()
                 }
             }
             .padding(32)
@@ -111,6 +120,8 @@ struct SokobanLaunchMenuOverlay: View {
             controller.openHelpFromLaunchMenu()
         case .settings:
             controller.openSettingsFromLaunchMenu()
+        case .resetProgress:
+            controller.resetCampaignProgressFromLaunchMenu()
         }
     }
 }

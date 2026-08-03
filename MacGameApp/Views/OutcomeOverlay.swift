@@ -131,7 +131,9 @@ struct OutcomeOverlay: View {
             }
         }
         .onExitCommand {
-            onLevelSelection()
+            // Escape continues the run (next level / overview), matching Return on
+            // the primary action — not Levelauswahl, which breaks campaign flow.
+            onPrimary()
         }
     }
 

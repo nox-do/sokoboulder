@@ -84,6 +84,30 @@ struct ProgressPersistenceTests {
         #expect(!unlocked.isFreshCampaign)
     }
 
+    @Test("resetToFresh clears campaign progress on disk")
+    func resetToFreshPersists() throws {
+        let configuration = try ProgressPersistence.Configuration.ephemeral()
+        let persistence = ProgressPersistence(configuration: configuration, firstLevelID: "level.001")
+        _ = persistence.recordCompletion(
+            levelID: "level.001",
+            contentHash: "hash",
+            ruleVersion: 1,
+            moveCount: 5,
+            pushCount: 2,
+            nextLevelID: "level.002"
+        )
+        persistence.markHintSeen("hint.001")
+        #expect(!persistence.file.isFreshCampaign)
+
+        persistence.resetToFresh(firstLevelID: "level.001")
+        #expect(persistence.file.isFreshCampaign)
+        #expect(persistence.file.seenTutorialHintIDs.isEmpty)
+
+        let reloaded = ProgressPersistence(configuration: configuration, firstLevelID: "level.001")
+        #expect(reloaded.file.isFreshCampaign)
+        #expect(reloaded.file.unlockedLevelIDs == ["level.001"])
+    }
+
     @Test("newer progress schema keeps the original file and disables writes")
     func newerSchemaPreservesOriginalAndDisablesWrites() throws {
         let configuration = try ProgressPersistence.Configuration.ephemeral()

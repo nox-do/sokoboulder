@@ -366,7 +366,7 @@ von der macOS-Einstellung „Full Keyboard Access“ funktioniert:
 | Aktionsmenü | Auswahl bewegen | Auswahl bewegen | markierte Aktion | zurück |
 | Levelauswahl | Level bewegen | Level bewegen | Level öffnen | Übersicht |
 | Einstellungen | Zeile bewegen | Slider ändern | Toggle/Aktion | zurück |
-| Ergebnis | Aktion bewegen | Aktion bewegen | markierte Aktion | Levelauswahl |
+| Ergebnis | Aktion bewegen | Aktion bewegen | markierte Aktion | Primäraktion (nächstes Level / Übersicht) |
 
 Deaktivierte Aktionen werden übersprungen. Die Markierung bleibt jederzeit
 sichtbar und darf nicht hinter der SpriteKit-Ansicht verschwinden.

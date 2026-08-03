@@ -139,6 +139,34 @@ struct SokobanTutorialFlowTests {
         #expect(controller.moveCount == 0)
     }
 
+    @Test("Return after celebration advances to the next level")
+    func returnAfterCelebrationAdvances() throws {
+        let controller = makeController()
+        controller.dismissLevelIntro()
+        playMoves(controller, SokobanTutorialSolutions.level001)
+        awaitOutcome(controller)
+        #expect(controller.focusedOutcomeAction == .primary)
+        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
+        #expect(controller.currentLevelID == "sokoban.tutorial.002")
+        #expect(controller.presentationPhase == .levelIntro)
+    }
+
+    @Test("Escape on outcome performs primary action, not level selection")
+    func escapeOnOutcomeAdvancesNotLevelSelect() throws {
+        let controller = makeController()
+        controller.dismissLevelIntro()
+        playMoves(controller, SokobanTutorialSolutions.level001)
+        awaitOutcome(controller)
+
+        // Overlay Escape is wired to primary; exercise the same controller path.
+        controller.performOutcomePrimaryAction()
+        #expect(controller.currentLevelID == "sokoban.tutorial.002")
+        #expect(controller.presentationPhase != .levelSelection)
+        #expect(controller.presentationPhase != .launchMenu)
+    }
+
     @Test("focus loss during intro resumes audio on activation")
     func introFocusLossResumesAudioOnActivation() {
         let spy = SpyAudioPlaybackBackend()
