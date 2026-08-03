@@ -5,17 +5,20 @@ import GameCore
 
 @Suite("Cave content catalog")
 struct CaveDemoCatalogTests {
-    @Test("bundled cave catalog loads three demos")
+    @Test("bundled cave catalog loads demo campaign")
     func catalogLoads() throws {
         let catalog = try BundleContentLoader.loadCaveCatalog(
             from: Foundation.Bundle(for: SokobanPlayController.self)
         )
-        #expect(catalog.levels.count == 3)
+        #expect(catalog.levels.count == 33)
         #expect(catalog.first.id == "cave.demo.001")
         #expect(catalog.descriptor(after: "cave.demo.001")?.id == "cave.demo.002")
-        #expect(catalog.descriptor(after: "cave.demo.003") == nil)
+        #expect(catalog.descriptor(after: "cave.demo.003")?.id == "cave.demo.004")
+        #expect(catalog.descriptor(after: "cave.demo.033") == nil)
         #expect(catalog.title(for: catalog.first) == "Der erste Diamant")
+        #expect(catalog.title(for: catalog.levels[3]) == "Höhle 4")
         #expect(!catalog.tutorialHint(for: catalog.first).isEmpty)
+        #expect(catalog.tutorialHint(for: catalog.levels[3]).isEmpty)
     }
 
     @Test("compatibility helper loads first demo")

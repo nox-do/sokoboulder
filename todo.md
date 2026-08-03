@@ -408,14 +408,15 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Drei Demo-Level (`cave.demo.001`–`003`) + Progression „Nächstes Level“
 - [x] Cave-Intro/Ready-Karte (Diamanten, Zeit, Hinweis) vor dem ersten Zug
 - [x] Cave-JSON + `cave.manifest.json` + ContentStrings (ASCII-Katalog entfernt)
+- [x] Cave-Kampagne erweitert: `cave.demo.004`–`033` (alle 14×9, keine Kamera nötig); Titel-Platzhalter „Höhle N“
 - [ ] Optional: RenderSnapshot-eigene Cave-HUD-Felder statt Counter-Hack
 - [ ] Optional: Step-Varianten / manuelles Pegel-Playtest
+- [ ] Optional: echte DE-Titel für `004`–`033` (aktuell Platzhalter)
 
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 
 - eigenes Cave-Theme / bessere Sprites
-- Kamera für größere Höhlen
-- mehr als ein Demo-Level (kleine Kampagne)
+- Kamera für größere Höhlen (aktuell alle Demo-Level ≤14×9)
 - Timing-/Replay-Feinschliff; Cue-Pegel/Varianten optional
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen

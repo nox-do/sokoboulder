@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.027",
+  "game": "cave",
+  "titleID": "level.cave.demo.027.title",
+  "width": 14,
+  "height": 9,
+  "rows": [
+    "##############",
+    "#P...........#",
+    "#..#####.....#",
+    "#..O O #..*..#",
+    "#..    #.....#",
+    "#..## ##..*..#",
+    "#..*......E..#",
+    "#............#",
+    "##############"
+  ],
+  "rules": {
+    "requiredDiamonds": 3,
+    "timeLimitTicks": 540,
+    "diamondValue": 10,
+    "extraDiamondValue": 15
+  }
+}
