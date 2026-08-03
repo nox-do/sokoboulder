@@ -30,9 +30,10 @@ Für Phase 3.4 und den Standard-Renderer gilt Stil **B**:
 - **Keine Gameplay-Geometrie** darf außerhalb des sichtbaren Board-Bereichs
   liegen; HUD und Overlays belegen getrennte Layoutflächen.
 
-Pixel-Art mit ganzzahliger Skalierung ist eine **optionale Theme-Variante**
-([ADR 0004](0004-pixel-rendering-profile.md)), kein Vertrag des Standardpfads
-in Phase 3.4.
+Pixel-Art mit kontinuierlicher Größe und `.nearest`-Filter ist ein eigenes
+Rendering-Profil ([ADR 0004](0004-pixel-rendering-profile.md)). Der Vektorvertrag
+dieses ADR gilt für Themes ohne Pixel-Profil (Fallback `theme.standard`); das
+Produkt-Default seit Phase 3.8 ist ein Pixel-Theme (`theme.dungeon`).
 
 ## Alternativen
 
@@ -45,7 +46,8 @@ in Phase 3.4.
 
 - `GridGeometry` bleibt der alleinige Ort für Modell→SpriteKit-Umrechnung und
   Letterboxing.
-- Theme-JSONs liefern Farben, Konturen und Symbole; sie spezifizieren keine
-  Pixel-Tile-Größe.
-- Pixel-Art-Themes nutzen ADR 0004 (`pixelInteger` + Texture-Keys); der
-  bestehende Vektorvertrag für den Default bleibt gültig.
+- Theme-JSONs liefern Farben, Konturen und Symbole; die Laufzeit-`tileSize`
+  kommt aus `GridGeometry` (beide Profile stufenlos).
+- Pixel-Art-Themes nutzen ADR 0004 (`pixelNearest` + Texture-Keys). Der
+  Vektorvertrag bleibt für den Fallback-/Dev-Pfad gültig; Settings-Default ist
+  `theme.dungeon`.

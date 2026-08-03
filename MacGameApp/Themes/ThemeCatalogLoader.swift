@@ -86,12 +86,12 @@ enum ThemeCatalogLoader {
         return ThemeCatalog(themes: themes, defaultThemeID: manifest.defaultThemeID)
     }
 
-    /// ``pixelInteger`` themes must reference existing bundle resources.
+    /// ``pixelNearest`` themes must reference existing bundle resources.
     private static func verifyPixelTexturesIfNeeded(
         _ theme: VisualTheme,
         resources: any ContentResourceProvider
     ) throws {
-        guard theme.rendering.profile == .pixelInteger else { return }
+        guard theme.rendering.profile == .pixelNearest else { return }
         guard let textures = theme.rendering.textures else {
             throw ThemeDecodeError.missingTextures
         }

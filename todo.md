@@ -367,13 +367,13 @@ Vertragsentscheidungen:
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
-Plan: `docs/plans/3.8-pixel-art-vellidragon.md` · ADR 0004
+Plan: `docs/plans/3.8-pixel-art-themes.md` · ADR 0004
 
 Vertrag (aktuell):
 - **`theme.dungeon` Default** (Cobble/Stein/Kiste/Glow/Player-Mix; teils CC-BY / BY-SA)
 - **`theme.kenney`** zweites Theme (CC0), umschaltbar in Settings
 - `theme.standard` nur Code-Fallback / `DevVisualThemeSwitch.forceVectorStandard`
-- Schema V1 additiv; Pixel füllt kontinuierlich + `.nearest` (kein Integer-Cap); Entity-Inset 0
+- Schema V1 additiv; Profil **`pixelNearest`** (continuous + `.nearest`; Legacy-Alias `pixelInteger`)
 - Notices + lokale Lizenztexte unter `Textures/Licenses/`
 
 Arbeitspakete:
@@ -381,6 +381,7 @@ Arbeitspakete:
 - [x] Unit-/Integrationstests
 - [x] Dungeon-Assets: Floor/Wall-Kontrast + Player-Einzel-Frame
 - [x] Kenney-Assets: Floor kühl / Wall warm (Pattern gleich)
+- [x] Hygiene 2026-08-03: Profil-Rename, Docs/ADR, orphan `theme.standard.json`, `.tmp` gitignore
 - [ ] Manueller Playtest / Release-Gate
 
 

@@ -3,7 +3,7 @@
   "id": "theme.kenney",
   "displayNameID": "theme.kenney.name",
   "rendering": {
-    "profile": "pixelInteger",
+    "profile": "pixelNearest",
     "baseTilePoints": 32,
     "maxIntegerScale": 0,
     "textures": {

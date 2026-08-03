@@ -4,7 +4,7 @@ import Testing
 
 @testable import MacGameApp
 
-@Suite("Phase 3.4 theme contract")
+@Suite("Phase 3.4 / 3.8 theme contract")
 struct Phase34ThemeTests {
     @Test("theme color parses RGB and RGBA hex")
     func colorParsing() throws {
@@ -35,7 +35,7 @@ struct Phase34ThemeTests {
         #expect(
             catalog.selectableThemes.map(\.id) == [VisualTheme.dungeonID, VisualTheme.kenneyID]
         )
-        #expect(catalog.theme(id: VisualTheme.dungeonID)?.rendering.profile == .pixelInteger)
+        #expect(catalog.theme(id: VisualTheme.dungeonID)?.rendering.profile == .pixelNearest)
         #expect(catalog.theme(id: VisualTheme.dungeonID)?.rendering.maxIntegerScale == 0)
         #expect(
             catalog.resolvedTheme(preferredID: VisualTheme.standardID).id == VisualTheme.dungeonID
@@ -81,8 +81,32 @@ struct Phase34ThemeTests {
         #expect(theme.rendering.textures == nil)
     }
 
-    @Test("pixelInteger rendering requires textures and accepts known keys")
-    func pixelIntegerRenderingDecode() throws {
+    @Test("pixelNearest rendering requires textures and accepts known keys")
+    func pixelNearestRenderingDecode() throws {
+        let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
+              "rendering": {
+                "profile": "pixelNearest",
+                "baseTilePoints": 32,
+                "textures": {
+                  "floor": "Textures/dungeon/floor.png",
+                  "wall": "Textures/dungeon/wall.png",
+                  "goal": "Textures/dungeon/goal.png",
+                  "player": "Textures/dungeon/player.png",
+                  "crate": "Textures/dungeon/crate.png",
+                  "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
+                }
+              }
+            """)
+        let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
+        #expect(theme.rendering.profile == .pixelNearest)
+        #expect(theme.rendering.baseTilePoints == 32)
+        #expect(theme.rendering.maxIntegerScale == 0)
+        #expect(theme.rendering.textures?.floor == "Textures/dungeon/floor.png")
+        #expect(theme.rendering.textures?.crateOnGoal == "Textures/dungeon/crate-on-goal.png")
+    }
+
+    @Test("legacy pixelInteger profile alias decodes as pixelNearest")
+    func legacyPixelIntegerAlias() throws {
         let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
               "rendering": {
                 "profile": "pixelInteger",
@@ -98,18 +122,14 @@ struct Phase34ThemeTests {
               }
             """)
         let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
-        #expect(theme.rendering.profile == .pixelInteger)
-        #expect(theme.rendering.baseTilePoints == 32)
-        #expect(theme.rendering.maxIntegerScale == 0)
-        #expect(theme.rendering.textures?.floor == "Textures/dungeon/floor.png")
-        #expect(theme.rendering.textures?.crateOnGoal == "Textures/dungeon/crate-on-goal.png")
+        #expect(theme.rendering.profile == .pixelNearest)
     }
 
-    @Test("pixelInteger without textures is rejected")
-    func pixelIntegerRequiresTextures() throws {
+    @Test("pixelNearest without textures is rejected")
+    func pixelNearestRequiresTextures() throws {
         let json = Self.minimalThemeJSON(rendering: """
               "rendering": {
-                "profile": "pixelInteger",
+                "profile": "pixelNearest",
                 "baseTilePoints": 32
               }
             """)
@@ -164,7 +184,7 @@ struct Phase34ThemeTests {
 
         let dungeon = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
               "rendering": {
-                "profile": "pixelInteger",
+                "profile": "pixelNearest",
                 "baseTilePoints": 32,
                 "textures": {
                   "floor": "Textures/missing/floor.png",
@@ -294,7 +314,7 @@ struct Phase34ThemeIntegrationTests {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
         #expect(bundle.controller.visualTheme.id == VisualTheme.dungeonID)
         #expect(bundle.controller.scene.themeIDForTesting == VisualTheme.dungeonID)
-        #expect(bundle.controller.scene.renderingProfileForTesting == .pixelInteger)
+        #expect(bundle.controller.scene.renderingProfileForTesting == .pixelNearest)
         #expect(bundle.controller.settingsPresentation.themeOptions.count == 2)
 
         bundle.controller.updateThemeID("theme.missing")
@@ -303,7 +323,7 @@ struct Phase34ThemeIntegrationTests {
 
         bundle.controller.cycleTheme(by: 1)
         #expect(bundle.controller.visualTheme.id == VisualTheme.kenneyID)
-        #expect(bundle.controller.scene.renderingProfileForTesting == .pixelInteger)
+        #expect(bundle.controller.scene.renderingProfileForTesting == .pixelNearest)
 
         bundle.controller.cycleTheme(by: 1)
         #expect(bundle.controller.visualTheme.id == VisualTheme.dungeonID)
@@ -326,7 +346,7 @@ struct Phase34ThemeIntegrationTests {
 
         let scene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         scene.apply(theme: dungeon)
-        #expect(scene.renderingProfileForTesting == .pixelInteger)
+        #expect(scene.renderingProfileForTesting == .pixelNearest)
 
         let level = try SokobanLevelValidator.level(
             fromASCII: """
@@ -347,7 +367,7 @@ struct Phase34ThemeIntegrationTests {
         )
 
         let geometry = scene.geometryForTesting
-        #expect(geometry.renderingProfile == .pixelInteger)
+        #expect(geometry.renderingProfile == .pixelNearest)
         // 5×3 board in 640×480 → continuous fill 128
         #expect(geometry.tileSize == 128)
         #expect(scene.terrainNodeCountForTesting == 15)

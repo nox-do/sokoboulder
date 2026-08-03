@@ -71,10 +71,6 @@ enum BuiltInThemes {
         )
     }
 
-    static func fallback(id _: String) -> VisualTheme {
-        standard
-    }
-
     static func allFallbacks() -> [VisualTheme] {
         [standard]
     }

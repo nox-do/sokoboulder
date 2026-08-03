@@ -845,7 +845,8 @@ abdecken, bevor weitere Animationstypen ergänzt werden.
 ### 10.3 Skalierung
 
 - Logische Tile-Größe ist unabhängig von Pixelgröße.
-- Ganzzahlige Skalierung wird für Pixel-Art bevorzugt.
+- Vektor- und Pixel-Themes skalieren stufenlos; Pixel-Texturen nutzen
+  Nearest-Neighbor (`docs/adr/0004-pixel-rendering-profile.md`).
 - Bei nicht passendem Fenster entstehen Ränder statt verzerrter Tiles.
 - Die Kamera folgt im Boulder-Dash-Modus dem Spieler innerhalb weicher Grenzen.
 - Kleine Sokoban-Level werden vollständig sichtbar und zentriert dargestellt.
@@ -1290,7 +1291,8 @@ Wertsemantik und vollständige Snapshots zunächst vertretbar sind.
 - Die Systemeinstellung „Bewegung reduzieren“ wird berücksichtigt; Kamera,
   Animationen, Partikel und Bildschirmerschütterung lassen sich zusätzlich
   reduzieren.
-- Ein kontrastreiches Theme ist vorgesehen.
+- Themes unterscheiden Zustände nicht ausschließlich über Farbe; Graustufen-
+  Lesbarkeit bleibt Abnahmekriterium (kein separates High-Contrast-Theme).
 - Lautstärken für Musik und Effekte sind separat regelbar.
 - Fenstergröße und Vollbild werden unterstützt.
 - Overlays und Menüs verwenden SwiftUI, damit VoiceOver sinnvolle Elemente erhält.
@@ -1453,7 +1455,8 @@ oder ein gemeinsames `GameRules`-Protokoll.
 - HUD und Board in getrennten Layoutbereichen rendern; Overlays und Levelauswahl
   bleiben bei minimaler Fenstergröße scrollbar.
 - Ganzzahlige Pixel-Skalierung oder auflösungsunabhängigen Stil verbindlich
-  wählen und bei Resize/Hard-Resync ohne Flimmern neu aufbauen.
+  wählen und bei Resize/Hard-Resync ohne Flimmern neu aufbauen
+  (Entscheidung: Stil B / ADR 0003; Pixel-Profil später in 3.8 / ADR 0004).
 - Kompakte zugängliche Brettbeschreibung und Theme-Vertragsfähigkeit absichern.
 
 Abnahme:
@@ -1470,6 +1473,17 @@ Abnahme:
 - Renderer-, Fokus- und Resize-Verträge sind automatisiert getestet; ein kurzer
   manueller Tastatur-, Stumm-, Graustufen- und Reduce-Motion-Playtest ist
   protokolliert.
+
+### Phase 3.8: Pixel-Art-Themes
+
+- Rendering-Profil `pixelNearest` (kontinuierliche `tileSize` + Nearest-Filter).
+- Themes `theme.dungeon` (Default) und `theme.kenney`; Vektor als Code-Fallback.
+- Settings-Picker; Notices und Lizenztexte für gebündelte Texturen.
+
+Abnahme:
+
+- Theme-Wechsel live ohne Gameplay-Einfluss; Hard-Resync endet im Ziel-Snapshot.
+- Untermaß / Letterbox / Reduce Motion manuell playtestet (Release-Gate).
 
 ### Phase 3.7: Höhlenregel-Spike
 
@@ -1600,9 +1614,8 @@ Bereits entschieden (siehe `docs/adr/`):
 
 1. Keine GitHub-CI; lokale `swift test`-Abnahme.
 2. Primäres Auslieferungsformat ist eine `.dmg`.
-3. Auflösungsunabhängiger Shape-/Vektor-Stil für Brett-Skalierung
-   (`docs/adr/0003-resolution-independent-board-scaling.md`); Pixel-Art bleibt
-   eine spätere optionale Theme-Variante.
+3. Auflösungsunabhängige Brett-Skalierung (`docs/adr/0003-…`); Pixel-Profil
+   `pixelNearest` und Themes Dungeon/Kenney in `docs/adr/0004-…` (Phase 3.8).
 
 ## 24. Definition of Done für den ersten vertikalen Prototyp
 

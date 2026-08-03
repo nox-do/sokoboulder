@@ -146,7 +146,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private var usesPixelTextures: Bool {
-        theme.rendering.profile == .pixelInteger
+        theme.rendering.profile == .pixelNearest
     }
 
     private func syncGeometryProfile() {
@@ -683,9 +683,10 @@ final class SokobanBoardScene: SKScene {
             }
         }
 
-        if usesPixelTextures {
-            // Player has no separate on-goal texture; goal terrain shows through.
-        } else if let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode {
+        // Pixel themes: no separate player-on-goal marker; goal terrain shows through.
+        if !usesPixelTextures,
+           let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode
+        {
             marker.alpha = snapshot.cell(at: snapshot.player.position)?.terrain == .goal ? 1 : 0
         }
     }

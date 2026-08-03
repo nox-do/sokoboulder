@@ -188,7 +188,13 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
     private static func makeRenderingTokens(_ dto: RenderingDTO?) throws -> BoardRenderingTokens {
         guard let dto else { return .vectorContinuousDefault }
 
-        guard let profile = BoardRenderingProfile(rawValue: dto.profile) else {
+        // Accept legacy `pixelInteger` spelling from early 3.8 drafts.
+        let profile: BoardRenderingProfile
+        if let parsed = BoardRenderingProfile(rawValue: dto.profile) {
+            profile = parsed
+        } else if dto.profile == "pixelInteger" {
+            profile = .pixelNearest
+        } else {
             throw ThemeDecodeError.invalidRenderingProfile(dto.profile)
         }
 
@@ -208,8 +214,6 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
                 throw ThemeDecodeError.invalidMaxIntegerScale(raw)
             }
             maxScale = raw
-        } else if profile == .pixelInteger {
-            maxScale = 0
         } else {
             maxScale = 0
         }
@@ -221,7 +225,7 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
             textures = nil
         }
 
-        if profile == .pixelInteger, textures == nil {
+        if profile == .pixelNearest, textures == nil {
             throw ThemeDecodeError.missingTextures
         }
 

@@ -3,7 +3,7 @@
   "id": "theme.dungeon",
   "displayNameID": "theme.dungeon.name",
   "rendering": {
-    "profile": "pixelInteger",
+    "profile": "pixelNearest",
     "baseTilePoints": 32,
     "maxIntegerScale": 0,
     "textures": {

@@ -4,10 +4,10 @@ import Foundation
 /// Board tile-size / filtering contract. Branches over this — never hardcode theme IDs.
 enum BoardRenderingProfile: String, Codable, Sendable {
     case vectorContinuous
-    case pixelInteger
+    case pixelNearest
 }
 
-/// Bundle-relative texture paths for ``BoardRenderingProfile/pixelInteger``.
+/// Bundle-relative texture paths for ``BoardRenderingProfile/pixelNearest``.
 struct BoardTexturePaths: Equatable, Sendable {
     var floor: String
     var wall: String
@@ -24,12 +24,11 @@ struct BoardTexturePaths: Equatable, Sendable {
 /// Optional rendering block on a visual theme (Schema V1 additive).
 struct BoardRenderingTokens: Equatable, Sendable {
     var profile: BoardRenderingProfile
-    /// Logical tile edge in points (meaningful for ``BoardRenderingProfile/pixelInteger``).
+    /// Texture authoring hint (points); not used for runtime scale (ADR 0004).
     var baseTilePoints: CGFloat
-    /// Caps integer upscale so small boards do not become huge chunky tiles.
-    /// Ignored for ``BoardRenderingProfile/vectorContinuous``. `0` = uncapped.
+    /// Legacy JSON field; ignored for scale after continuous fill (ADR 0004). `0` = unused.
     var maxIntegerScale: Int
-    /// Required when ``profile`` is ``BoardRenderingProfile/pixelInteger``.
+    /// Required when ``profile`` is ``BoardRenderingProfile/pixelNearest``.
     var textures: BoardTexturePaths?
 
     static let vectorContinuousDefault = BoardRenderingTokens(

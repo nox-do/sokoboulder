@@ -403,7 +403,8 @@ Gamecontroller sind optional. Bei Verbindung:
 - Visuelle Warnungen besitzen, soweit sinnvoll, akustische Entsprechungen.
 - Text, HUD und Fokusmarkierungen bleiben bei verschiedenen Fenstergrößen gut
   lesbar.
-- Ein kontrastreiches Theme wird vorgesehen.
+- Themes unterscheiden Zustände nicht ausschließlich über Farbe; Graustufen-
+  Lesbarkeit bleibt Abnahmekriterium (kein separates High-Contrast-Theme).
 
 ### 9.2 Bewegung und Blinken
 

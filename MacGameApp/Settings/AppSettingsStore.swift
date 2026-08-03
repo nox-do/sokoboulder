@@ -8,7 +8,7 @@ import Foundation
 struct AppSettingsSnapshot: Equatable, Sendable {
     /// App-local reduce-motion preference (OR’d with the system setting).
     var reduceMotionEnabled: Bool
-    /// Selected visual theme ID (`theme.standard`, …).
+    /// Selected visual theme ID (`theme.dungeon`, `theme.kenney`, …).
     var themeID: String
     /// Music bus gain in `0...1`.
     var musicVolume: Double

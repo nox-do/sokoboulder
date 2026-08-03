@@ -61,3 +61,6 @@ Credentials/
 *.bak
 .vscode/
 .idea/
+
+# Local art / scratch (asset experiments, retints)
+.tmp/
