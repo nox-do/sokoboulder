@@ -3,8 +3,7 @@ import Foundation
 /// Runtime visual theme used by board renderer, HUD, and SwiftUI overlays.
 struct VisualTheme: Equatable, Sendable {
     static let standardID = "theme.standard"
-    static let highContrastID = "theme.highContrast"
-    static let knownIDs = [standardID, highContrastID]
+    static let knownIDs = [standardID]
 
     let id: String
     let displayNameID: String

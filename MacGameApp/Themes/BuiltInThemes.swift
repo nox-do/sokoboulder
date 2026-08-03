@@ -70,86 +70,12 @@ enum BuiltInThemes {
         )
     }
 
-    /// Independently authored high-contrast palette (not derived from standard).
-    static var highContrast: VisualTheme {
-        VisualTheme(
-            id: VisualTheme.highContrastID,
-            displayNameID: "theme.highContrast.name",
-            board: .init(
-                background: color("#000000"),
-                terrain: .init(
-                    voidFill: color("#000000"),
-                    floorFill: color("#FFFFFF"),
-                    floorStroke: color("#000000"),
-                    wallFill: color("#000000"),
-                    wallStroke: color("#FFFFFF"),
-                    wallSymbol: "▦",
-                    goalFill: color("#FFFF00"),
-                    goalStroke: color("#000000"),
-                    goalSymbol: "◎"
-                ),
-                entities: .init(
-                    playerFill: color("#00FFFF"),
-                    playerStroke: color("#000000"),
-                    playerSymbol: "◆",
-                    crateFill: color("#FF00FF"),
-                    crateStroke: color("#000000"),
-                    crateSymbol: "■"
-                ),
-                stateMarkers: .init(
-                    crateOnGoalSymbol: "✓",
-                    crateOnGoalColor: color("#000000"),
-                    playerOnGoalSymbol: "✓",
-                    playerOnGoalColor: color("#000000"),
-                    emptyGoalAccent: color("#000000")
-                ),
-                feedback: .init(
-                    blockedSymbol: "×",
-                    blockedColor: color("#FF0000"),
-                    goalEnteredSymbol: "✓",
-                    goalEnteredColor: color("#008000"),
-                    goalLeftSymbol: "↶",
-                    goalLeftColor: color("#FF8000"),
-                    pushHighlight: color("#FFFFFF"),
-                    completionFrame: color("#00FF00")
-                )
-            ),
-            ui: .init(
-                focusRing: color("#FFFF00"),
-                focusBackground: color("#000000"),
-                focusBorder: color("#FFFF00"),
-                focusForeground: color("#FFFF00"),
-                primaryFill: color("#FFFF00"),
-                primaryForeground: color("#000000"),
-                secondaryFill: color("#FFFFFF"),
-                secondaryForeground: color("#000000"),
-                disabledFill: color("#666666"),
-                disabledForeground: color("#FFFFFF"),
-                success: color("#00FF00"),
-                warning: color("#FF8000"),
-                error: color("#FF0000"),
-                overlayScrim: color("#000000CC"),
-                panelBackground: color("#000000"),
-                panelForeground: color("#FFFFFF"),
-                panelSecondary: color("#FFFF00"),
-                hudBackground: color("#000000"),
-                hudForeground: color("#FFFFFF"),
-                hudSecondary: color("#FFFF00")
-            )
-        )
-    }
-
-    static func fallback(id: String) -> VisualTheme {
-        switch id {
-        case VisualTheme.highContrastID:
-            return highContrast
-        default:
-            return standard
-        }
+    static func fallback(id _: String) -> VisualTheme {
+        standard
     }
 
     static func allFallbacks() -> [VisualTheme] {
-        [standard, highContrast]
+        [standard]
     }
 
     private static func color(_ hex: String) -> ThemeColor {

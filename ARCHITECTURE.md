@@ -1454,8 +1454,7 @@ oder ein gemeinsames `GameRules`-Protokoll.
   bleiben bei minimaler Fenstergröße scrollbar.
 - Ganzzahlige Pixel-Skalierung oder auflösungsunabhängigen Stil verbindlich
   wählen und bei Resize/Hard-Resync ohne Flimmern neu aufbauen.
-- Kompakte zugängliche Brettbeschreibung und High-Contrast-Fähigkeit des
-  Theme-Vertrags absichern.
+- Kompakte zugängliche Brettbeschreibung und Theme-Vertragsfähigkeit absichern.
 
 Abnahme:
 

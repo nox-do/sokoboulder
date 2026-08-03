@@ -95,7 +95,6 @@ enum AppStringID: String, CaseIterable, Sendable {
 
     // Themes
     case themeStandardName = "theme.standard.name"
-    case themeHighContrastName = "theme.highContrast.name"
 
     // Recovery / fault
     case uiRecoveryTitle = "ui.recovery.title"
@@ -205,7 +204,6 @@ enum AppStrings {
         AppStringID.uiSettingsMute.rawValue: "Stummschalten",
 
         AppStringID.themeStandardName.rawValue: "Standard",
-        AppStringID.themeHighContrastName.rawValue: "Hoher Kontrast",
 
         AppStringID.uiRecoveryTitle.rawValue: "Spielstand nicht ladbar",
         AppStringID.uiRecoveryFallback.rawValue: "Der gespeicherte Lauf ist nicht nutzbar.",

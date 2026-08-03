@@ -276,9 +276,9 @@ Vertragsentscheidungen (Spielerentscheidung 2026-08-02):
   - keine Gameplay-Geometrie außerhalb des sichtbaren Bereichs
   - Pixel-Art = spätere Theme-Variante, kein 3.4-Vertrag
 - **Themes:** versioniertes JSON unter `Resources/Themes/`, validiertes Schema,
-  vollständiger Code-Fallback; zwei auswählbare Themes: Standard + High Contrast
-- High Contrast = **eigenes Theme** (nicht algorithmisch abgeleitet)
-- Theme-ID in Settings persistieren; Umschalter jetzt
+  vollständiger Code-Fallback; auswählbares Theme: Standard
+  (weitere Themes später möglich; Theme-UI nur bei >1 Option)
+- Theme-ID in Settings persistieren
 - Erststart ohne Settings-Key → Catalog-`defaultThemeID` seeden
 - **Assets:** weiterhin prozedurale Shapes/Symbole, keine Texture-PNGs in 3.4
 - **Event-Feedback differenziert:**
@@ -296,7 +296,7 @@ Vertragsentscheidungen (Spielerentscheidung 2026-08-02):
 - Theme-Selektor: fokussierbare Zeile mit direkten Mausaktionen pro Theme
 
 Review-Nachzug:
-- [x] P1 High-Contrast Fokus-Text (`focusForeground`)
+- [x] P1 High-Contrast Fokus-Text (`focusForeground`) — später Theme entfernt
 - [x] P1 Theme-Selektor als fokussierbare Zeile + Fokusvertrag getestet
 - [x] P1 Abschlussfeier nach Settle/Undo/Hard-Resync zurückgesetzt
 - [x] P2 Outcome-Timeout 1.5 s
@@ -306,10 +306,11 @@ Review-Nachzug:
 - [x] Tutorial 1 in offenen Raum verlegt; Spieler/Kiste/Ziel im Hinweis benannt
 - [x] JSON-Content-Gate gegen statisch tote Kisten-Startfelder
 - [x] Sichere Laufzeit-Deadlocks blockieren; alte Deadlock-Saves zurückspulen
+- [x] High-Contrast-Theme verworfen (nur Standard); Theme-UI nur bei >1 Option
 
 - [x] ADR Skalierungsstil B (`docs/adr/0003-…`)
 - [x] Theme-Schema V1 + Loader + Code-Fallback
-- [x] Standard- und High-Contrast-JSON-Themes
+- [x] Standard-JSON-Theme
 - [x] Settings-Umschalter + Persistenz (`themeID`)
 - [x] Renderer: Theme-Tokens, Shapes, Zustandsmarker, Resize ohne Flimmern
 - [x] Differenziertes Event-Feedback inkl. Abschlussfeier
@@ -318,20 +319,22 @@ Review-Nachzug:
 - [ ] Manuelles Playtest-Protokoll (Tastatur, Stumm, Graustufen, Reduce Motion)
 
 Manuelles Playtest-Protokoll (kurz, vor Abnahme abhaken):
-1. Theme in Settings zwischen Standard ↔ High Contrast wechseln (Maus + Pfeile);
-   Fokusring und Beschriftung im High-Contrast-Theme lesbar
+1. Standard-Theme lesbar; Fokusring und Beschriftung erkennbar
 2. Graustufen-Filter / Display: Wand/Boden/Ziel/Spieler/Kiste unterscheidbar
 3. Mute an: Blockade, Schub, Zielwechsel und Abschluss weiterhin sichtbar
 4. Reduce Motion: keine langen Animationen; Zustände sofort erkennbar
 5. Minimale Fenstergröße: gesamtes Raster sichtbar, HUD deckt nichts ab
 6. Hard-Resync via Undo/Redo nach Abschluss: keine Feier-Wiederholung,
    Ziele wieder in Theme-Farbe, kein Erfolgsrahmen
+7. Resize: Brett-Seitenverhältnis (quadratische Tiles / Letterbox) erhalten
 
 ### 3.4 Playtest-Nachzug (2026-08-02)
 
 - [x] Pause-Hinweis: „Spielzug-Eingabe gesperrt“ entfernt (nur noch „Escape setzt fort“)
 - [x] Ergebnis: Escape → Primäraktion (nächstes Level), nicht Levelauswahl — Spielfluss
 - [x] Hauptmenü-Button „Spielstand zurücksetzen“ (Run + Progress → Tutorial 1)
+- [x] High-Contrast-Theme entfernt; Settings ohne Theme-Picker bei einem Theme
+- [x] Live-Resize: kein Stretch während Fensterskalierung (`duringViewResize` + Geometrie-Sync)
 
 ## Als Nächstes
 

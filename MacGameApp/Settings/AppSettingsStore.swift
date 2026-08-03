@@ -8,7 +8,7 @@ import Foundation
 struct AppSettingsSnapshot: Equatable, Sendable {
     /// App-local reduce-motion preference (OR’d with the system setting).
     var reduceMotionEnabled: Bool
-    /// Selected visual theme ID (`theme.standard`, `theme.highContrast`, …).
+    /// Selected visual theme ID (`theme.standard`, …).
     var themeID: String
     /// Music bus gain in `0...1`.
     var musicVolume: Double
@@ -86,7 +86,16 @@ final class AppSettingsStore: ObservableObject {
     /// Seeds the theme ID once from the theme catalog when no preference exists yet.
     func seedThemeIDFromCatalogIfUnset(_ catalogDefaultThemeID: String) {
         guard !hasPersistedThemeID else { return }
-        themeID = Self.normalizeThemeID(catalogDefaultThemeID)
+        let normalized = Self.normalizeThemeID(catalogDefaultThemeID)
+        // Persist even when the value matches the in-memory default so later
+        // catalog changes cannot re-seed, and hasPersistedThemeID becomes true.
+        var next = snapshot
+        next.themeID = normalized
+        snapshot = next
+        write(next)
+        for handler in changeHandlers.values {
+            handler()
+        }
     }
 
     var themeID: String {

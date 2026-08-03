@@ -23,15 +23,14 @@ struct Phase34ThemeTests {
         }
     }
 
-    @Test("bundled theme catalog loads standard and high contrast")
+    @Test("bundled theme catalog loads standard")
     func loadsBundledCatalog() throws {
         let catalog = try ThemeCatalogLoader.loadStrict(
             from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
         )
         #expect(catalog.defaultThemeID == VisualTheme.standardID)
         #expect(catalog.theme(id: VisualTheme.standardID) != nil)
-        #expect(catalog.theme(id: VisualTheme.highContrastID) != nil)
-        #expect(catalog.selectableThemes.count >= 2)
+        #expect(catalog.selectableThemes.map(\.id) == [VisualTheme.standardID])
     }
 
     @Test("unknown keys are rejected by theme codec")
@@ -57,35 +56,26 @@ struct Phase34ThemeTests {
         let empty = DirectoryContentResources(root: FileManager.default.temporaryDirectory)
         let catalog = ThemeCatalogLoader.load(from: empty)
         #expect(catalog.theme(id: VisualTheme.standardID)?.id == VisualTheme.standardID)
-        #expect(catalog.theme(id: VisualTheme.highContrastID)?.id == VisualTheme.highContrastID)
+        #expect(catalog.selectableThemes.map(\.id) == [VisualTheme.standardID])
         #expect(
             catalog.resolvedTheme(preferredID: "theme.missing").id == VisualTheme.standardID
         )
-    }
-
-    @Test("high contrast is authored independently from standard")
-    func highContrastIsIndependent() {
-        let standard = BuiltInThemes.standard
-        let contrast = BuiltInThemes.highContrast
-        #expect(standard.board.terrain.floorFill != contrast.board.terrain.floorFill)
-        #expect(standard.ui.focusRing != contrast.ui.focusRing)
-        #expect(standard.board.entities.playerFill != contrast.board.entities.playerFill)
     }
 }
 
 @Suite("Phase 3.4 theme settings and renderer")
 @MainActor
 struct Phase34ThemeIntegrationTests {
-    @Test("settings persist and apply theme to scene")
+    @Test("settings keep standard theme applied to the scene")
     func settingsApplyTheme() throws {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
         #expect(bundle.controller.visualTheme.id == VisualTheme.standardID)
         #expect(bundle.controller.scene.themeIDForTesting == VisualTheme.standardID)
 
-        bundle.controller.updateThemeID(VisualTheme.highContrastID)
-        #expect(bundle.settings.themeID == VisualTheme.highContrastID)
-        #expect(bundle.controller.visualTheme.id == VisualTheme.highContrastID)
-        #expect(bundle.controller.scene.themeIDForTesting == VisualTheme.highContrastID)
+        bundle.controller.updateThemeID("theme.missing")
+        #expect(bundle.settings.themeID == "theme.missing")
+        #expect(bundle.controller.visualTheme.id == VisualTheme.standardID)
+        #expect(bundle.controller.scene.themeIDForTesting == VisualTheme.standardID)
 
         bundle.controller.cycleTheme(by: 1)
         #expect(bundle.controller.visualTheme.id == VisualTheme.standardID)
@@ -266,29 +256,31 @@ struct Phase34ThemeIntegrationTests {
         #expect(geometry.tileSize * 5 <= 211 + 0.001)
     }
 
-    @Test("high-contrast focus foreground contrasts with focus background")
-    func highContrastFocusForegroundContrasts() {
-        let theme = BuiltInThemes.highContrast
+    @Test("standard focus foreground contrasts with focus background")
+    func standardFocusForegroundContrasts() {
+        let theme = BuiltInThemes.standard
         #expect(theme.ui.focusForeground != theme.ui.focusBackground)
-        #expect(theme.ui.focusForeground == theme.ui.focusRing)
     }
 
-    @Test("settings theme row is first in the keyboard focus order")
-    func settingsThemeFocusOrder() {
-        #expect(SettingsOverlay.keyboardFocusOrder.first == "theme")
+    @Test("settings hide theme picker when only one theme is available")
+    func settingsThemeFocusOrderWithoutPicker() {
+        let order = SettingsOverlay.keyboardFocusOrder(showsThemePicker: false)
+        #expect(order.first == "reduceMotion")
+        #expect(!order.contains("theme"))
         #expect(
-            KeyboardFocusCycle.move(
-                from: "theme",
-                in: SettingsOverlay.keyboardFocusOrder,
-                offset: 1
-            ) == "reduceMotion"
+            KeyboardFocusCycle.move(from: "reduceMotion", in: order, offset: -1) == "back"
+        )
+    }
+
+    @Test("settings theme row leads focus order when multiple themes exist")
+    func settingsThemeFocusOrderWithPicker() {
+        let order = SettingsOverlay.keyboardFocusOrder(showsThemePicker: true)
+        #expect(order.first == "theme")
+        #expect(
+            KeyboardFocusCycle.move(from: "theme", in: order, offset: 1) == "reduceMotion"
         )
         #expect(
-            KeyboardFocusCycle.move(
-                from: "theme",
-                in: SettingsOverlay.keyboardFocusOrder,
-                offset: -1
-            ) == "back"
+            KeyboardFocusCycle.move(from: "theme", in: order, offset: -1) == "back"
         )
     }
 
@@ -298,14 +290,14 @@ struct Phase34ThemeIntegrationTests {
         #expect(!settings.hasPersistedThemeID)
         let catalog = ThemeCatalog(
             themes: BuiltInThemes.allFallbacks(),
-            defaultThemeID: VisualTheme.highContrastID
+            defaultThemeID: VisualTheme.standardID
         )
         settings.seedThemeIDFromCatalogIfUnset(catalog.defaultThemeID)
-        #expect(settings.themeID == VisualTheme.highContrastID)
+        #expect(settings.themeID == VisualTheme.standardID)
         #expect(settings.hasPersistedThemeID)
 
-        settings.seedThemeIDFromCatalogIfUnset(VisualTheme.standardID)
-        #expect(settings.themeID == VisualTheme.highContrastID)
+        settings.seedThemeIDFromCatalogIfUnset("theme.other")
+        #expect(settings.themeID == VisualTheme.standardID)
     }
 
     @Test("outcome timeout covers queued moves plus celebration")

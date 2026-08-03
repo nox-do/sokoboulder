@@ -76,7 +76,7 @@ enum ThemeCatalogLoader {
             throw ThemeDecodeError.missingTheme(id: manifest.defaultThemeID)
         }
 
-        // Ensure both shipping themes always remain selectable even if a JSON is broken
+        // Ensure built-in fallbacks remain selectable even if a JSON is broken
         // and was replaced by fallback above.
         for fallback in BuiltInThemes.allFallbacks()
         where !themes.contains(where: { $0.id == fallback.id }) {

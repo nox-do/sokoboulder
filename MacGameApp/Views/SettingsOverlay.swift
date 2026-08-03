@@ -13,7 +13,13 @@ struct SettingsOverlay: View {
     let onBack: () -> Void
     @FocusState private var focusedID: String?
 
-    private let focusOrder = SettingsOverlay.keyboardFocusOrder
+    private var showsThemePicker: Bool {
+        model.themeOptions.count > 1
+    }
+
+    private var focusOrder: [String] {
+        Self.keyboardFocusOrder(showsThemePicker: showsThemePicker)
+    }
 
     var body: some View {
         ZStack {
@@ -27,54 +33,56 @@ struct SettingsOverlay: View {
                         .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
                         .frame(maxWidth: .infinity)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(model.themeTitle)
-                            .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
-                        Text(AppStrings.text(.uiSettingsThemeHint))
-                            .font(.caption)
-                            .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
+                    if showsThemePicker {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(model.themeTitle)
+                                .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
+                            Text(AppStrings.text(.uiSettingsThemeHint))
+                                .font(.caption)
+                                .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
 
-                        HStack(spacing: 8) {
-                            ForEach(model.themeOptions) { option in
-                                let selected = option.id == model.selectedThemeID
-                                Button {
-                                    onThemeChange(option.id)
-                                } label: {
-                                    Text(option.title)
-                                        .font(.body.weight(selected ? .semibold : .regular))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .fill(
-                                                    selected
-                                                        ? theme.ui.primaryFill.swiftUIColor
-                                                        : theme.ui.secondaryFill.swiftUIColor
-                                                )
-                                        )
-                                        .foregroundStyle(
-                                            selected
-                                                ? theme.ui.primaryForeground.swiftUIColor
-                                                : theme.ui.secondaryForeground.swiftUIColor
-                                        )
+                            HStack(spacing: 8) {
+                                ForEach(model.themeOptions) { option in
+                                    let selected = option.id == model.selectedThemeID
+                                    Button {
+                                        onThemeChange(option.id)
+                                    } label: {
+                                        Text(option.title)
+                                            .font(.body.weight(selected ? .semibold : .regular))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .fill(
+                                                        selected
+                                                            ? theme.ui.primaryFill.swiftUIColor
+                                                            : theme.ui.secondaryFill.swiftUIColor
+                                                    )
+                                            )
+                                            .foregroundStyle(
+                                                selected
+                                                    ? theme.ui.primaryForeground.swiftUIColor
+                                                    : theme.ui.secondaryForeground.swiftUIColor
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    // The row owns keyboard focus; each option remains a direct
+                                    // mouse and accessibility target without joining the focus cycle.
+                                    .focusable(false)
+                                    .accessibilityAddTraits(selected ? .isSelected : [])
                                 }
-                                .buttonStyle(.plain)
-                                // The row owns keyboard focus; each option remains a direct
-                                // mouse and accessibility target without joining the focus cycle.
-                                .focusable(false)
-                                .accessibilityAddTraits(selected ? .isSelected : [])
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .focusable()
+                            .focused($focusedID, equals: "theme")
+                            .themedFocus(isFocused: focusedID == "theme", isPrimary: true)
+                            .accessibilityLabel(model.themeTitle)
+                            .accessibilityValue(
+                                model.themeOptions.first { $0.id == model.selectedThemeID }?.title
+                                    ?? model.selectedThemeID
+                            )
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .focusable()
-                        .focused($focusedID, equals: "theme")
-                        .themedFocus(isFocused: focusedID == "theme", isPrimary: true)
-                        .accessibilityLabel(model.themeTitle)
-                        .accessibilityValue(
-                            model.themeOptions.first { $0.id == model.selectedThemeID }?.title
-                                ?? model.selectedThemeID
-                        )
                     }
 
                     Toggle(
@@ -159,7 +167,7 @@ struct SettingsOverlay: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .onAppear {
-            focusedID = "theme"
+            focusedID = focusOrder.first
         }
         .onMoveCommand { direction in
             switch direction {
@@ -217,8 +225,12 @@ struct SettingsOverlay: View {
 }
 
 extension SettingsOverlay {
-    /// Focus order used by the settings keyboard contract (theme row is focusable).
-    static let keyboardFocusOrder = [
-        "theme", "reduceMotion", "music", "effects", "mute", "back",
-    ]
+    /// Focus order used by the settings keyboard contract.
+    static func keyboardFocusOrder(showsThemePicker: Bool) -> [String] {
+        var order = ["reduceMotion", "music", "effects", "mute", "back"]
+        if showsThemePicker {
+            order.insert("theme", at: 0)
+        }
+        return order
+    }
 }

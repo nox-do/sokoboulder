@@ -1,8 +1,7 @@
 {
   "schemaVersion": 1,
   "themes": [
-    "Themes/theme.standard.json",
-    "Themes/theme.highContrast.json"
+    "Themes/theme.standard.json"
   ],
   "defaultThemeID": "theme.standard"
 }

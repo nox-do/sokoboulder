@@ -11,6 +11,23 @@ final class KeyHandlingSKView: SKView {
 
     override var acceptsFirstResponder: Bool { claimsKeyboardFocus }
 
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        // Default AppKit policy stretches the last frame during live window
+        // resize; redraw so letterboxed board geometry stays correct while dragging.
+        layerContentsRedrawPolicy = .duringViewResize
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        layerContentsRedrawPolicy = .duringViewResize
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        syncBoardGeometryToBounds()
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         onWindowNumberChange?(window?.windowNumber)
@@ -35,6 +52,19 @@ final class KeyHandlingSKView: SKView {
     func claimFocusIfNeeded() {
         guard claimsKeyboardFocus else { return }
         window?.makeFirstResponder(self)
+    }
+
+    /// Keeps ``SokobanBoardScene`` letterboxing in sync during live resize.
+    private func syncBoardGeometryToBounds() {
+        guard let boardScene = scene as? SokobanBoardScene else { return }
+        let size = bounds.size
+        guard size.width > 0, size.height > 0 else { return }
+        // Assigning size triggers ``didChangeSize`` → ``resize(to:)``.
+        if abs(boardScene.size.width - size.width) > 0.5
+            || abs(boardScene.size.height - size.height) > 0.5
+        {
+            boardScene.size = size
+        }
     }
 }
 
