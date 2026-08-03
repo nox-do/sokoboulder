@@ -34,16 +34,59 @@ enum BuiltInMusicTracks {
         )
     }
 
+    static var caveWonder: MusicTrack {
+        MusicTrack(
+            id: MusicTrack.caveWonderID,
+            game: .cave,
+            displayNameID: "music.cave.wonder.name",
+            resourcePath: "Audio/Music/cave-wonder.mp3",
+            credit: MusicTrackCredit(
+                title: "Cave Wonder",
+                author: "tapatilorenzo",
+                sourceURL: "https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave",
+                license: "CC0 1.0",
+                attributionNotice: nil
+            )
+        )
+    }
+
+    static var caveTinkering: MusicTrack {
+        MusicTrack(
+            id: MusicTrack.caveTinkeringID,
+            game: .cave,
+            displayNameID: "music.cave.tinkering.name",
+            resourcePath: "Audio/Music/cave-tinkering.mp3",
+            credit: MusicTrackCredit(
+                title: "Tinkering Cave",
+                author: "tapatilorenzo",
+                sourceURL: "https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave",
+                license: "CC0 1.0",
+                attributionNotice: nil
+            )
+        )
+    }
+
     static func fallback(id: String) -> MusicTrack {
         switch id {
         case MusicTrack.preludeID:
             return prelude
+        case MusicTrack.caveWonderID:
+            return caveWonder
+        case MusicTrack.caveTinkeringID:
+            return caveTinkering
         default:
             return puzzling
         }
     }
 
     static func allFallbacks() -> [MusicTrack] {
-        [puzzling, prelude]
+        [puzzling, prelude, caveWonder, caveTinkering]
+    }
+
+    static func defaultTrackIDs() -> [AudioGameMode: String] {
+        [
+            .sokoban: MusicTrack.puzzlingID,
+            .cave: MusicTrack.caveWonderID,
+        ]
     }
 }

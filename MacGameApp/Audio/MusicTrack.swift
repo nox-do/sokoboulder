@@ -4,7 +4,9 @@ import Foundation
 struct MusicTrack: Equatable, Sendable, Identifiable {
     static let puzzlingID = "music.sokoban.puzzling"
     static let preludeID = "music.sokoban.prelude"
-    static let knownIDs = [puzzlingID, preludeID]
+    static let caveWonderID = "music.cave.wonder"
+    static let caveTinkeringID = "music.cave.tinkering"
+    static let knownIDs = [puzzlingID, preludeID, caveWonderID, caveTinkeringID]
 
     let id: String
     let game: AudioGameMode

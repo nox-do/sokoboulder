@@ -349,7 +349,7 @@ Umgesetzt:
 - [x] Backend: Theme-Musikpfad + File-Cues (AVAudioPlayer) + Prozedural-Fallback
 - [x] Sokoban Cue-WAVs (Kenney / Robin Lamb / Listener) + THIRD_PARTY_NOTICES
 - [x] Tests (Phase35 + bestehende Audio-/Controller-Tests)
-- [ ] Cave-Musik-MP3/OGG vor Phase 4 (Slot vorhanden, playing: null)
+- [x] Cave-Cue-WAVs (shared/sokoban/boulderDash + OGA; Musik schon vorher)
 
 ### 3.6 Replay-Grundlage – abgenommen
 
@@ -378,18 +378,42 @@ ADR: `docs/adr/0005-cave-tick-semantics.md` (Accepted)
 - [x] Cave-Visual-Fix: kein Sokoban-Pixel-Floor/Wand/Kiste auf Cave;
   Sand≠Tunnel, Fels grau `●`, Wand ohne Muster, Spieler = Sokoban-Sprite
 - [ ] Feinschliff Timing-Golden / volles Phase-4-Polishing
-- Danach: Kamera, Kampagne, Gegner (Phase 5), Cave-Musik-Asset
+- Danach: Kamera, Kampagne, Gegner (Phase 5); Cave-Musik bereits eingebunden
 
 ### Spielauswahl-Hülle – umgesetzt (2026-08-03)
 
 Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 
-- [x] Phase `gameSelection`: Sokoban | Höhle (disabled „Demnächst“) | Hilfe | Settings
+- [x] Phase `gameSelection`: Sokoban | Höhle (Demo) | Hilfe | Settings
 - [x] Boot → Spielauswahl; frisch + Sokoban → Tutorial; sonst Sokoban-Hub
 - [x] Escape / Zurück vom Hub zur Spielauswahl
 - [x] Escape / „Spielauswahl“ aus Pause (Sokoban + Höhle) → Spielauswahl
 - [x] Tests angepasst
 - [x] Cave-Gameplay-Spez in GAMEPLAY/ARCHITECTURE + Plan 3.7 / ADR 0005 (2026-08-03)
+
+### Cave-Shell-Hygiene vor Phase 4 (2026-08-03)
+
+- [x] Cave-Outcome: Diamanten/Zeit/Punkte statt Züge/Schübe/Ziele
+- [x] Outcome „Spielauswahl“ → Game Selection (kein Sokoban-Levelpicker)
+- [x] Cave-Events → bestehende Audio-Cues (procedural bis Cue-WAVs)
+- [x] Hilfe mode-aware (Warten statt Undo; keine Sokoban-Tutorials)
+- [x] gameSelectionKeyboard-Test + Docs (Plan 3.9 / ARCHITECTURE-Skizze)
+- [x] Space-Confirm im Outcome: `.wait`-Mapping nicht mehr vor Confirm abfangen
+- [x] Shared AudioCue-Vokabular + OGA-WAVs (shared/sokoban/boulderDash)
+- [x] SFX-Normalisierung (−3 dBFS, Mono 44.1 kHz) + Boulder≠Kiste / Diamant≠Ziel
+- [x] Cave-Tod: Terminal-Emission spielt Cues (`.perform`); Cave-Outcome-Delay ~1.2s
+- [x] Level-Complete: BGM soft-fadet sofort unter dem Jingle (nicht erst mit Overlay)
+- [x] Cave-Erfolg / shared Win: `objectiveCompleted` → `shared/levelCompleted.wav`
+- [x] Unbenutzte Duplikat-WAV `shared/objectiveCompleted.wav` entfernt
+- [ ] Optional: RenderSnapshot-eigene Cave-HUD-Felder statt Counter-Hack
+- [ ] Optional: Step-Varianten / manuelles Pegel-Playtest
+
+### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
+
+- eigenes Cave-Theme / bessere Sprites
+- Kamera für größere Höhlen
+- mehr als ein Demo-Level (kleine Kampagne)
+- Timing-/Replay-Feinschliff; Cue-Pegel/Varianten optional
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
@@ -438,3 +462,6 @@ Arbeitspakete:
 - [x] Prelude aus [Old Music](https://opengameart.org/content/old-music) (nur dieser Track)
 - [x] Attribution in Settings + `THIRD_PARTY_NOTICES.md`
 - [x] Persistenz `settings.musicTrackID` + Director-Pfad-Override
+- [x] Höhlen-Musik: Cave Wonder (Default) + Tinkering Cave (CC0, tapatilorenzo)
+- [x] Settings: getrennte Auswahl Sokoban / Höhle (`sokobanMusicTrackID`, `caveMusicTrackID`)
+- [x] `audio.cave` Default-Pfad auf Cave Wonder

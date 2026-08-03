@@ -164,7 +164,8 @@ final class CaveSession {
             return makeEmission(
                 events: aggregatedEvents,
                 delivery: .hardResync,
-                audioDelivery: .synchronize,
+                // Play death / win / exit cues; music still stops via completed/failed status.
+                audioDelivery: .perform,
                 appTransition: .enterOutcomePresenting
             )
         }
@@ -221,7 +222,7 @@ final class CaveSession {
                 return makeEmission(
                     events: transition.events,
                     delivery: .hardResync,
-                    audioDelivery: .synchronize,
+                    audioDelivery: .perform,
                     appTransition: .enterOutcomePresenting
                 )
             }

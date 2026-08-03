@@ -6,6 +6,19 @@ import Testing
 
 @Suite("Phase 3.5 audio theme contract")
 struct Phase35AudioThemeTests {
+    private static let allCueKeysJSON = """
+        "movementStep": null,
+        "movementBlocked": null,
+        "objectPushed": null,
+        "objectLanded": null,
+        "collectiblePickedUp": null,
+        "objectiveCompleted": null,
+        "exitOpened": null,
+        "playerDied": null,
+        "timeExpired": null,
+        "goalLeft": null
+        """
+
     @Test("bundled audio catalog loads sokoban and cave themes")
     func loadsBundledCatalog() throws {
         let catalog = try AudioThemeCatalogLoader.loadStrict(
@@ -14,22 +27,29 @@ struct Phase35AudioThemeTests {
         #expect(catalog.defaultThemeID == AudioTheme.sokobanID)
         #expect(catalog.theme(id: AudioTheme.sokobanID)?.musicPlayingPath
             == "Audio/Music/sokoban-puzzling.mp3")
-        #expect(catalog.theme(id: AudioTheme.caveID)?.musicPlayingPath == nil)
+        #expect(catalog.theme(id: AudioTheme.caveID)?.musicPlayingPath
+            == "Audio/Music/cave-wonder.mp3")
         #expect(catalog.resolvedTheme(for: .sokoban).id == AudioTheme.sokobanID)
         #expect(catalog.resolvedTheme(for: .cave).id == AudioTheme.caveID)
     }
 
-    @Test("bundled sokoban theme maps all cues to wav assets")
-    func bundledSokobanCuePaths() throws {
+    @Test("bundled themes map configured cues to decodable wav assets")
+    func bundledCuePathsAreDecodable() throws {
         let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
         let catalog = try AudioThemeCatalogLoader.loadStrict(from: resources)
-        let theme = try #require(catalog.theme(id: AudioTheme.sokobanID))
-        for cue in AudioCue.allCases {
-            let path = try #require(theme.resourcePath(for: cue))
-            let url = try resources.url(at: path)
-            #expect(url.pathExtension == "wav")
-            #expect((try? AVAudioFile(forReading: url)) != nil)
+        for themeID in [AudioTheme.sokobanID, AudioTheme.caveID] {
+            let theme = try #require(catalog.theme(id: themeID))
+            for cue in AudioCue.allCases {
+                guard let path = theme.resourcePath(for: cue) else { continue }
+                let url = try resources.url(at: path)
+                #expect(url.pathExtension == "wav")
+                #expect((try? AVAudioFile(forReading: url)) != nil)
+            }
         }
+        let cave = try #require(catalog.theme(id: AudioTheme.caveID))
+        #expect(cave.resourcePath(for: .exitOpened) != nil)
+        #expect(cave.resourcePath(for: .playerDied) != nil)
+        #expect(cave.resourcePath(for: .goalLeft) == nil)
     }
 
     @Test("unknown keys are rejected by audio theme codec")
@@ -41,12 +61,7 @@ struct Phase35AudioThemeTests {
               "game": "sokoban",
               "music": { "playing": null },
               "cues": {
-                "step": null,
-                "blocked": null,
-                "cratePushed": null,
-                "goalEntered": null,
-                "goalLeft": null,
-                "levelCompleted": null
+                \(Self.allCueKeysJSON)
               },
               "extra": true
             }
@@ -65,7 +80,7 @@ struct Phase35AudioThemeTests {
               "game": "sokoban",
               "music": { "playing": null },
               "cues": {
-                "step": null
+                "movementStep": null
               }
             }
             """
@@ -80,7 +95,8 @@ struct Phase35AudioThemeTests {
         let catalog = AudioThemeCatalogLoader.load(from: empty)
         #expect(catalog.theme(id: AudioTheme.sokobanID)?.id == AudioTheme.sokobanID)
         #expect(catalog.theme(id: AudioTheme.caveID)?.id == AudioTheme.caveID)
-        #expect(catalog.resolvedTheme(for: .cave).musicPlayingPath == nil)
+        #expect(catalog.resolvedTheme(for: .cave).musicPlayingPath
+            == "Audio/Music/cave-wonder.mp3")
     }
 
     @Test("theme may reference missing cue files without failing decode")
@@ -92,19 +108,23 @@ struct Phase35AudioThemeTests {
               "game": "sokoban",
               "music": { "playing": "Audio/Music/does-not-exist.mp3" },
               "cues": {
-                "step": "Audio/Effects/missing.wav",
-                "blocked": null,
-                "cratePushed": null,
-                "goalEntered": null,
-                "goalLeft": null,
-                "levelCompleted": null
+                "movementStep": "Audio/Effects/missing.wav",
+                "movementBlocked": null,
+                "objectPushed": null,
+                "objectLanded": null,
+                "collectiblePickedUp": null,
+                "objectiveCompleted": null,
+                "exitOpened": null,
+                "playerDied": null,
+                "timeExpired": null,
+                "goalLeft": null
               }
             }
             """
         let theme = try AudioThemeFileCodec.decodeTheme(Data(json.utf8))
         #expect(theme.musicPlayingPath == "Audio/Music/does-not-exist.mp3")
-        #expect(theme.resourcePath(for: .step) == "Audio/Effects/missing.wav")
-        #expect(theme.resourcePath(for: .blocked) == nil)
+        #expect(theme.resourcePath(for: .movementStep) == "Audio/Effects/missing.wav")
+        #expect(theme.resourcePath(for: .movementBlocked) == nil)
     }
 }
 
@@ -125,7 +145,7 @@ struct Phase35AudioThemeDirectorTests {
         director.apply(
             AudioUpdate(
                 targetRevision: 1,
-                context: AudioContext(game: .cave, levelID: "cave.1", status: .playing),
+                context: AudioContext(game: .cave, levelID: "cave.demo", status: .playing),
                 events: [],
                 delivery: .synchronize
             )

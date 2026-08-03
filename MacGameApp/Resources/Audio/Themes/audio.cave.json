@@ -3,14 +3,18 @@
   "id": "audio.cave",
   "game": "cave",
   "music": {
-    "playing": null
+    "playing": "Audio/Music/cave-wonder.mp3"
   },
   "cues": {
-    "step": null,
-    "blocked": null,
-    "cratePushed": null,
-    "goalEntered": null,
-    "goalLeft": null,
-    "levelCompleted": null
+    "movementStep": "Audio/Effects/shared/movementStep.wav",
+    "movementBlocked": "Audio/Effects/shared/movementBlocked.wav",
+    "objectPushed": "Audio/Effects/boulderDash/boulderPushed.wav",
+    "objectLanded": "Audio/Effects/shared/objectLanded.wav",
+    "collectiblePickedUp": "Audio/Effects/boulderDash/diamondCollected.wav",
+    "objectiveCompleted": "Audio/Effects/shared/levelCompleted.wav",
+    "exitOpened": "Audio/Effects/shared/exitOpened.wav",
+    "playerDied": "Audio/Effects/shared/playerDied.wav",
+    "timeExpired": "Audio/Effects/shared/timeExpired.wav",
+    "goalLeft": null
   }
 }

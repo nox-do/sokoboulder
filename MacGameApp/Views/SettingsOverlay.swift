@@ -8,8 +8,8 @@ struct SettingsOverlay: View {
     let onFocusChange: (String) -> Void
     let onThemeChange: (String) -> Void
     let onThemeCycle: (Int) -> Void
-    let onMusicTrackChange: (String) -> Void
-    let onMusicTrackCycle: (Int) -> Void
+    let onMusicTrackChange: (AudioGameMode, String) -> Void
+    let onMusicTrackCycle: (AudioGameMode, Int) -> Void
     let onReduceMotionChange: (Bool) -> Void
     let onMusicVolumeChange: (Double) -> Void
     let onEffectsVolumeChange: (Double) -> Void
@@ -18,10 +18,6 @@ struct SettingsOverlay: View {
 
     private var showsThemePicker: Bool {
         model.themeOptions.count > 1
-    }
-
-    private var showsMusicTrackPicker: Bool {
-        model.musicTrackOptions.count > 1
     }
 
     var body: some View {
@@ -54,26 +50,26 @@ struct SettingsOverlay: View {
                         }
                     }
 
-                    if showsMusicTrackPicker {
+                    ForEach(model.musicTrackGroups) { group in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(model.musicTrackTitle)
+                            Text(group.title)
                                 .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
-                            Text(model.musicTrackHint)
+                            Text(group.hint)
                                 .font(.caption)
                                 .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
 
                             optionChips(
-                                options: model.musicTrackOptions.map { ($0.id, $0.title) },
-                                selectedID: model.selectedMusicTrackID,
-                                focusID: "musicTrack",
-                                accessibilityLabel: model.musicTrackTitle,
-                                onSelect: onMusicTrackChange
+                                options: group.options.map { ($0.id, $0.title) },
+                                selectedID: group.selectedTrackID,
+                                focusID: group.id,
+                                accessibilityLabel: group.title,
+                                onSelect: { onMusicTrackChange(group.game, $0) }
                             )
 
-                            Text(model.selectedMusicCreditSummary)
+                            Text(group.creditSummary)
                                 .font(.caption)
                                 .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
-                            if let notice = model.selectedMusicAttributionNotice {
+                            if let notice = group.attributionNotice {
                                 Text(notice)
                                     .font(.caption2)
                                     .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
@@ -222,15 +218,19 @@ extension SettingsOverlay {
     /// Focus order used by the settings keyboard contract.
     static func keyboardFocusOrder(
         showsThemePicker: Bool,
-        showsMusicTrackPicker: Bool
+        musicTrackFocusIDs: [String]
     ) -> [String] {
         var order = ["reduceMotion", "music", "effects", "mute", "back"]
-        if showsMusicTrackPicker {
-            order.insert("musicTrack", at: 0)
+        for focusID in musicTrackFocusIDs.reversed() {
+            order.insert(focusID, at: 0)
         }
         if showsThemePicker {
             order.insert("theme", at: 0)
         }
         return order
+    }
+
+    static func musicTrackFocusID(for game: AudioGameMode) -> String {
+        "musicTrack.\(game.rawValue)"
     }
 }

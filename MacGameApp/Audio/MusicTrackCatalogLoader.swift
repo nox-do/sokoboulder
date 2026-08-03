@@ -3,7 +3,20 @@ import Foundation
 /// Ordered music-track catalog with code fallbacks for known IDs.
 struct MusicTrackCatalog: Equatable, Sendable {
     let tracks: [MusicTrack]
-    let defaultTrackID: String
+    /// Per-game default track IDs.
+    let defaultTrackIDs: [AudioGameMode: String]
+
+    /// Sokoban default (legacy convenience).
+    var defaultTrackID: String {
+        defaultTrackID(for: .sokoban)
+    }
+
+    func defaultTrackID(for game: AudioGameMode) -> String {
+        if let id = defaultTrackIDs[game] {
+            return id
+        }
+        return tracks(for: game).first?.id ?? MusicTrack.puzzlingID
+    }
 
     func track(id: String) -> MusicTrack? {
         tracks.first { $0.id == id }
@@ -25,7 +38,8 @@ struct MusicTrackCatalog: Equatable, Sendable {
         if let match = options.first(where: { $0.id == preferredID }) {
             return match
         }
-        if let def = options.first(where: { $0.id == defaultTrackID }) {
+        let fallbackID = defaultTrackID(for: game)
+        if let def = options.first(where: { $0.id == fallbackID }) {
             return def
         }
         return options.first
@@ -40,7 +54,7 @@ enum MusicTrackCatalogLoader {
         } catch {
             return MusicTrackCatalog(
                 tracks: BuiltInMusicTracks.allFallbacks(),
-                defaultTrackID: MusicTrack.puzzlingID
+                defaultTrackIDs: BuiltInMusicTracks.defaultTrackIDs()
             )
         }
     }
@@ -67,11 +81,25 @@ enum MusicTrackCatalogLoader {
             throw MusicTrackDecodeError.missingTrack(id: manifest.defaultTrackID)
         }
 
+        var defaults = BuiltInMusicTracks.defaultTrackIDs()
+        defaults[.sokoban] = manifest.defaultTrackID
+        if let byGame = manifest.defaultsByGame {
+            for (rawGame, trackID) in byGame {
+                guard let game = AudioGameMode(rawValue: rawGame) else {
+                    throw MusicTrackDecodeError.invalidGame(rawGame)
+                }
+                guard tracks.contains(where: { $0.id == trackID && $0.game == game }) else {
+                    throw MusicTrackDecodeError.missingTrack(id: trackID)
+                }
+                defaults[game] = trackID
+            }
+        }
+
         for fallback in BuiltInMusicTracks.allFallbacks()
         where !tracks.contains(where: { $0.id == fallback.id }) {
             tracks.append(fallback)
         }
 
-        return MusicTrackCatalog(tracks: tracks, defaultTrackID: manifest.defaultTrackID)
+        return MusicTrackCatalog(tracks: tracks, defaultTrackIDs: defaults)
     }
 }

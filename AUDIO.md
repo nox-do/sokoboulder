@@ -149,19 +149,66 @@ angehört und mit ihrer konkreten Quelldatei dokumentiert werden.
 - Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - Status: technisch eingebunden; Credits pro Song im Katalog + Settings
 
-Hintergrundmusik wird über Settings gewählt (`Audio/Music/tracks.json`);
-Audio-Themes bleiben spielmodus-getrieben (Cues).
+Hintergrundmusik wird über Settings gewählt (`Audio/Music/tracks.json`),
+getrennt nach Spielmodus (Sokoban / Höhle). Audio-Themes bleiben
+spielmodus-getrieben (Cues).
 
-### 4.1 Vorgemerkt
+### 4.1 Cave-Musik (eingebunden)
 
-#### Cave Music
+#### Cave Wonder (Default)
 
-- Rolle: provisorisches Höhlenthema
+- Rolle: Höhlen-Hintergrund (Default)
+- Autor: tapatilorenzo
+- Format: MP3 (~0:57, loop)
+- Lizenz: CC0 1.0
+- Quelle:
+  <https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave>
+- Settings-ID: `music.cave.wonder`
+- Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+#### Tinkering Cave
+
+- Rolle: alternatives Höhlen-Thema (Settings)
+- Autor: tapatilorenzo
+- Format: MP3 (~1:39, loop)
+- Lizenz: CC0 1.0
+- Quelle: dieselbe Pack-Seite wie Cave Wonder
+- Settings-ID: `music.cave.tinkering`
+- Lokaler Nachweis: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+### 4.1a Cave-/Shared-Cues (eingebunden)
+
+Shared `AudioCue`-Vokabular; Themes mappen auf:
+
+```text
+Audio/Effects/shared/          # gemeinsame WAVs
+Audio/Effects/boulderDash/     # Höhlen-Aliase (Diamant / Fels / Abschluss)
+Audio/Effects/sokoban/         # Sokoban-Overrides (Kiste / Ziel / Abschluss)
+```
+
+Event→Cue: Schritt, Block, Schub, Landung, Collectible, Exit, Tod, Zeit, Abschluss.
+Sokoban behält `goalLeft`. Cue-WAVs aus OGA (CC0 + CC-BY Click/Boulder) — siehe
+`THIRD_PARTY_NOTICES.md`.
+
+**Technisches Zielformat (SFX):** WAV PCM, 44 100 Hz, 16 Bit, Mono, Peak ≈ −3 dBFS,
+nahezu keine führende Stille, Fade-out ≈ 3–10 ms.
+
+**Differenzierung aus Basissamples:**
+- Fels-Schub vs. Kisten-Schub: gleiches Yo-Frankie-Boulder-Sample — Fels tiefer/rauer,
+  Kiste höher/holziger (Highpass, weniger Bass).
+- Diamant: Coin-Sample heller/gläserner (Pitch up + Highpass).
+- Sokoban-Ziel: Ding weicher/bestätigender (leicht tiefer, Lowpass, längerer Fade).
+
+### 4.2 Weitere Hörkandidaten
+
+#### Cave Music (MIDI, noch nicht gerendert)
+
+- Rolle: alternativer Höhlen-Kandidat
 - Autor: hornpipe2
 - Format: MIDI
 - Lizenz: CC0
 - Quelle: <https://opengameart.org/content/cave-music>
-- Bewertung: bereits als passend vorgemerkt
+- Hinweis: Zur Laufzeit nur vorgerenderte Dateien; MIDI ggf. später rendern
 
 #### 15 Melodic RPG Chiptunes
 
@@ -181,19 +228,10 @@ Audio-Themes bleiben spielmodus-getrieben (Cues).
 - Lizenz: CC0
 - Quelle: <https://opengameart.org/node/114596>
 
-### 4.2 Weitere Hörkandidaten
+### 4.3 Archivierte Hörnotizen
 
-#### Cave Wonder und Tinkering Cave
-
-- Rolle: alternative Höhlen-Loops
-- Autor: tapatilorenzo
-- Formate auf der Asset-Seite: MP3 plus editierbare BeepBox-Quelle
-- Lizenz: CC0
-- Quelle:
-  <https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave>
-- Hinweis: Der Seitentitel nennt MIDI, die angebotenen Downloads sind derzeit
-  jedoch MP3-Dateien. Vor Verwendung wird die tatsächlich verfügbare Quelldatei
-  geprüft.
+Die früheren Hinweise zu Cave Wonder / Tinkering Cave (MP3 trotz MIDI-Titel)
+sind in §4.1 umgesetzt.
 
 ## 5. Vorgesehene Ereignis-Jingles
 
@@ -317,8 +355,10 @@ werden nach Möglichkeit freiwillig genannt.
 ```text
 MacGameApp/Resources/Audio/
 ├── Music/
-├── Jingles/
 ├── Effects/
+│   ├── shared/
+│   ├── sokoban/
+│   └── boulderDash/
 ├── UI/
 └── Licenses/
 ```

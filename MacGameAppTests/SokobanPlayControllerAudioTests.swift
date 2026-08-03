@@ -52,9 +52,9 @@ struct SokobanPlayControllerAudioTests {
         #expect(controller.scene.appliedRevision == revision)
         #expect(
             spy.playedEffects
-                == [.step, .cratePushed, .cratePushed, .goalEntered, .levelCompleted]
+                == [.movementStep, .objectPushed, .objectPushed, .collectiblePickedUp, .objectiveCompleted]
         )
-        #expect(spy.playedEffects.filter { $0 == .cratePushed }.count == 2)
+        #expect(spy.playedEffects.filter { $0 == .objectPushed }.count == 2)
     }
 
     @Test("undo after completion does not replay completion cues and stops effects")
@@ -110,7 +110,7 @@ struct SokobanPlayControllerAudioTests {
         controller.handleAppActivation()
         #expect(spy.playedEffects.isEmpty)
         // Completed context keeps music stopped; resume only clears interrupt.
-        #expect(!spy.calls.contains(.playEffect(.levelCompleted)))
+        #expect(!spy.calls.contains(.playEffect(.objectiveCompleted)))
     }
 
     @Test("bundled Sokoban music is present and natively decodable")

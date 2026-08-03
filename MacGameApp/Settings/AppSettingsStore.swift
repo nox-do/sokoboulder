@@ -11,7 +11,9 @@ struct AppSettingsSnapshot: Equatable, Sendable {
     /// Selected visual theme ID (`theme.dungeon`, `theme.kenney`, …).
     var themeID: String
     /// Selected Sokoban background track ID (`music.sokoban.puzzling`, …).
-    var musicTrackID: String
+    var sokobanMusicTrackID: String
+    /// Selected cave background track ID (`music.cave.wonder`, …).
+    var caveMusicTrackID: String
     /// Music bus gain in `0...1`.
     var musicVolume: Double
     /// Effects / jingles bus gain in `0...1`.
@@ -22,11 +24,19 @@ struct AppSettingsSnapshot: Equatable, Sendable {
     static let `default` = AppSettingsSnapshot(
         reduceMotionEnabled: false,
         themeID: VisualTheme.dungeonID,
-        musicTrackID: MusicTrack.puzzlingID,
+        sokobanMusicTrackID: MusicTrack.puzzlingID,
+        caveMusicTrackID: MusicTrack.caveWonderID,
         musicVolume: 0.8,
         effectsVolume: 1.0,
         isMuted: false
     )
+
+    func musicTrackID(for game: AudioGameMode) -> String {
+        switch game {
+        case .sokoban: sokobanMusicTrackID
+        case .cave: caveMusicTrackID
+        }
+    }
 }
 
 /// Injectable UserDefaults-backed settings. Tests pass an isolated suite name.
@@ -37,7 +47,10 @@ final class AppSettingsStore: ObservableObject {
     private enum Key {
         static let reduceMotion = "settings.reduceMotion"
         static let themeID = "settings.themeID"
-        static let musicTrackID = "settings.musicTrackID"
+        /// Legacy single-track key; migrated into ``sokobanMusicTrackID``.
+        static let legacyMusicTrackID = "settings.musicTrackID"
+        static let sokobanMusicTrackID = "settings.sokobanMusicTrackID"
+        static let caveMusicTrackID = "settings.caveMusicTrackID"
         static let musicVolume = "settings.musicVolume"
         static let effectsVolume = "settings.effectsVolume"
         static let isMuted = "settings.isMuted"
@@ -87,17 +100,19 @@ final class AppSettingsStore: ObservableObject {
         defaults.object(forKey: Key.themeID) != nil
     }
 
-    /// True when a music track preference has been persisted.
-    var hasPersistedMusicTrackID: Bool {
-        defaults.object(forKey: Key.musicTrackID) != nil
+    var hasPersistedSokobanMusicTrackID: Bool {
+        defaults.object(forKey: Key.sokobanMusicTrackID) != nil
+            || defaults.object(forKey: Key.legacyMusicTrackID) != nil
+    }
+
+    var hasPersistedCaveMusicTrackID: Bool {
+        defaults.object(forKey: Key.caveMusicTrackID) != nil
     }
 
     /// Seeds the theme ID once from the theme catalog when no preference exists yet.
     func seedThemeIDFromCatalogIfUnset(_ catalogDefaultThemeID: String) {
         guard !hasPersistedThemeID else { return }
         let normalized = Self.normalizeThemeID(catalogDefaultThemeID)
-        // Persist even when the value matches the in-memory default so later
-        // catalog changes cannot re-seed, and hasPersistedThemeID becomes true.
         var next = snapshot
         next.themeID = normalized
         snapshot = next
@@ -107,12 +122,28 @@ final class AppSettingsStore: ObservableObject {
         }
     }
 
-    /// Seeds the music track ID once from the catalog when no preference exists yet.
-    func seedMusicTrackIDFromCatalogIfUnset(_ catalogDefaultTrackID: String) {
-        guard !hasPersistedMusicTrackID else { return }
-        let normalized = Self.normalizeMusicTrackID(catalogDefaultTrackID)
+    /// Seeds Sokoban / cave music track IDs once from the catalog when unset.
+    func seedMusicTrackIDsFromCatalogIfUnset(
+        sokobanDefault: String,
+        caveDefault: String
+    ) {
         var next = snapshot
-        next.musicTrackID = normalized
+        var changed = false
+        if !hasPersistedSokobanMusicTrackID {
+            next.sokobanMusicTrackID = Self.normalizeMusicTrackID(
+                sokobanDefault,
+                fallback: MusicTrack.puzzlingID
+            )
+            changed = true
+        }
+        if !hasPersistedCaveMusicTrackID {
+            next.caveMusicTrackID = Self.normalizeMusicTrackID(
+                caveDefault,
+                fallback: MusicTrack.caveWonderID
+            )
+            changed = true
+        }
+        guard changed else { return }
         snapshot = next
         write(next)
         for handler in changeHandlers.values {
@@ -125,9 +156,45 @@ final class AppSettingsStore: ObservableObject {
         set { update { $0.themeID = Self.normalizeThemeID(newValue) } }
     }
 
+    var sokobanMusicTrackID: String {
+        get { snapshot.sokobanMusicTrackID }
+        set {
+            update {
+                $0.sokobanMusicTrackID = Self.normalizeMusicTrackID(
+                    newValue,
+                    fallback: MusicTrack.puzzlingID
+                )
+            }
+        }
+    }
+
+    var caveMusicTrackID: String {
+        get { snapshot.caveMusicTrackID }
+        set {
+            update {
+                $0.caveMusicTrackID = Self.normalizeMusicTrackID(
+                    newValue,
+                    fallback: MusicTrack.caveWonderID
+                )
+            }
+        }
+    }
+
+    /// Compatibility alias used by older call sites / tests.
     var musicTrackID: String {
-        get { snapshot.musicTrackID }
-        set { update { $0.musicTrackID = Self.normalizeMusicTrackID(newValue) } }
+        get { sokobanMusicTrackID }
+        set { sokobanMusicTrackID = newValue }
+    }
+
+    func musicTrackID(for game: AudioGameMode) -> String {
+        snapshot.musicTrackID(for: game)
+    }
+
+    func setMusicTrackID(_ id: String, for game: AudioGameMode) {
+        switch game {
+        case .sokoban: sokobanMusicTrackID = id
+        case .cave: caveMusicTrackID = id
+        }
     }
 
     var musicVolume: Double {
@@ -149,7 +216,14 @@ final class AppSettingsStore: ObservableObject {
         let clamped = AppSettingsSnapshot(
             reduceMotionEnabled: next.reduceMotionEnabled,
             themeID: Self.normalizeThemeID(next.themeID),
-            musicTrackID: Self.normalizeMusicTrackID(next.musicTrackID),
+            sokobanMusicTrackID: Self.normalizeMusicTrackID(
+                next.sokobanMusicTrackID,
+                fallback: MusicTrack.puzzlingID
+            ),
+            caveMusicTrackID: Self.normalizeMusicTrackID(
+                next.caveMusicTrackID,
+                fallback: MusicTrack.caveWonderID
+            ),
             musicVolume: Self.clampVolume(next.musicVolume),
             effectsVolume: Self.clampVolume(next.effectsVolume),
             isMuted: next.isMuted
@@ -172,9 +246,12 @@ final class AppSettingsStore: ObservableObject {
         return trimmed
     }
 
-    static func normalizeMusicTrackID(_ value: String) -> String {
+    static func normalizeMusicTrackID(
+        _ value: String,
+        fallback: String
+    ) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return MusicTrack.puzzlingID }
+        guard !trimmed.isEmpty else { return fallback }
         return trimmed
     }
 
@@ -189,7 +266,10 @@ final class AppSettingsStore: ObservableObject {
     private func write(_ snapshot: AppSettingsSnapshot) {
         defaults.set(snapshot.reduceMotionEnabled, forKey: Key.reduceMotion)
         defaults.set(snapshot.themeID, forKey: Key.themeID)
-        defaults.set(snapshot.musicTrackID, forKey: Key.musicTrackID)
+        defaults.set(snapshot.sokobanMusicTrackID, forKey: Key.sokobanMusicTrackID)
+        defaults.set(snapshot.caveMusicTrackID, forKey: Key.caveMusicTrackID)
+        // Drop legacy key once migrated so we do not keep two sources of truth.
+        defaults.removeObject(forKey: Key.legacyMusicTrackID)
         defaults.set(snapshot.musicVolume, forKey: Key.musicVolume)
         defaults.set(snapshot.effectsVolume, forKey: Key.effectsVolume)
         defaults.set(snapshot.isMuted, forKey: Key.isMuted)
@@ -211,11 +291,29 @@ final class AppSettingsStore: ObservableObject {
             themeID = defaultsSnapshot.themeID
         }
 
-        let musicTrackID: String
-        if let stored = defaults.string(forKey: Key.musicTrackID) {
-            musicTrackID = normalizeMusicTrackID(stored)
+        let sokobanMusicTrackID: String
+        if let stored = defaults.string(forKey: Key.sokobanMusicTrackID) {
+            sokobanMusicTrackID = normalizeMusicTrackID(
+                stored,
+                fallback: MusicTrack.puzzlingID
+            )
+        } else if let legacy = defaults.string(forKey: Key.legacyMusicTrackID) {
+            sokobanMusicTrackID = normalizeMusicTrackID(
+                legacy,
+                fallback: MusicTrack.puzzlingID
+            )
         } else {
-            musicTrackID = defaultsSnapshot.musicTrackID
+            sokobanMusicTrackID = defaultsSnapshot.sokobanMusicTrackID
+        }
+
+        let caveMusicTrackID: String
+        if let stored = defaults.string(forKey: Key.caveMusicTrackID) {
+            caveMusicTrackID = normalizeMusicTrackID(
+                stored,
+                fallback: MusicTrack.caveWonderID
+            )
+        } else {
+            caveMusicTrackID = defaultsSnapshot.caveMusicTrackID
         }
 
         let music: Double
@@ -242,7 +340,8 @@ final class AppSettingsStore: ObservableObject {
         return AppSettingsSnapshot(
             reduceMotionEnabled: reduceMotion,
             themeID: themeID,
-            musicTrackID: musicTrackID,
+            sokobanMusicTrackID: sokobanMusicTrackID,
+            caveMusicTrackID: caveMusicTrackID,
             musicVolume: music,
             effectsVolume: effects,
             isMuted: muted

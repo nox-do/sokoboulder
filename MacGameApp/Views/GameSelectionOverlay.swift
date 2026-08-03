@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Top-level game picker. Höhle is visible but disabled until Phase 4.
+/// Top-level game picker (Sokoban + Höhle-Demo + Hilfe + Settings).
 struct GameSelectionOverlay: View {
     @ObservedObject var controller: SokobanPlayController
     @Environment(\.visualTheme) private var theme

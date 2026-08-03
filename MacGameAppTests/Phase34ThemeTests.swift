@@ -559,11 +559,11 @@ struct Phase34ThemeIntegrationTests {
     func settingsThemeFocusOrderWithoutPicker() {
         let order = SettingsOverlay.keyboardFocusOrder(
             showsThemePicker: false,
-            showsMusicTrackPicker: false
+            musicTrackFocusIDs: []
         )
         #expect(order.first == "reduceMotion")
         #expect(!order.contains("theme"))
-        #expect(!order.contains("musicTrack"))
+        #expect(!order.contains("musicTrack.sokoban"))
         #expect(
             KeyboardFocusCycle.move(from: "reduceMotion", in: order, offset: -1) == "back"
         )
@@ -573,11 +573,15 @@ struct Phase34ThemeIntegrationTests {
     func settingsThemeFocusOrderWithPicker() {
         let order = SettingsOverlay.keyboardFocusOrder(
             showsThemePicker: true,
-            showsMusicTrackPicker: true
+            musicTrackFocusIDs: [
+                SettingsOverlay.musicTrackFocusID(for: .sokoban),
+                SettingsOverlay.musicTrackFocusID(for: .cave),
+            ]
         )
         #expect(order.first == "theme")
         #expect(
-            KeyboardFocusCycle.move(from: "theme", in: order, offset: 1) == "musicTrack"
+            KeyboardFocusCycle.move(from: "theme", in: order, offset: 1)
+                == "musicTrack.sokoban"
         )
         #expect(
             KeyboardFocusCycle.move(from: "theme", in: order, offset: -1) == "back"

@@ -1,3 +1,4 @@
+import Foundation
 import GameCore
 @testable import MacGameApp
 
@@ -7,7 +8,7 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
     enum Call: Equatable, Sendable {
         case applyTheme(String)
         case playEffect(AudioCue)
-        case setMusic(MusicPlaybackState)
+        case setMusic(MusicPlaybackState, fadeOutDuration: TimeInterval)
         case stopAllEffects
         case stopAll
         case applyOutputSettings(AudioOutputSettings)
@@ -28,8 +29,8 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
         calls.append(.playEffect(cue))
     }
 
-    func setMusic(_ state: MusicPlaybackState) {
-        calls.append(.setMusic(state))
+    func setMusic(_ state: MusicPlaybackState, fadeOutDuration: TimeInterval) {
+        calls.append(.setMusic(state, fadeOutDuration: fadeOutDuration))
     }
 
     func stopAllEffects() {
@@ -58,7 +59,14 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
 
     var musicStates: [MusicPlaybackState] {
         calls.compactMap {
-            if case .setMusic(let state) = $0 { return state }
+            if case .setMusic(let state, fadeOutDuration: _) = $0 { return state }
+            return nil
+        }
+    }
+
+    var musicFadeDurations: [TimeInterval] {
+        calls.compactMap {
+            if case .setMusic(_, fadeOutDuration: let duration) = $0 { return duration }
             return nil
         }
     }

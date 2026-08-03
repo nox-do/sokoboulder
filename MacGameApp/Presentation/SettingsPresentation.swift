@@ -7,14 +7,8 @@ struct SettingsPresentation: Equatable, Sendable {
     var themeTitle: String
     var themeOptions: [ThemeOption]
     var selectedThemeID: String
-    var musicTrackTitle: String
-    var musicTrackHint: String
-    var musicTrackOptions: [MusicTrackOption]
-    var selectedMusicTrackID: String
-    /// Per-song credit under the track picker (`Title — Author (License)`).
-    var selectedMusicCreditSummary: String
-    /// Optional required attribution line (e.g. CC-BY notice).
-    var selectedMusicAttributionNotice: String?
+    /// One music picker group per game that has selectable tracks.
+    var musicTrackGroups: [MusicTrackGroup]
     var reduceMotionTitle: String
     var reduceMotionDetail: String
     var reduceMotionEnabled: Bool
@@ -33,5 +27,17 @@ struct SettingsPresentation: Equatable, Sendable {
     struct MusicTrackOption: Equatable, Sendable, Identifiable {
         var id: String
         var title: String
+    }
+
+    struct MusicTrackGroup: Equatable, Sendable, Identifiable {
+        /// Stable focus id, e.g. `musicTrack.sokoban`.
+        var id: String
+        var game: AudioGameMode
+        var title: String
+        var hint: String
+        var options: [MusicTrackOption]
+        var selectedTrackID: String
+        var creditSummary: String
+        var attributionNotice: String?
     }
 }

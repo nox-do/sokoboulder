@@ -22,6 +22,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiOutcomeHintNext = "ui.outcome.hint_next"
     case uiOutcomeHintAgain = "ui.outcome.hint_again"
     case uiOutcomeHintBack = "ui.outcome.hint_back"
+    case uiOutcomeHintCave = "ui.outcome.hint_cave"
+    case uiOutcomeCaveFailed = "ui.outcome.cave_failed"
     case uiOutcomeNewRecordMoves = "ui.outcome.new_record_moves"
     case uiOutcomeNewRecordPushes = "ui.outcome.new_record_pushes"
     case uiOutcomeBestMoves = "ui.outcome.best_moves"
@@ -34,6 +36,7 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiGameSelectCave = "ui.game_select.cave"
     case uiGameSelectCaveComingSoon = "ui.game_select.cave_coming_soon"
     case uiGameSelectCaveDemoHint = "ui.game_select.cave_demo_hint"
+    case uiCaveDemoHint = "ui.cave.demo_hint"
     case uiLaunchTitle = "ui.launch.title"
     case uiLaunchContinue = "ui.launch.continue"
     case uiLaunchSelectLevel = "ui.launch.select_level"
@@ -82,6 +85,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiHelpControlsTitle = "ui.help.controls_title"
     case uiHelpMoveTitle = "ui.help.move.title"
     case uiHelpMoveDetail = "ui.help.move.detail"
+    case uiHelpWaitTitle = "ui.help.wait.title"
+    case uiHelpWaitDetail = "ui.help.wait.detail"
     case uiHelpUndoRedoTitle = "ui.help.undo_redo.title"
     case uiHelpUndoRedoDetail = "ui.help.undo_redo.detail"
     case uiHelpRestartTitle = "ui.help.restart.title"
@@ -98,6 +103,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiSettingsReduceMotion = "ui.settings.reduce_motion"
     case uiSettingsReduceMotionDetail = "ui.settings.reduce_motion_detail"
     case uiSettingsMusicTrack = "ui.settings.music_track"
+    case uiSettingsMusicTrackSokoban = "ui.settings.music_track_sokoban"
+    case uiSettingsMusicTrackCave = "ui.settings.music_track_cave"
     case uiSettingsMusicTrackHint = "ui.settings.music_track_hint"
     case uiSettingsMusicVolume = "ui.settings.music_volume"
     case uiSettingsEffectsVolume = "ui.settings.effects_volume"
@@ -111,6 +118,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     // Music tracks
     case musicSokobanPuzzlingName = "music.sokoban.puzzling.name"
     case musicSokobanPreludeName = "music.sokoban.prelude.name"
+    case musicCaveWonderName = "music.cave.wonder.name"
+    case musicCaveTinkeringName = "music.cave.tinkering.name"
 
     // Recovery / fault
     case uiRecoveryTitle = "ui.recovery.title"
@@ -149,6 +158,9 @@ enum AppStrings {
             "Return/Space bestätigt die markierte Aktion · Z: Undo",
         AppStringID.uiOutcomeHintBack.rawValue:
             "Return/Space bestätigt die markierte Aktion · Z: Undo",
+        AppStringID.uiOutcomeHintCave.rawValue:
+            "Return/Space bestätigt die markierte Aktion",
+        AppStringID.uiOutcomeCaveFailed.rawValue: "Höhle gescheitert",
         AppStringID.uiOutcomeNewRecordMoves.rawValue: "Neuer Zugrekord",
         AppStringID.uiOutcomeNewRecordPushes.rawValue: "Neuer Schubrekord",
         AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
@@ -160,6 +172,8 @@ enum AppStrings {
         AppStringID.uiGameSelectCave.rawValue: "Höhle",
         AppStringID.uiGameSelectCaveComingSoon.rawValue: "Demnächst",
         AppStringID.uiGameSelectCaveDemoHint.rawValue: "Demo · Pfeile bewegen · Leertaste warten",
+        AppStringID.uiCaveDemoHint.rawValue:
+            "Sammle den Diamanten und erreiche den Ausgang. Leertaste = warten.",
         AppStringID.uiLaunchTitle.rawValue: "Sokoban",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
@@ -207,6 +221,8 @@ enum AppStrings {
         AppStringID.uiHelpControlsTitle.rawValue: "Steuerung",
         AppStringID.uiHelpMoveTitle.rawValue: "Bewegung",
         AppStringID.uiHelpMoveDetail.rawValue: "Pfeiltasten oder WASD",
+        AppStringID.uiHelpWaitTitle.rawValue: "Warten",
+        AppStringID.uiHelpWaitDetail.rawValue: "Leertaste lässt einen Tick ohne Bewegung verstreichen",
         AppStringID.uiHelpUndoRedoTitle.rawValue: "Undo und Redo",
         AppStringID.uiHelpUndoRedoDetail.rawValue: "Z oder ⌘Z · Redo mit ⇧⌘Z",
         AppStringID.uiHelpRestartTitle.rawValue: "Neustart",
@@ -223,6 +239,8 @@ enum AppStrings {
         AppStringID.uiSettingsReduceMotionDetail.rawValue:
             "Wirkt zusätzlich zur Systemeinstellung (nur Darstellung)",
         AppStringID.uiSettingsMusicTrack.rawValue: "Hintergrundmusik",
+        AppStringID.uiSettingsMusicTrackSokoban.rawValue: "Sokoban-Musik",
+        AppStringID.uiSettingsMusicTrackCave.rawValue: "Höhlen-Musik",
         AppStringID.uiSettingsMusicTrackHint.rawValue: "Pfeiltasten wechseln den Track",
         AppStringID.uiSettingsMusicVolume.rawValue: "Musiklautstärke",
         AppStringID.uiSettingsEffectsVolume.rawValue: "Effektlautstärke",
@@ -234,6 +252,8 @@ enum AppStrings {
 
         AppStringID.musicSokobanPuzzlingName.rawValue: "Puzzling",
         AppStringID.musicSokobanPreludeName.rawValue: "Prelude",
+        AppStringID.musicCaveWonderName.rawValue: "Cave Wonder",
+        AppStringID.musicCaveTinkeringName.rawValue: "Tinkering Cave",
 
         AppStringID.uiRecoveryTitle.rawValue: "Spielstand nicht ladbar",
         AppStringID.uiRecoveryFallback.rawValue: "Der gespeicherte Lauf ist nicht nutzbar.",

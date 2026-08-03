@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "defaultTrackID": "music.sokoban.puzzling",
+  "defaultsByGame": {
+    "sokoban": "music.sokoban.puzzling",
+    "cave": "music.cave.wonder"
+  },
   "tracks": [
     {
       "id": "music.sokoban.puzzling",
@@ -26,6 +30,32 @@
         "sourceURL": "https://opengameart.org/content/old-music",
         "license": "CC-BY 3.0",
         "attributionNotice": "Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov"
+      }
+    },
+    {
+      "id": "music.cave.wonder",
+      "game": "cave",
+      "displayNameID": "music.cave.wonder.name",
+      "resourcePath": "Audio/Music/cave-wonder.mp3",
+      "credit": {
+        "title": "Cave Wonder",
+        "author": "tapatilorenzo",
+        "sourceURL": "https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave",
+        "license": "CC0 1.0",
+        "attributionNotice": null
+      }
+    },
+    {
+      "id": "music.cave.tinkering",
+      "game": "cave",
+      "displayNameID": "music.cave.tinkering.name",
+      "resourcePath": "Audio/Music/cave-tinkering.mp3",
+      "credit": {
+        "title": "Tinkering Cave",
+        "author": "tapatilorenzo",
+        "sourceURL": "https://opengameart.org/content/2-midi-cave-songs-cave-wonder-tinkering-cave",
+        "license": "CC0 1.0",
+        "attributionNotice": null
       }
     }
   ]

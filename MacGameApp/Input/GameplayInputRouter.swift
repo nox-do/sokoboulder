@@ -192,12 +192,15 @@ final class GameplayInputRouter {
             }
 
             // Session commands remain available through the same intent mapping.
+            // Space also maps to `.wait` (cave); still allow it as outcome confirm.
             if let intent = InputMapper.intent(from: event) {
                 switch intent {
                 case .undo, .redo, .restart:
                     return .routed(.gameplay(intent))
-                case .move, .wait, .pause:
+                case .move, .pause:
                     return .unhandled
+                case .wait:
+                    break
                 }
             }
 

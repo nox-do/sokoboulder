@@ -304,6 +304,7 @@ public enum CaveTerrain: Equatable, Sendable {
     case void
     case floor
     case wall
+    case steelWall // im Code; bis Phase 5 explosionsgleich zu `wall`
     case dirt
     case exit(ExitState)
 }
@@ -311,9 +312,10 @@ public enum CaveTerrain: Equatable, Sendable {
 public enum CaveOccupant: Equatable, Sendable {
     case boulder(EntityID, motion: FallingState)
     case diamond(EntityID, motion: FallingState)
-    case firefly(EntityID, heading: Direction)
-    case butterfly(EntityID, heading: Direction)
-    case amoeba(EntityID)
+    // Phase 5 (noch nicht im Code):
+    // case firefly(EntityID, heading: Direction)
+    // case butterfly(EntityID, heading: Direction)
+    // case amoeba(EntityID)
 }
 ```
 

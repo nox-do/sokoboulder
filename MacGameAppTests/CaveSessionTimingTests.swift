@@ -43,6 +43,47 @@ struct CaveSessionTimingTests {
         #expect(session.simulationTick >= 3)
     }
 
+    @Test("terminal death performs audio cues including playerDied")
+    func terminalDeathPerformsPlayerDiedCue() throws {
+        // Falling boulder one cell above the player; wait lets gravity kill.
+        let ascii = """
+            #####
+            # O #
+            #   #
+            # P #
+            #  E#
+            #####
+            """
+        let level = try CaveLevelBuilder.level(
+            fromASCII: ascii,
+            requiredDiamonds: 0,
+            timeLimitTicks: 100
+        )
+        let session = try CaveSession(level: level, levelID: "cave.test.crush")
+        _ = session.start()
+        session.noteWait()
+
+        var sawDeath = false
+        var now: TimeInterval = 0
+        for _ in 0..<20 {
+            if let emission = session.advance(to: now) {
+                if emission.audio.delivery == .perform,
+                   emission.audio.events.contains(where: {
+                       if case .playerDied = $0 { return true }
+                       return false
+                   })
+                {
+                    sawDeath = true
+                    #expect(session.phase == .outcomePresenting)
+                    #expect(emission.appTransition == .enterOutcomePresenting)
+                    break
+                }
+            }
+            now += CaveRules.fixedStepSeconds
+        }
+        #expect(sawDeath)
+    }
+
     private func makeSession() throws -> CaveSession {
         let level = try CaveDemoLevel.makeLevel()
         return try CaveSession(level: level, levelID: CaveDemoLevel.id)

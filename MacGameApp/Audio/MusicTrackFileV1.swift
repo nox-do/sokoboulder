@@ -6,7 +6,10 @@ struct MusicTrackManifestV1: Equatable, Codable, Sendable {
     static let resourcePath = "Audio/Music/tracks.json"
 
     let schemaVersion: Int
+    /// Legacy / Sokoban default when ``defaultsByGame`` omits sokoban.
     let defaultTrackID: String
+    /// Optional per-game defaults (`sokoban`, `cave`, …).
+    let defaultsByGame: [String: String]?
     let tracks: [MusicTrackFileEntryV1]
 }
 
@@ -28,9 +31,11 @@ struct MusicTrackCreditFileV1: Equatable, Codable, Sendable {
 
 enum StrictMusicTrackJSON {
     private static let rootAllowed: Set<String> = [
+        "schemaVersion", "defaultTrackID", "defaultsByGame", "tracks",
+    ]
+    private static let rootRequired: Set<String> = [
         "schemaVersion", "defaultTrackID", "tracks",
     ]
-    private static let rootRequired = rootAllowed
 
     private static let trackAllowed: Set<String> = [
         "id", "game", "displayNameID", "resourcePath", "credit",
@@ -47,6 +52,17 @@ enum StrictMusicTrackJSON {
     static func validateKeys(_ data: Data) throws {
         let root = try jsonObject(data)
         try validateObjectKeys(root, allowed: rootAllowed, required: rootRequired)
+
+        if let defaults = root["defaultsByGame"] {
+            guard let dict = defaults as? [String: Any] else {
+                throw MusicTrackDecodeError.notAnObject
+            }
+            for (key, value) in dict {
+                guard value is String else {
+                    throw MusicTrackDecodeError.emptyCreditField("defaultsByGame.\(key)")
+                }
+            }
+        }
 
         guard let tracks = root["tracks"] as? [Any] else {
             throw MusicTrackDecodeError.missingKeys(["tracks"])

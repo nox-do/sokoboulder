@@ -63,20 +63,20 @@ struct AudioDirectorTests {
         )
 
         #expect(director.lastAppliedRevision == 2)
-        #expect(spy.playedEffects == [.step])
+        #expect(spy.playedEffects == [.movementStep])
         #expect(spy.musicStates == [.themeLoop])
     }
 
-    @Test("push maps to cratePushed without a step cue")
+    @Test("push maps to objectPushed without a step cue")
     func pushDoesNotAlsoPlayStep() {
         #expect(
-            AudioDirector.cues(from: [cratePushed(), playerMoved()]) == [.cratePushed]
+            AudioDirector.cues(from: [cratePushed(), playerMoved()]) == [.objectPushed]
         )
-        #expect(AudioDirector.cues(from: [playerMoved()]) == [.step])
+        #expect(AudioDirector.cues(from: [playerMoved()]) == [.movementStep])
         #expect(
             AudioDirector.cues(from: [
                 .movementBlocked(at: GridPosition(column: 0, row: 0)),
-            ]) == [.blocked]
+            ]) == [.movementBlocked]
         )
         #expect(
             AudioDirector.cues(from: [
@@ -87,7 +87,31 @@ struct AudioDirectorTests {
                     total: 1
                 ),
                 .levelCompleted,
-            ]) == [.goalEntered, .levelCompleted]
+            ]) == [.collectiblePickedUp, .objectiveCompleted]
+        )
+    }
+
+    @Test("cave events map to dedicated cues without fall-start spam")
+    func caveEventCueMapping() {
+        let diamond = EntityRef(id: EntityID(2), kind: .diamond)
+        #expect(
+            AudioDirector.cues(from: [
+                .diamondCollected(diamond, at: GridPosition(column: 1, row: 1), total: 1),
+                .exitOpened(at: GridPosition(column: 2, row: 1)),
+            ]) == [.collectiblePickedUp, .exitOpened]
+        )
+        #expect(
+            AudioDirector.cues(from: [
+                .playerDied(at: GridPosition(column: 1, row: 1)),
+                .timeExpired,
+            ]) == [.playerDied]
+        )
+        #expect(
+            AudioDirector.cues(from: [
+                .objectStartedFalling(diamond, at: GridPosition(column: 1, row: 0)),
+                .objectLanded(diamond, at: GridPosition(column: 1, row: 1)),
+                .levelCompleted,
+            ]) == [.objectLanded, .objectiveCompleted]
         )
     }
 
@@ -200,7 +224,7 @@ struct AudioDirectorTests {
                 status: .completed
             )
         )
-        #expect(spy.playedEffects == [.cratePushed, .levelCompleted])
+        #expect(spy.playedEffects == [.objectPushed, .objectiveCompleted])
         spy.resetCalls()
 
         director.apply(
@@ -266,13 +290,40 @@ struct AudioDirectorTests {
         #expect(spy.calls == [.stopAll])
     }
 
-    @Test("completed context stops music")
-    func completedStopsMusic() {
+    @Test("completed perform plays jingle and soft-fades BGM immediately")
+    func completedFadesMusicUnderJingle() {
         #expect(
             AudioDirector.musicState(for: context(status: .completed)) == .stopped
         )
         #expect(
             AudioDirector.musicState(for: context(status: .playing)) == .themeLoop
         )
+
+        let (director, spy) = makeDirector()
+        director.apply(update(revision: 1, delivery: .synchronize))
+        spy.resetCalls()
+        director.apply(
+            update(
+                revision: 2,
+                delivery: .perform,
+                events: [.levelCompleted],
+                status: .completed
+            )
+        )
+        #expect(spy.playedEffects == [.objectiveCompleted])
+        #expect(spy.musicStates == [.stopped])
+        #expect(spy.musicFadeDurations == [AudioDirector.winMusicFadeOut])
+    }
+
+    @Test("completed synchronize still stops music immediately (restored run)")
+    func completedSynchronizeStopsMusicImmediately() {
+        let (director, spy) = makeDirector()
+        director.apply(update(revision: 1, delivery: .synchronize))
+        spy.resetCalls()
+        director.apply(
+            update(revision: 2, delivery: .synchronize, events: [], status: .completed)
+        )
+        #expect(spy.musicStates == [.stopped])
+        #expect(spy.musicFadeDurations == [0])
     }
 }

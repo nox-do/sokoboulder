@@ -92,7 +92,7 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .playing)
     }
 
-    @Test("game selection arrows skip disabled cave and activate Sokoban hub")
+    @Test("game selection arrows include enabled cave before help")
     func gameSelectionKeyboard() throws {
         let runPersistence = try SokobanRunPersistence.ephemeral()
         let catalog = try BundleContentLoader.loadSokobanCatalog(
@@ -117,7 +117,11 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .gameSelection)
         #expect(controller.focusedGameSelectionAction == .sokoban)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
+        #expect(controller.focusedGameSelectionAction == .cave)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
         #expect(controller.focusedGameSelectionAction == .help)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.upArrow)))
+        #expect(controller.focusedGameSelectionAction == .cave)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.upArrow)))
         #expect(controller.focusedGameSelectionAction == .sokoban)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return)))

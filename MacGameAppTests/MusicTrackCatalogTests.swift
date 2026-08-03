@@ -6,13 +6,15 @@ import Testing
 
 @Suite("Music track catalog")
 struct MusicTrackCatalogTests {
-    @Test("bundled catalog loads puzzling and prelude with credits")
+    @Test("bundled catalog loads sokoban and cave tracks with credits")
     func loadsBundledCatalog() throws {
         let catalog = try MusicTrackCatalogLoader.loadStrict(
             from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
         )
-        #expect(catalog.defaultTrackID == MusicTrack.puzzlingID)
+        #expect(catalog.defaultTrackID(for: .sokoban) == MusicTrack.puzzlingID)
+        #expect(catalog.defaultTrackID(for: .cave) == MusicTrack.caveWonderID)
         #expect(catalog.tracks(for: .sokoban).count == 2)
+        #expect(catalog.tracks(for: .cave).count == 2)
 
         let puzzling = try #require(catalog.track(id: MusicTrack.puzzlingID))
         #expect(puzzling.resourcePath == "Audio/Music/sokoban-puzzling.mp3")
@@ -28,14 +30,24 @@ struct MusicTrackCatalogTests {
             prelude.credit.attributionNotice
                 == "Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov"
         )
+
+        let wonder = try #require(catalog.track(id: MusicTrack.caveWonderID))
+        #expect(wonder.resourcePath == "Audio/Music/cave-wonder.mp3")
+        #expect(wonder.credit.author == "tapatilorenzo")
+        #expect(wonder.credit.license == "CC0 1.0")
+
+        let tinkering = try #require(catalog.track(id: MusicTrack.caveTinkeringID))
+        #expect(tinkering.resourcePath == "Audio/Music/cave-tinkering.mp3")
     }
 
-    @Test("bundled prelude and puzzling music decode")
+    @Test("bundled music tracks decode")
     func bundledTracksDecodable() throws {
         let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
         for path in [
             "Audio/Music/sokoban-puzzling.mp3",
             "Audio/Music/sokoban-prelude.mp3",
+            "Audio/Music/cave-wonder.mp3",
+            "Audio/Music/cave-tinkering.mp3",
         ] {
             let url = try resources.url(at: path)
             #expect((try? AVAudioFile(forReading: url)) != nil)
@@ -48,6 +60,8 @@ struct MusicTrackCatalogTests {
         let catalog = MusicTrackCatalogLoader.load(from: empty)
         #expect(catalog.track(id: MusicTrack.puzzlingID)?.id == MusicTrack.puzzlingID)
         #expect(catalog.track(id: MusicTrack.preludeID)?.id == MusicTrack.preludeID)
+        #expect(catalog.track(id: MusicTrack.caveWonderID)?.id == MusicTrack.caveWonderID)
+        #expect(catalog.defaultTrackID(for: .cave) == MusicTrack.caveWonderID)
     }
 
     @Test("unknown credit keys are rejected")
@@ -89,40 +103,66 @@ struct MusicTrackSettingsTests {
             backend: spy,
             musicCatalog: MusicTrackCatalog(
                 tracks: BuiltInMusicTracks.allFallbacks(),
-                defaultTrackID: MusicTrack.puzzlingID
+                defaultTrackIDs: BuiltInMusicTracks.defaultTrackIDs()
             )
         )
         let bundle = try TestPlayControllerFactory.make(
             audioDirector: director,
             markIntroDismissed: true
         )
-        #expect(bundle.controller.settingsPresentation.musicTrackOptions.count == 2)
-        #expect(bundle.settings.musicTrackID == MusicTrack.puzzlingID)
+        #expect(bundle.controller.settingsPresentation.musicTrackGroups.count == 2)
+        #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.puzzlingID)
+        #expect(bundle.settings.caveMusicTrackID == MusicTrack.caveWonderID)
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-puzzling.mp3")
 
-        bundle.controller.updateMusicTrackID(MusicTrack.preludeID)
-        #expect(bundle.settings.musicTrackID == MusicTrack.preludeID)
-        #expect(director.selectedMusicTrackID == MusicTrack.preludeID)
+        bundle.controller.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
+        #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.preludeID)
+        #expect(director.selectedMusicTrackIDs[.sokoban] == MusicTrack.preludeID)
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-prelude.mp3")
+        let sokobanGroup = try #require(
+            bundle.controller.settingsPresentation.musicTrackGroups.first { $0.game == .sokoban }
+        )
         #expect(
-            bundle.controller.settingsPresentation.selectedMusicAttributionNotice
+            sokobanGroup.attributionNotice
                 == "Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov"
         )
 
-        bundle.controller.cycleMusicTrack(by: 1)
-        #expect(bundle.settings.musicTrackID == MusicTrack.puzzlingID)
+        bundle.controller.cycleMusicTrack(for: .sokoban, by: 1)
+        #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.puzzlingID)
+
+        bundle.controller.updateMusicTrackID(MusicTrack.caveTinkeringID, for: .cave)
+        #expect(bundle.settings.caveMusicTrackID == MusicTrack.caveTinkeringID)
+        #expect(director.selectedMusicTrackIDs[.cave] == MusicTrack.caveTinkeringID)
+        // Active theme is still sokoban while playing Sokoban.
+        #expect(spy.lastMusicPath == "Audio/Music/sokoban-puzzling.mp3")
     }
 
-    @Test("music track preference persists")
+    @Test("music track preference persists per game")
     func musicTrackPersists() throws {
         let name = "\(AppSettingsStore.suitePrefix).music.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defaults.removePersistentDomain(forName: name)
         let first = AppSettingsStore(defaults: defaults)
-        first.musicTrackID = MusicTrack.preludeID
+        first.sokobanMusicTrackID = MusicTrack.preludeID
+        first.caveMusicTrackID = MusicTrack.caveTinkeringID
 
         let second = AppSettingsStore(defaults: defaults)
-        #expect(second.musicTrackID == MusicTrack.preludeID)
+        #expect(second.sokobanMusicTrackID == MusicTrack.preludeID)
+        #expect(second.caveMusicTrackID == MusicTrack.caveTinkeringID)
+        defaults.removePersistentDomain(forName: name)
+    }
+
+    @Test("legacy musicTrackID migrates to sokoban preference")
+    func legacyMusicTrackMigrates() throws {
+        let name = "\(AppSettingsStore.suitePrefix).music.legacy.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defaults.removePersistentDomain(forName: name)
+        defaults.set(MusicTrack.preludeID, forKey: "settings.musicTrackID")
+
+        let store = AppSettingsStore(defaults: defaults)
+        #expect(store.sokobanMusicTrackID == MusicTrack.preludeID)
+        store.sokobanMusicTrackID = MusicTrack.puzzlingID
+        #expect(defaults.object(forKey: "settings.musicTrackID") == nil)
         defaults.removePersistentDomain(forName: name)
     }
 }

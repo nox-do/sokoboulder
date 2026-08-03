@@ -6,11 +6,15 @@
     "playing": "Audio/Music/sokoban-puzzling.mp3"
   },
   "cues": {
-    "step": "Audio/Effects/sokoban-step.wav",
-    "blocked": "Audio/Effects/sokoban-blocked.wav",
-    "cratePushed": "Audio/Effects/sokoban-crate-pushed.wav",
-    "goalEntered": "Audio/Effects/sokoban-goal-entered.wav",
-    "goalLeft": "Audio/Effects/sokoban-goal-left.wav",
-    "levelCompleted": "Audio/Jingles/sokoban-level-completed.wav"
+    "movementStep": "Audio/Effects/sokoban/movementStep.wav",
+    "movementBlocked": "Audio/Effects/shared/movementBlocked.wav",
+    "objectPushed": "Audio/Effects/sokoban/cratePushed.wav",
+    "objectLanded": "Audio/Effects/shared/objectLanded.wav",
+    "collectiblePickedUp": "Audio/Effects/sokoban/crateOnGoal.wav",
+    "objectiveCompleted": "Audio/Effects/shared/levelCompleted.wav",
+    "exitOpened": null,
+    "playerDied": null,
+    "timeExpired": null,
+    "goalLeft": "Audio/Effects/sokoban/goalLeft.wav"
   }
 }

@@ -22,6 +22,8 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     /// File-backed cue URLs that decoded successfully. Missing paths stay absent.
     private var fileCueURLs: [AudioCue: URL] = [:]
     private var fileCuePlayers: [AVAudioPlayer] = []
+    private var musicFadeTask: Task<Void, Never>?
+    private var isMusicFading = false
 
     /// The source is mastered music; keep headroom for gameplay feedback.
     private var effectiveMusicVolume: Float {
@@ -48,6 +50,7 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     func applyTheme(_ theme: AudioTheme) {
         guard theme != activeTheme else { return }
         let wasPlaying = currentMusic == .themeLoop && musicPlayer?.isPlaying == true
+        cancelMusicFade()
         activeTheme = theme
         reloadThemeAssets()
         if currentMusic == .themeLoop {
@@ -71,19 +74,36 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         }
     }
 
-    func setMusic(_ state: MusicPlaybackState) {
-        guard state != currentMusic else {
-            applyGains()
+    func setMusic(_ state: MusicPlaybackState, fadeOutDuration: TimeInterval) {
+        if state == .themeLoop {
+            cancelMusicFade()
+            if currentMusic == .themeLoop {
+                applyGains()
+                return
+            }
+            currentMusic = .themeLoop
+            startThemeMusicIfNeeded()
             return
         }
-        currentMusic = state
-        stopMusicPlayback()
-        guard state == .themeLoop else { return }
-        startThemeMusicIfNeeded()
+
+        // .stopped
+        if fadeOutDuration > 0 {
+            if isMusicFading { return }
+            if currentMusic == .stopped, musicPlayer?.isPlaying != true { return }
+            currentMusic = .stopped
+            fadeOutMusic(duration: fadeOutDuration)
+        } else {
+            currentMusic = .stopped
+            musicFadeTask?.cancel()
+            musicFadeTask = nil
+            isMusicFading = false
+            stopMusicPlayback()
+        }
     }
 
     func stopAllEffects() {
         effectPlayer.stop()
+        effectPlayer.volume = outputSettings.effectiveEffectsGain
         for player in fileCuePlayers {
             player.stop()
         }
@@ -92,6 +112,7 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
 
     func stopAll() {
         stopAllEffects()
+        cancelMusicFade()
         stopMusicPlayback()
         currentMusic = .stopped
     }
@@ -144,10 +165,12 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
 
     private func applyGains() {
         effectPlayer.volume = outputSettings.effectiveEffectsGain
-        musicPlayer?.volume = effectiveMusicVolume
         for player in fileCuePlayers where player.isPlaying {
             player.volume = outputSettings.effectiveEffectsGain
         }
+        // Leave volume alone while a win fade is in progress.
+        guard !isMusicFading else { return }
+        musicPlayer?.volume = effectiveMusicVolume
         guard currentMusic == .themeLoop else { return }
 
         if effectiveMusicVolume > 0 {
@@ -159,9 +182,42 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         }
     }
 
+    private func fadeOutMusic(duration: TimeInterval) {
+        musicFadeTask?.cancel()
+        musicFadeTask = nil
+        guard let player = musicPlayer, player.isPlaying, duration > 0 else {
+            isMusicFading = false
+            stopMusicPlayback()
+            return
+        }
+        isMusicFading = true
+        let startVolume = player.volume
+        let steps = 24
+        let stepNanos = UInt64((duration / Double(steps)) * 1_000_000_000)
+        musicFadeTask = Task { @MainActor in
+            for step in 1...steps {
+                try? await Task.sleep(nanoseconds: stepNanos)
+                guard !Task.isCancelled else { return }
+                let t = Float(step) / Float(steps)
+                player.volume = startVolume * (1 - t)
+            }
+            guard !Task.isCancelled else { return }
+            self.stopMusicPlayback()
+            self.isMusicFading = false
+            self.musicFadeTask = nil
+        }
+    }
+
+    private func cancelMusicFade() {
+        musicFadeTask?.cancel()
+        musicFadeTask = nil
+        isMusicFading = false
+    }
+
     private func stopMusicPlayback() {
         musicPlayer?.stop()
         musicPlayer?.currentTime = 0
+        musicPlayer?.volume = effectiveMusicVolume
     }
 
     @discardableResult
@@ -181,12 +237,16 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
 
     private static func makeProceduralBuffers(format: AVAudioFormat) -> [AudioCue: AVAudioPCMBuffer] {
         [
-            .step: toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
-            .blocked: toneBuffer(frequency: 160, duration: 0.05, amplitude: 0.1, format: format),
-            .cratePushed: toneBuffer(frequency: 280, duration: 0.07, amplitude: 0.14, format: format),
-            .goalEntered: toneBuffer(frequency: 660, duration: 0.12, amplitude: 0.16, format: format),
+            .movementStep: toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
+            .movementBlocked: toneBuffer(frequency: 160, duration: 0.05, amplitude: 0.1, format: format),
+            .objectPushed: toneBuffer(frequency: 280, duration: 0.07, amplitude: 0.14, format: format),
+            .objectLanded: toneBuffer(frequency: 200, duration: 0.06, amplitude: 0.12, format: format),
+            .collectiblePickedUp: toneBuffer(frequency: 660, duration: 0.12, amplitude: 0.16, format: format),
             .goalLeft: toneBuffer(frequency: 360, duration: 0.1, amplitude: 0.1, format: format),
-            .levelCompleted: chordBuffer(
+            .exitOpened: toneBuffer(frequency: 740, duration: 0.22, amplitude: 0.15, format: format),
+            .playerDied: toneBuffer(frequency: 120, duration: 0.28, amplitude: 0.14, format: format),
+            .timeExpired: toneBuffer(frequency: 180, duration: 0.2, amplitude: 0.13, format: format),
+            .objectiveCompleted: chordBuffer(
                 frequencies: [523.25, 659.25, 783.99],
                 duration: 0.45,
                 amplitude: 0.14,

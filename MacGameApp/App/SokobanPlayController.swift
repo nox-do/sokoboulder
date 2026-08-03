@@ -56,7 +56,7 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var outcomeBestPushCount: Int?
     /// Keyboard-confirm target while the result overlay is visible.
     @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
-    /// Game-selection keyboard focus (skips disabled Höhle).
+    /// Game-selection keyboard focus (Sokoban, Höhle-Demo, Hilfe, Settings).
     @Published private(set) var focusedGameSelectionAction: GameSelectionAction = .sokoban
     /// Launch-menu keyboard selection.
     @Published private(set) var focusedLaunchAction: LaunchMenuAction = .continueCampaign
@@ -175,7 +175,7 @@ final class SokobanPlayController: ObservableObject {
         )
         self.musicTrackCatalog = MusicTrackCatalog(
             tracks: BuiltInMusicTracks.allFallbacks(),
-            defaultTrackID: MusicTrack.puzzlingID
+            defaultTrackIDs: BuiltInMusicTracks.defaultTrackIDs()
         )
         self.settingsStore = settingsStore
         self.reduceMotionProvider = ReduceMotionProvider(
@@ -207,7 +207,7 @@ final class SokobanPlayController: ObservableObject {
     var pausePresentation: PausePresentation {
         PausePresentation(
             title: AppStrings.text(.uiPauseTitle),
-            hint: AppStrings.text(.uiPauseHintCave),
+            hint: AppStrings.text(isCaveMode ? .uiPauseHintCave : .uiPauseHint),
             resumeTitle: AppStrings.text(.uiPauseResume),
             restartTitle: AppStrings.text(.uiPauseRestart),
             settingsTitle: AppStrings.text(.uiPauseSettings),
@@ -217,7 +217,37 @@ final class SokobanPlayController: ObservableObject {
     }
 
     var helpPresentation: HelpPresentation {
-        HelpPresentation(
+        if isCaveMode {
+            return HelpPresentation(
+                title: AppStrings.text(.uiHelpTitle),
+                backTitle: AppStrings.text(.uiHelpBack),
+                controls: [
+                    HelpControlRow(
+                        id: "move",
+                        title: AppStrings.text(.uiHelpMoveTitle),
+                        detail: AppStrings.text(.uiHelpMoveDetail)
+                    ),
+                    HelpControlRow(
+                        id: "wait",
+                        title: AppStrings.text(.uiHelpWaitTitle),
+                        detail: AppStrings.text(.uiHelpWaitDetail)
+                    ),
+                    HelpControlRow(
+                        id: "restart",
+                        title: AppStrings.text(.uiHelpRestartTitle),
+                        detail: AppStrings.text(.uiHelpRestartDetail)
+                    ),
+                    HelpControlRow(
+                        id: "pause",
+                        title: AppStrings.text(.uiHelpPauseTitle),
+                        detail: AppStrings.text(.uiHelpPauseDetail)
+                    ),
+                ],
+                tutorialSectionTitle: "",
+                tutorialHints: []
+            )
+        }
+        return HelpPresentation(
             title: AppStrings.text(.uiHelpTitle),
             backTitle: AppStrings.text(.uiHelpBack),
             controls: [
@@ -256,10 +286,38 @@ final class SokobanPlayController: ObservableObject {
 
     var settingsPresentation: SettingsPresentation {
         let snap = settingsSnapshot
-        let musicOptions = musicTrackCatalog.selectableTracks(for: .sokoban)
-        let selectedMusic =
-            musicTrackCatalog.resolvedTrack(preferredID: snap.musicTrackID, for: .sokoban)
-            ?? musicOptions.first
+        let musicGroups: [SettingsPresentation.MusicTrackGroup] = AudioGameMode.allCases.compactMap {
+            game in
+            let options = musicTrackCatalog.selectableTracks(for: game)
+            guard options.count > 1 else { return nil }
+            let selected =
+                musicTrackCatalog.resolvedTrack(
+                    preferredID: snap.musicTrackID(for: game),
+                    for: game
+                ) ?? options.first
+            let title: String
+            switch game {
+            case .sokoban:
+                title = AppStrings.text(.uiSettingsMusicTrackSokoban)
+            case .cave:
+                title = AppStrings.text(.uiSettingsMusicTrackCave)
+            }
+            return SettingsPresentation.MusicTrackGroup(
+                id: SettingsOverlay.musicTrackFocusID(for: game),
+                game: game,
+                title: title,
+                hint: AppStrings.text(.uiSettingsMusicTrackHint),
+                options: options.map {
+                    SettingsPresentation.MusicTrackOption(
+                        id: $0.id,
+                        title: AppStrings.text(id: $0.displayNameID)
+                    )
+                },
+                selectedTrackID: selected?.id ?? snap.musicTrackID(for: game),
+                creditSummary: selected?.credit.summaryLine ?? "",
+                attributionNotice: selected?.credit.attributionNotice
+            )
+        }
         return SettingsPresentation(
             title: AppStrings.text(.uiSettingsTitle),
             backTitle: AppStrings.text(.uiSettingsBack),
@@ -271,17 +329,7 @@ final class SokobanPlayController: ObservableObject {
                 )
             },
             selectedThemeID: visualTheme.id,
-            musicTrackTitle: AppStrings.text(.uiSettingsMusicTrack),
-            musicTrackHint: AppStrings.text(.uiSettingsMusicTrackHint),
-            musicTrackOptions: musicOptions.map {
-                SettingsPresentation.MusicTrackOption(
-                    id: $0.id,
-                    title: AppStrings.text(id: $0.displayNameID)
-                )
-            },
-            selectedMusicTrackID: selectedMusic?.id ?? snap.musicTrackID,
-            selectedMusicCreditSummary: selectedMusic?.credit.summaryLine ?? "",
-            selectedMusicAttributionNotice: selectedMusic?.credit.attributionNotice,
+            musicTrackGroups: musicGroups,
             reduceMotionTitle: AppStrings.text(.uiSettingsReduceMotion),
             reduceMotionDetail: AppStrings.text(.uiSettingsReduceMotionDetail),
             reduceMotionEnabled: snap.reduceMotionEnabled,
@@ -295,6 +343,37 @@ final class SokobanPlayController: ObservableObject {
     }
 
     var outcomePresentation: OutcomePresentation {
+        if isCaveMode {
+            return OutcomePresentation(
+                title: outcomeTitle,
+                metrics: [
+                    OutcomeMetricLine(
+                        id: "diamonds",
+                        title: AppStrings.text(.uiHudDiamonds),
+                        value: "\(completedGoalCount)/\(totalGoalCount)"
+                    ),
+                    OutcomeMetricLine(
+                        id: "time",
+                        title: AppStrings.text(.uiHudTime),
+                        value: String(moveCount)
+                    ),
+                    OutcomeMetricLine(
+                        id: "score",
+                        title: AppStrings.text(.uiHudScore),
+                        value: String(pushCount)
+                    ),
+                ],
+                records: [],
+                hint: outcomeHint,
+                primaryTitle: outcomePrimaryTitle,
+                playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
+                playAgainEnabled: canRestart,
+                undoTitle: AppStrings.text(.uiOutcomeUndo),
+                undoEnabled: false,
+                levelSelectTitle: AppStrings.text(.uiLaunchBackToGames)
+            )
+        }
+
         var records: [OutcomeRecordLine] = []
         if let bestMoves = outcomeBestMoveCount {
             records.append(
@@ -355,9 +434,18 @@ final class SokobanPlayController: ObservableObject {
             return AppStrings.text(.uiBoardUnavailable)
         }
         let player = snapshot.player.position
-        return "\(AppStrings.text(.uiBoardPlayer)) "
+        let position =
+            "\(AppStrings.text(.uiBoardPlayer)) "
             + "\(AppStrings.text(.uiBoardColumn)) \(player.column + 1), "
             + "\(AppStrings.text(.uiBoardRow)) \(player.row + 1). "
+        if isCaveMode {
+            return position
+                + "\(AppStrings.text(.uiHudDiamonds)) "
+                + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
+                + "\(AppStrings.text(.uiHudTime)) \(snapshot.moveCount), "
+                + "\(AppStrings.text(.uiHudScore)) \(snapshot.pushCount)."
+        }
+        return position
             + "\(AppStrings.text(.uiHudGoals)) "
             + "\(snapshot.completedGoalCount) von \(snapshot.totalGoalCount). "
             + "\(AppStrings.text(.uiHudMoves)) \(snapshot.moveCount), "
@@ -673,8 +761,8 @@ final class SokobanPlayController: ObservableObject {
         case .moveLeft:
             if focusedSettingsID == "theme" {
                 cycleTheme(by: -1)
-            } else if focusedSettingsID == "musicTrack" {
-                cycleMusicTrack(by: -1)
+            } else if let game = musicTrackGame(forFocusID: focusedSettingsID) {
+                cycleMusicTrack(for: game, by: -1)
             } else {
                 focusedSettingsID =
                     KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: -1)
@@ -684,8 +772,8 @@ final class SokobanPlayController: ObservableObject {
         case .moveRight:
             if focusedSettingsID == "theme" {
                 cycleTheme(by: 1)
-            } else if focusedSettingsID == "musicTrack" {
-                cycleMusicTrack(by: 1)
+            } else if let game = musicTrackGame(forFocusID: focusedSettingsID) {
+                cycleMusicTrack(for: game, by: 1)
             } else {
                 focusedSettingsID =
                     KeyboardFocusCycle.move(from: focusedSettingsID, in: order, offset: 1)
@@ -790,8 +878,10 @@ final class SokobanPlayController: ObservableObject {
         case "theme":
             cycleTheme(by: 1)
             return true
-        case "musicTrack":
-            cycleMusicTrack(by: 1)
+        case let id where musicTrackGame(forFocusID: id) != nil:
+            if let game = musicTrackGame(forFocusID: id) {
+                cycleMusicTrack(for: game, by: 1)
+            }
             return true
         case "reduceMotion":
             updateReduceMotionEnabled(!settingsStore.reduceMotionEnabled)
@@ -839,8 +929,12 @@ final class SokobanPlayController: ObservableObject {
     private var settingsFocusOrder: [String] {
         SettingsOverlay.keyboardFocusOrder(
             showsThemePicker: themeCatalog.selectableThemes.count > 1,
-            showsMusicTrackPicker: musicTrackCatalog.selectableTracks(for: .sokoban).count > 1
+            musicTrackFocusIDs: settingsPresentation.musicTrackGroups.map(\.id)
         )
+    }
+
+    private func musicTrackGame(forFocusID id: String) -> AudioGameMode? {
+        settingsPresentation.musicTrackGroups.first { $0.id == id }?.game
     }
 
     private static let levelSelectionBackID = "navigation.back"
@@ -1103,15 +1197,14 @@ final class SokobanPlayController: ObservableObject {
             isCaveMode = true
             currentLevelID = CaveDemoLevel.id
             levelTitle = CaveDemoLevel.title
-            tutorialHintText =
-                "Sammle den Diamanten und erreiche den Ausgang. Leertaste = warten."
+            tutorialHintText = AppStrings.text(.uiCaveDemoHint)
             faultMessage = nil
             recoveryMessage = nil
             overlayReturnOrigin = nil
             outcomePrimaryAction = .openLaunchMenu
             outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
             outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
-            outcomeHint = AppStrings.text(.uiOutcomeHintBack)
+            outcomeHint = AppStrings.text(.uiOutcomeHintCave)
             outcomeBestMoveCount = nil
             outcomeBestPushCount = nil
             outcomeNewBestMoves = false
@@ -1201,18 +1294,18 @@ final class SokobanPlayController: ObservableObject {
         settingsStore.themeID = options[nextIndex].id
     }
 
-    func updateMusicTrackID(_ trackID: String) {
-        settingsStore.musicTrackID = trackID
+    func updateMusicTrackID(_ trackID: String, for game: AudioGameMode = .sokoban) {
+        settingsStore.setMusicTrackID(trackID, for: game)
     }
 
-    func cycleMusicTrack(by offset: Int) {
-        let options = musicTrackCatalog.selectableTracks(for: .sokoban)
+    func cycleMusicTrack(for game: AudioGameMode = .sokoban, by offset: Int) {
+        let options = musicTrackCatalog.selectableTracks(for: game)
         guard !options.isEmpty else { return }
-        let currentID = settingsStore.musicTrackID
+        let currentID = settingsStore.musicTrackID(for: game)
         let currentIndex = options.firstIndex { $0.id == currentID } ?? 0
         let count = options.count
         let nextIndex = ((currentIndex + offset) % count + count) % count
-        settingsStore.musicTrackID = options[nextIndex].id
+        settingsStore.setMusicTrackID(options[nextIndex].id, for: game)
     }
 
     func updateMusicVolume(_ volume: Double) {
@@ -1304,7 +1397,11 @@ final class SokobanPlayController: ObservableObject {
 
     func openLevelSelectionFromOutcome() {
         guard presentationPhase == .outcomeAwaitingChoice else { return }
-        openLevelSelection()
+        if isCaveMode {
+            openGameSelection()
+        } else {
+            openLevelSelection()
+        }
     }
 
     #if DEBUG
@@ -1326,7 +1423,10 @@ final class SokobanPlayController: ObservableObject {
 
     private func bindSettingsSideEffects() {
         settingsStore.seedThemeIDFromCatalogIfUnset(themeCatalog.defaultThemeID)
-        settingsStore.seedMusicTrackIDFromCatalogIfUnset(musicTrackCatalog.defaultTrackID)
+        settingsStore.seedMusicTrackIDsFromCatalogIfUnset(
+            sokobanDefault: musicTrackCatalog.defaultTrackID(for: .sokoban),
+            caveDefault: musicTrackCatalog.defaultTrackID(for: .cave)
+        )
         settingsSnapshot = settingsStore.snapshot
         applyAudioSettingsFromStore()
         applyVisualThemeFromStore()
@@ -1348,7 +1448,8 @@ final class SokobanPlayController: ObservableObject {
 
     private func applyAudioSettingsFromStore() {
         audioDirector.applyOutputSettings(.from(settings: settingsStore.snapshot))
-        audioDirector.applyMusicTrackID(settingsStore.musicTrackID)
+        audioDirector.applyMusicTrackID(settingsStore.sokobanMusicTrackID, for: .sokoban)
+        audioDirector.applyMusicTrackID(settingsStore.caveMusicTrackID, for: .cave)
     }
 
     private func applyVisualThemeFromStore() {
@@ -1751,15 +1852,15 @@ final class SokobanPlayController: ObservableObject {
             if isCaveMode {
                 let failed = emission.render.snapshot.status == .failed
                 if failed {
-                    outcomeTitle = "Höhle gescheitert"
+                    outcomeTitle = AppStrings.text(.uiOutcomeCaveFailed)
                     outcomePrimaryAction = .playAgain
                     outcomePrimaryTitle = AppStrings.text(.uiOutcomePlayAgain)
-                    outcomeHint = AppStrings.text(.uiOutcomeHintAgain)
+                    outcomeHint = AppStrings.text(.uiOutcomeHintCave)
                 } else {
                     outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
                     outcomePrimaryAction = .openLaunchMenu
                     outcomePrimaryTitle = AppStrings.text(.uiLaunchBackToGames)
-                    outcomeHint = AppStrings.text(.uiOutcomeHintBack)
+                    outcomeHint = AppStrings.text(.uiOutcomeHintCave)
                 }
             } else {
                 recordCompletionIfNeeded(snapshot: emission.render.snapshot)
@@ -1847,8 +1948,8 @@ final class SokobanPlayController: ObservableObject {
             self.enterOutcomeAwaitingChoice()
         }
         showOutcomeWorkItem = work
-        // Cave: show outcome promptly so standing on the exit does not feel stuck.
-        let delay: TimeInterval = isCaveMode ? 0.35 : 1.5
+        // Let the win/death jingle breathe; cave WAV is ~1.35s.
+        let delay: TimeInterval = isCaveMode ? 1.2 : 1.5
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
