@@ -1082,7 +1082,12 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func applyVisualThemeFromStore() {
-        let resolved = themeCatalog.resolvedTheme(preferredID: settingsStore.themeID)
+        let resolved: VisualTheme
+        if DevVisualThemeSwitch.forceVectorStandard {
+            resolved = BuiltInThemes.standard
+        } else {
+            resolved = themeCatalog.resolvedTheme(preferredID: settingsStore.themeID)
+        }
         visualTheme = resolved
         scene.apply(theme: resolved)
     }

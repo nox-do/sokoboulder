@@ -8,12 +8,21 @@ struct GridGeometry: Equatable, Sendable {
     var availableSize: CGSize
     var gridWidth: Int
     var gridHeight: Int
+    /// Profile selects vector shapes vs pixel textures / inset (ADR 0003 / 0004).
+    /// Tile size itself is continuous for both profiles.
+    var renderingProfile: BoardRenderingProfile = .vectorContinuous
+    /// Texture authoring hint (points); not used for runtime scale.
+    var baseTilePoints: CGFloat = 32
+    /// Legacy field kept for theme JSON compatibility (`0` = unused).
+    var maxIntegerScale: Int = 0
 
     /// Logical tile edge length in points (uniform; letterboxed if needed).
     var tileSize: CGFloat {
         guard gridWidth > 0, gridHeight > 0 else { return 0 }
         let byWidth = availableSize.width / CGFloat(gridWidth)
         let byHeight = availableSize.height / CGFloat(gridHeight)
+        // Pixel themes use continuous size + `.nearest` textures (ADR 0004).
+        // Integer stepping left large letterbox between 32‑pt multiples.
         return min(byWidth, byHeight)
     }
 

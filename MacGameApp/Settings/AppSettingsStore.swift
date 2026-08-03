@@ -19,7 +19,7 @@ struct AppSettingsSnapshot: Equatable, Sendable {
 
     static let `default` = AppSettingsSnapshot(
         reduceMotionEnabled: false,
-        themeID: VisualTheme.standardID,
+        themeID: VisualTheme.dungeonID,
         musicVolume: 0.8,
         effectsVolume: 1.0,
         isMuted: false
@@ -140,7 +140,7 @@ final class AppSettingsStore: ObservableObject {
 
     static func normalizeThemeID(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return VisualTheme.standardID }
+        guard !trimmed.isEmpty else { return VisualTheme.dungeonID }
         return trimmed
     }
 

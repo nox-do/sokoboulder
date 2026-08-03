@@ -9,6 +9,12 @@ enum ThemeDecodeError: Error, Equatable, Sendable {
     case emptyID
     case emptyDisplayNameID
     case invalidColor(String)
+    case invalidRenderingProfile(String)
+    case invalidBaseTilePoints(Double)
+    case invalidMaxIntegerScale(Int)
+    case missingTextures
+    case missingTexture(path: String)
+    case emptyTexturePath(field: String)
     case duplicateThemeID(String)
     case emptyThemePath
     case duplicateThemePath(String)

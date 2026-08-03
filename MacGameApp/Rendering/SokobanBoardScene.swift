@@ -1,3 +1,4 @@
+import AppKit
 import GameCore
 import SpriteKit
 
@@ -59,6 +60,7 @@ final class SokobanBoardScene: SKScene {
     private var animationGeneration: UInt64 = 0
     /// True while goal tiles / frame still show completion celebration visuals.
     private var celebrationVisualsActive = false
+    private var textureCache: [String: SKTexture] = [:]
 
     private(set) var appliedRevision: UInt64 = 0
     /// Last revision whose presentation has visually settled (or hard-synced).
@@ -134,11 +136,23 @@ final class SokobanBoardScene: SKScene {
     /// Applies a visual theme. Rebuilds from the last snapshot when one exists.
     func apply(theme: VisualTheme) {
         self.theme = theme
+        textureCache.removeAll(keepingCapacity: true)
+        syncGeometryProfile()
         backgroundColor = theme.board.background.skColor
         guard let snapshot = appliedSnapshot else { return }
         cancelAnimationsAndPending()
         rebuild(from: snapshot)
         markSettled(appliedRevision)
+    }
+
+    private var usesPixelTextures: Bool {
+        theme.rendering.profile == .pixelInteger
+    }
+
+    private func syncGeometryProfile() {
+        geometry.renderingProfile = theme.rendering.profile
+        geometry.baseTilePoints = theme.rendering.baseTilePoints
+        geometry.maxIntegerScale = theme.rendering.maxIntegerScale
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -303,6 +317,7 @@ final class SokobanBoardScene: SKScene {
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
 
+        syncGeometryProfile()
         geometry.gridWidth = snapshot.width
         geometry.gridHeight = snapshot.height
         if geometry.availableSize == .zero {
@@ -476,12 +491,25 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func entitySize() -> CGSize {
+        if usesPixelTextures {
+            let edge = max(1, geometry.tileSize)
+            return CGSize(width: edge, height: edge)
+        }
         let inset = geometry.tileSize * 0.15
         let edge = max(1, geometry.tileSize - inset)
         return CGSize(width: edge, height: edge)
     }
 
     private func makeTerrainNode(_ terrain: RenderTerrain) -> SKSpriteNode {
+        if usesPixelTextures, let texture = terrainTexture(for: terrain) {
+            let node = SKSpriteNode(texture: texture, size: .zero)
+            node.name = "terrain.\(terrain)"
+            node.zPosition = 0
+            node.color = .white
+            node.colorBlendFactor = 0
+            return node
+        }
+
         let tokens = theme.board.terrain
         let fill: ThemeColor
         let stroke: ThemeColor?
@@ -522,6 +550,15 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func makeEntityNode(kind: EntityKind) -> SKSpriteNode {
+        if usesPixelTextures, let texture = entityTexture(for: kind, onGoal: false) {
+            let node = SKSpriteNode(texture: texture, size: .zero)
+            node.name = "entity.\(kind)"
+            node.zPosition = kind == .player ? 2 : 1
+            node.color = .white
+            node.colorBlendFactor = 0
+            return node
+        }
+
         let tokens = theme.board.entities
         let fill: ThemeColor
         let stroke: ThemeColor
@@ -555,6 +592,40 @@ final class SokobanBoardScene: SKScene {
         goalMarker.zPosition = 2
         node.addChild(goalMarker)
         return node
+    }
+
+    private func terrainTexture(for terrain: RenderTerrain) -> SKTexture? {
+        guard let paths = theme.rendering.textures else { return nil }
+        switch terrain {
+        case .void: return nil
+        case .floor: return cachedTexture(at: paths.floor)
+        case .wall: return cachedTexture(at: paths.wall)
+        case .goal: return cachedTexture(at: paths.goal)
+        }
+    }
+
+    private func entityTexture(for kind: EntityKind, onGoal: Bool) -> SKTexture? {
+        guard let paths = theme.rendering.textures else { return nil }
+        switch kind {
+        case .player:
+            return cachedTexture(at: paths.player)
+        case .crate:
+            return cachedTexture(at: onGoal ? paths.crateOnGoal : paths.crate)
+        }
+    }
+
+    private func cachedTexture(at path: String) -> SKTexture? {
+        if let cached = textureCache[path] { return cached }
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanBoardScene.self))
+        guard let url = try? resources.url(at: path),
+            let image = NSImage(contentsOf: url)
+        else {
+            return nil
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .nearest
+        textureCache[path] = texture
+        return texture
     }
 
     private func makeStrokeNode(color: SKColor) -> SKShapeNode {
@@ -601,13 +672,20 @@ final class SokobanBoardScene: SKScene {
 
     private func updateGoalStateMarkers(using snapshot: RenderSnapshot) {
         for entity in snapshot.entities {
-            guard let node = entityNodes[entity.ref.id],
-                let marker = node.childNode(withName: "goalStateMarker") as? SKLabelNode
-            else { continue }
-            marker.alpha = snapshot.cell(at: entity.position)?.terrain == .goal ? 1 : 0
+            guard let node = entityNodes[entity.ref.id] else { continue }
+            let onGoal = snapshot.cell(at: entity.position)?.terrain == .goal
+            if usesPixelTextures {
+                if let texture = entityTexture(for: .crate, onGoal: onGoal) {
+                    node.texture = texture
+                }
+            } else if let marker = node.childNode(withName: "goalStateMarker") as? SKLabelNode {
+                marker.alpha = onGoal ? 1 : 0
+            }
         }
 
-        if let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode {
+        if usesPixelTextures {
+            // Player has no separate on-goal texture; goal terrain shows through.
+        } else if let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode {
             marker.alpha = snapshot.cell(at: snapshot.player.position)?.terrain == .goal ? 1 : 0
         }
     }
@@ -642,15 +720,26 @@ final class SokobanBoardScene: SKScene {
 
     private func schedulePushPulse(on node: SKSpriteNode, group: DispatchGroup) {
         let highlight = theme.board.feedback.pushHighlight.skColor
-        let original = node.color
+        let usesTexture = node.texture != nil
+        let originalColor = node.color
+        let originalBlend = node.colorBlendFactor
         group.enter()
 
-        if prefersReducedMotion {
+        let applyHighlight = {
             node.color = highlight
+            node.colorBlendFactor = usesTexture ? 0.55 : 1
+        }
+        let restore = {
+            node.color = originalColor
+            node.colorBlendFactor = originalBlend
+        }
+
+        if prefersReducedMotion {
+            applyHighlight()
             node.run(
                 .sequence([
                     .wait(forDuration: 0.06),
-                    .run { node.color = original },
+                    .run(restore),
                 ])
             ) {
                 group.leave()
@@ -666,14 +755,14 @@ final class SokobanBoardScene: SKScene {
                     .scale(to: 1.0, duration: duration * 0.65),
                 ]),
                 .sequence([
-                    .run { node.color = highlight },
+                    .run(applyHighlight),
                     .wait(forDuration: duration * 0.45),
-                    .run { node.color = original },
+                    .run(restore),
                 ]),
             ])
         ) {
             node.setScale(1)
-            node.color = original
+            restore()
             group.leave()
         }
     }
@@ -717,7 +806,15 @@ final class SokobanBoardScene: SKScene {
                 guard let cell = snapshot.cell(at: position) else { continue }
                 let node = terrainNodes[index]
                 node.removeAction(forKey: "goalPulse")
-                node.color = fillColor(for: cell.terrain).skColor
+                if usesPixelTextures {
+                    node.color = .white
+                    node.colorBlendFactor = 0
+                    if let texture = terrainTexture(for: cell.terrain) {
+                        node.texture = texture
+                    }
+                } else {
+                    node.color = fillColor(for: cell.terrain).skColor
+                }
             }
         }
     }
@@ -787,21 +884,35 @@ final class SokobanBoardScene: SKScene {
                 guard snapshot.cell(at: position)?.terrain == .goal else { continue }
                 let node = terrainNodes[index]
                 node.removeAction(forKey: "goalPulse")
+                let highlight = theme.board.feedback.completionFrame.skColor
+                let goalFill = theme.board.terrain.goalFill.skColor
+                let usesTexture = usesPixelTextures && node.texture != nil
+                let applyHighlight = {
+                    node.color = highlight
+                    node.colorBlendFactor = usesTexture ? 0.45 : 1
+                }
+                let restore = {
+                    if usesTexture {
+                        node.color = .white
+                        node.colorBlendFactor = 0
+                    } else {
+                        node.color = goalFill
+                        node.colorBlendFactor = 0
+                    }
+                }
                 if !animated || prefersReducedMotion {
-                    node.color = theme.board.feedback.completionFrame.skColor
+                    applyHighlight()
                     continue
                 }
-                let original = theme.board.terrain.goalFill.skColor
-                let highlight = theme.board.feedback.completionFrame.skColor
                 node.run(
                     .sequence([
-                        .run { node.color = highlight },
+                        .run(applyHighlight),
                         .wait(forDuration: 0.12),
-                        .run { node.color = original },
+                        .run(restore),
                         .wait(forDuration: 0.12),
-                        .run { node.color = highlight },
+                        .run(applyHighlight),
                         .wait(forDuration: 0.12),
-                        .run { node.color = original },
+                        .run(restore),
                     ]),
                     withKey: "goalPulse"
                 )
@@ -839,6 +950,7 @@ final class SokobanBoardScene: SKScene {
             !frameNode.isHidden && frameNode.alpha > 0.01
         }
         var themeIDForTesting: String { theme.id }
+        var renderingProfileForTesting: BoardRenderingProfile { theme.rendering.profile }
         var celebrationVisualsActiveForTesting: Bool { celebrationVisualsActive }
     #endif
 }

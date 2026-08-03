@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "id": "theme.dungeon",
+  "displayNameID": "theme.dungeon.name",
+  "rendering": {
+    "profile": "pixelInteger",
+    "baseTilePoints": 32,
+    "maxIntegerScale": 0,
+    "textures": {
+      "floor": "Textures/dungeon/floor.png",
+      "wall": "Textures/dungeon/wall.png",
+      "goal": "Textures/dungeon/goal.png",
+      "player": "Textures/dungeon/player.png",
+      "crate": "Textures/dungeon/crate.png",
+      "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
+    }
+  },
+  "board": {
+    "background": "#121418",
+    "terrain": {
+      "voidFill": "#08090B",
+      "floorFill": "#6A6A6A",
+      "floorStroke": "#4A4A4A",
+      "wallFill": "#3A3834",
+      "wallStroke": "#1E1C18",
+      "wallSymbol": "▦",
+      "goalFill": "#6A6A6A",
+      "goalStroke": "#7AD7FF",
+      "goalSymbol": "◎"
+    },
+    "entities": {
+      "playerFill": "#D0A070",
+      "playerStroke": "#FFF0D8",
+      "playerSymbol": "◆",
+      "crateFill": "#A07040",
+      "crateStroke": "#E8D0A0",
+      "crateSymbol": "■"
+    },
+    "stateMarkers": {
+      "crateOnGoalSymbol": "✓",
+      "crateOnGoalColor": "#FFFFFF",
+      "playerOnGoalSymbol": "✓",
+      "playerOnGoalColor": "#FFFFFF",
+      "emptyGoalAccent": "#7AD7FF"
+    },
+    "feedback": {
+      "blockedSymbol": "×",
+      "blockedColor": "#FF5A5A",
+      "goalEnteredSymbol": "✓",
+      "goalEnteredColor": "#55E08A",
+      "goalLeftSymbol": "↶",
+      "goalLeftColor": "#FFB04A",
+      "pushHighlight": "#FFFFFF",
+      "completionFrame": "#55E08A"
+    }
+  },
+  "ui": {
+    "focusRing": "#7AD7FF",
+    "focusBackground": "#1E2830",
+    "focusBorder": "#A0D8F0",
+    "focusForeground": "#F5F8FA",
+    "primaryFill": "#3A6A80",
+    "primaryForeground": "#F5F8FA",
+    "secondaryFill": "#2A2E34",
+    "secondaryForeground": "#D0D4D8",
+    "disabledFill": "#1A1C20",
+    "disabledForeground": "#667078",
+    "success": "#3DDC84",
+    "warning": "#F5A623",
+    "error": "#E74C3C",
+    "overlayScrim": "#00000073",
+    "panelBackground": "#1A1E24F2",
+    "panelForeground": "#F0F2F4",
+    "panelSecondary": "#A0A8B0",
+    "hudBackground": "#121418CC",
+    "hudForeground": "#F0F2F4",
+    "hudSecondary": "#9098A0"
+  }
+}

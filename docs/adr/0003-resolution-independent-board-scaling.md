@@ -30,8 +30,9 @@ Für Phase 3.4 und den Standard-Renderer gilt Stil **B**:
 - **Keine Gameplay-Geometrie** darf außerhalb des sichtbaren Board-Bereichs
   liegen; HUD und Overlays belegen getrennte Layoutflächen.
 
-Pixel-Art mit ganzzahliger Skalierung bleibt eine **spätere optionale
-Theme-Variante**, ist aber kein Vertrag von Phase 3.4.
+Pixel-Art mit ganzzahliger Skalierung ist eine **optionale Theme-Variante**
+([ADR 0004](0004-pixel-rendering-profile.md)), kein Vertrag des Standardpfads
+in Phase 3.4.
 
 ## Alternativen
 
@@ -46,5 +47,5 @@ Theme-Variante**, ist aber kein Vertrag von Phase 3.4.
   Letterboxing.
 - Theme-JSONs liefern Farben, Konturen und Symbole; sie spezifizieren keine
   Pixel-Tile-Größe.
-- Ein späteres Pixel-Art-Theme benötigt ein eigenes Rendering-Profil und ggf.
-  eine Schema-Erweiterung; der bestehende Vektorvertrag bleibt gültig.
+- Pixel-Art-Themes nutzen ADR 0004 (`pixelInteger` + Texture-Keys); der
+  bestehende Vektorvertrag für den Default bleibt gültig.

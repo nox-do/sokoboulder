@@ -70,6 +70,90 @@ Attribution is not required by CC0. The author and source are listed voluntarily
 
 Attribution is not required by CC0. The author and source are listed voluntarily.
 
+## `theme.dungeon` board textures (mixed pack)
+
+### Floor — Seamless Cobblestone (HellGate)
+
+- Source: <https://opengameart.org/content/seamless-cobblestone-texture>
+- Original archive: `cobblestone.zip`
+- License: CC0 1.0
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC0-1.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256 of the unchanged archive:
+  `2f28bf1016e94338e05d5f85d5e40703bc620e02f1059cb7fa43d7ecbf73619f`
+- Changes: cropped/scaled `diffuse.png` to `Textures/dungeon/floor.png` (64×64).
+
+### Wall — Stone texture (phaelax)
+
+- Source: <https://opengameart.org/content/stone-texture-bump>
+- Original preview file used: `stone2.jpg` (512×512 diffuse)
+- License: **CC-BY-SA 3.0**
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-SA-3.0.txt`
+- Downloaded: 2026-08-03
+-   SHA-256 of `stone2.jpg`:
+  `318794ff636cf7070a2024609599aa16d80abf46fb22dd0857e3f17a717acd55`
+- Changes: cropped/scaled + slight darken → `Textures/dungeon/wall.png` (64×64).
+- Attribution: phaelax / OpenGameArt. ShareAlike applies to this derived wall tile.
+
+### Player (renegreg)
+
+- Source: <https://opengameart.org/content/player>
+- Original file: `Player.psd`
+- License: **CC-BY 3.0** (chosen from the offered multi-license)
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-3.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256 of the unchanged PSD:
+  `097aeb328bfa41e3bb6b73c39fbb2a3b7fa575c819a9c3225cf01031ce980fbd`
+- Changes: rasterized, fitted to 64×64 with transparency → `Textures/dungeon/player.png`.
+- Attribution: renegreg.
+
+### Crate — [2D] Wooden Box (Cpt_Flash)
+
+- Source: <https://opengameart.org/content/2d-wooden-box>
+- Original file: `RTS_Crate.png`
+- License: CC0 1.0
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC0-1.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256:
+  `f7e9954c728f1677f4ba3073cb8e6609e3a2f51bf4ec30946f43b6f0307fcef0`
+- Changes: fitted to 64×64 → `Textures/dungeon/crate.png`; also composited onto goal
+  for `crate-on-goal.png`.
+
+### Goal marker — glow circle (oglsdl)
+
+- Source: <https://opengameart.org/content/glow-circle>
+- Original file: `glowCircle.png`
+- License: CC0 1.0
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC0-1.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256:
+  `3d8869a5c7ae379745a0822d61a83da7790cecdd9d64103e13caf15a7b05eb20`
+- Changes: fitted, recolored cyan, alpha reduced, composited onto floor →
+  `Textures/dungeon/goal.png`.
+
+Display scale: continuous fit (same as vector) with `.nearest` texture filtering.
+
+## `theme.kenney` board textures
+
+- Pack: Sokoban (100+ tiles)
+- Author: Kenney Vleugels (Kenney.nl)
+- Source: <https://opengameart.org/content/sokoban-100-tiles>
+- Original archive: `kenney_sokobanPack.zip`
+- License: CC0 1.0
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC0-1.0.txt`
+- Downloaded: 2026-08-03
+- SHA-256 of the unchanged archive:
+  `d8cc8af649a5e21d87a9f30a8a616fe2c0e94e68c80cdfe0df8ca72ec0f208ac`
+- Extracted (Default size 64×64, renamed into `Textures/kenney/`):
+  - `Ground/ground_06.png` → `floor.png`
+  - `Blocks/block_06.png` → `wall.png`
+  - `Crates/crate_02.png` → `crate.png`
+  - `Crates/crate_05.png` → `crate-on-goal.png`
+  - `Player/player_05.png` → `player.png`
+  - Goal: `Environment/environment_05.png` composited onto ground → `goal.png`
+
+Attribution is not required by CC0. Kenney.nl is listed voluntarily.
+
 ## Sokoban campaign levels (`sokoban.campaign.001`–`090`)
 
 - Pack: Still Yet Another Sokoban (default 90)

@@ -49,15 +49,22 @@ enum ThemeCatalogLoader {
                 throw ThemeDecodeError.duplicateThemePath(path)
             }
 
-            let data = try resources.data(at: path)
             let theme: VisualTheme
+            var loadedData: Data?
             do {
-                theme = try ThemeFileCodec.decodeTheme(data)
+                let data = try resources.data(at: path)
+                loadedData = data
+                let decoded = try ThemeFileCodec.decodeTheme(data)
+                try verifyPixelTexturesIfNeeded(decoded, resources: resources)
+                theme = decoded
             } catch {
-                // Per-theme fallback for known IDs; unknown IDs fail the catalog.
-                let guessedID = (try? guessThemeID(from: data)) ?? path
-                if VisualTheme.knownIDs.contains(guessedID) {
-                    theme = BuiltInThemes.fallback(id: guessedID)
+                // Per-theme policy for known IDs; unknown IDs fail the catalog.
+                let guessedID = guessThemeID(path: path, data: loadedData) ?? path
+                if guessedID == VisualTheme.standardID {
+                    theme = BuiltInThemes.standard
+                } else if VisualTheme.optionalPixelIDs.contains(guessedID) {
+                    // Optional pixel theme: skip rather than insert a duplicate standard.
+                    continue
                 } else {
                     throw error
                 }
@@ -76,24 +83,37 @@ enum ThemeCatalogLoader {
             throw ThemeDecodeError.missingTheme(id: manifest.defaultThemeID)
         }
 
-        // Ensure built-in fallbacks remain selectable even if a JSON is broken
-        // and was replaced by fallback above.
-        for fallback in BuiltInThemes.allFallbacks()
-        where !themes.contains(where: { $0.id == fallback.id }) {
-            themes.append(fallback)
-        }
-
         return ThemeCatalog(themes: themes, defaultThemeID: manifest.defaultThemeID)
     }
 
-    private static func guessThemeID(from data: Data) -> String? {
-        guard
-            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let id = object["id"] as? String,
-            !id.isEmpty
-        else {
-            return nil
+    /// ``pixelInteger`` themes must reference existing bundle resources.
+    private static func verifyPixelTexturesIfNeeded(
+        _ theme: VisualTheme,
+        resources: any ContentResourceProvider
+    ) throws {
+        guard theme.rendering.profile == .pixelInteger else { return }
+        guard let textures = theme.rendering.textures else {
+            throw ThemeDecodeError.missingTextures
         }
-        return id
+        for path in textures.allPaths {
+            do {
+                _ = try resources.data(at: path)
+            } catch {
+                throw ThemeDecodeError.missingTexture(path: path)
+            }
+        }
+    }
+
+    private static func guessThemeID(path: String, data: Data?) -> String? {
+        if let data,
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = object["id"] as? String,
+           !id.isEmpty
+        {
+            return id
+        }
+        // Basename without extension, e.g. Themes/theme.dungeon.json → theme.dungeon
+        let name = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        return name.isEmpty ? nil : name
     }
 }

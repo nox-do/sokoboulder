@@ -33,6 +33,7 @@
 				Resources/Audio,
 				Resources/Levels,
 				Resources/Localization,
+				Resources/Textures,
 				Resources/Themes,
 			);
 			path = MacGameApp;

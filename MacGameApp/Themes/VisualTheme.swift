@@ -1,14 +1,60 @@
+import CoreGraphics
 import Foundation
+
+/// Board tile-size / filtering contract. Branches over this — never hardcode theme IDs.
+enum BoardRenderingProfile: String, Codable, Sendable {
+    case vectorContinuous
+    case pixelInteger
+}
+
+/// Bundle-relative texture paths for ``BoardRenderingProfile/pixelInteger``.
+struct BoardTexturePaths: Equatable, Sendable {
+    var floor: String
+    var wall: String
+    var goal: String
+    var player: String
+    var crate: String
+    var crateOnGoal: String
+
+    var allPaths: [String] {
+        [floor, wall, goal, player, crate, crateOnGoal]
+    }
+}
+
+/// Optional rendering block on a visual theme (Schema V1 additive).
+struct BoardRenderingTokens: Equatable, Sendable {
+    var profile: BoardRenderingProfile
+    /// Logical tile edge in points (meaningful for ``BoardRenderingProfile/pixelInteger``).
+    var baseTilePoints: CGFloat
+    /// Caps integer upscale so small boards do not become huge chunky tiles.
+    /// Ignored for ``BoardRenderingProfile/vectorContinuous``. `0` = uncapped.
+    var maxIntegerScale: Int
+    /// Required when ``profile`` is ``BoardRenderingProfile/pixelInteger``.
+    var textures: BoardTexturePaths?
+
+    static let vectorContinuousDefault = BoardRenderingTokens(
+        profile: .vectorContinuous,
+        baseTilePoints: 32,
+        maxIntegerScale: 0,
+        textures: nil
+    )
+}
 
 /// Runtime visual theme used by board renderer, HUD, and SwiftUI overlays.
 struct VisualTheme: Equatable, Sendable {
     static let standardID = "theme.standard"
-    static let knownIDs = [standardID]
+    static let dungeonID = "theme.dungeon"
+    static let kenneyID = "theme.kenney"
+    /// Known catalog IDs (standard is code-fallback only, not Settings-listed by default).
+    static let knownIDs = [standardID, dungeonID, kenneyID]
+    /// Pixel themes that may be skipped on load failure without failing the catalog.
+    static let optionalPixelIDs = [dungeonID, kenneyID]
 
     let id: String
     let displayNameID: String
     let board: BoardTokens
     let ui: UITokens
+    let rendering: BoardRenderingTokens
 
     struct BoardTokens: Equatable, Sendable {
         var background: ThemeColor

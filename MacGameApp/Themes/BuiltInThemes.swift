@@ -66,7 +66,8 @@ enum BuiltInThemes {
                 hudBackground: color("#1A1A1ACC"),
                 hudForeground: color("#F0F0F0"),
                 hudSecondary: color("#A8A8A8")
-            )
+            ),
+            rendering: .vectorContinuousDefault
         )
     }
 

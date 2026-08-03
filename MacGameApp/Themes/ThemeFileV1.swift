@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Theme catalog index (paths only).
@@ -19,6 +20,24 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
     let displayNameID: String
     let board: BoardDTO
     let ui: UIDTO
+    /// Optional Schema V1 additive block; missing = ``BoardRenderingProfile/vectorContinuous``.
+    let rendering: RenderingDTO?
+
+    struct RenderingDTO: Equatable, Codable, Sendable {
+        let profile: String
+        let baseTilePoints: Double?
+        let maxIntegerScale: Int?
+        let textures: TexturesDTO?
+    }
+
+    struct TexturesDTO: Equatable, Codable, Sendable {
+        let floor: String
+        let wall: String
+        let goal: String
+        let player: String
+        let crate: String
+        let crateOnGoal: String
+    }
 
     struct BoardDTO: Equatable, Codable, Sendable {
         let background: String
@@ -161,7 +180,80 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
                 hudBackground: try ThemeColor.parse(ui.hudBackground),
                 hudForeground: try ThemeColor.parse(ui.hudForeground),
                 hudSecondary: try ThemeColor.parse(ui.hudSecondary)
-            )
+            ),
+            rendering: try Self.makeRenderingTokens(rendering)
+        )
+    }
+
+    private static func makeRenderingTokens(_ dto: RenderingDTO?) throws -> BoardRenderingTokens {
+        guard let dto else { return .vectorContinuousDefault }
+
+        guard let profile = BoardRenderingProfile(rawValue: dto.profile) else {
+            throw ThemeDecodeError.invalidRenderingProfile(dto.profile)
+        }
+
+        let basePoints: CGFloat
+        if let raw = dto.baseTilePoints {
+            guard raw > 0, raw.isFinite else {
+                throw ThemeDecodeError.invalidBaseTilePoints(raw)
+            }
+            basePoints = CGFloat(raw)
+        } else {
+            basePoints = 32
+        }
+
+        let maxScale: Int
+        if let raw = dto.maxIntegerScale {
+            guard raw >= 0 else {
+                throw ThemeDecodeError.invalidMaxIntegerScale(raw)
+            }
+            maxScale = raw
+        } else if profile == .pixelInteger {
+            maxScale = 0
+        } else {
+            maxScale = 0
+        }
+
+        let textures: BoardTexturePaths?
+        if let tex = dto.textures {
+            textures = try makeTexturePaths(tex)
+        } else {
+            textures = nil
+        }
+
+        if profile == .pixelInteger, textures == nil {
+            throw ThemeDecodeError.missingTextures
+        }
+
+        return BoardRenderingTokens(
+            profile: profile,
+            baseTilePoints: basePoints,
+            maxIntegerScale: maxScale,
+            textures: textures
+        )
+    }
+
+    private static func makeTexturePaths(_ dto: TexturesDTO) throws -> BoardTexturePaths {
+        let fields: [(String, String)] = [
+            ("floor", dto.floor),
+            ("wall", dto.wall),
+            ("goal", dto.goal),
+            ("player", dto.player),
+            ("crate", dto.crate),
+            ("crateOnGoal", dto.crateOnGoal),
+        ]
+        for (field, path) in fields {
+            guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ThemeDecodeError.emptyTexturePath(field: field)
+            }
+        }
+        return BoardTexturePaths(
+            floor: dto.floor,
+            wall: dto.wall,
+            goal: dto.goal,
+            player: dto.player,
+            crate: dto.crate,
+            crateOnGoal: dto.crateOnGoal
         )
     }
 }
@@ -179,9 +271,36 @@ enum StrictThemeJSON {
         let object = try jsonObject(data)
         try validateObjectKeys(
             object,
-            allowed: ["schemaVersion", "id", "displayNameID", "board", "ui"],
+            allowed: ["schemaVersion", "id", "displayNameID", "board", "ui", "rendering"],
             required: ["schemaVersion", "id", "displayNameID", "board", "ui"]
         )
+
+        if object.keys.contains("rendering") {
+            guard let rendering = object["rendering"] as? [String: Any] else {
+                throw ThemeDecodeError.notAnObject
+            }
+            try validateObjectKeys(
+                rendering,
+                allowed: ["profile", "baseTilePoints", "maxIntegerScale", "textures"],
+                required: ["profile"]
+            )
+            if rendering.keys.contains("textures") {
+                guard let textures = rendering["textures"] as? [String: Any] else {
+                    throw ThemeDecodeError.notAnObject
+                }
+                try validateObjectKeys(
+                    textures,
+                    allowed: [
+                        "floor", "wall", "goal",
+                        "player", "crate", "crateOnGoal",
+                    ],
+                    required: [
+                        "floor", "wall", "goal",
+                        "player", "crate", "crateOnGoal",
+                    ]
+                )
+            }
+        }
 
         guard let board = object["board"] as? [String: Any] else {
             throw ThemeDecodeError.missingKeys(["board"])

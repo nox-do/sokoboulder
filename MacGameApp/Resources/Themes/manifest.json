@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "themes": [
-    "Themes/theme.standard.json"
+    "Themes/theme.dungeon.json",
+    "Themes/theme.kenney.json"
   ],
-  "defaultThemeID": "theme.standard"
+  "defaultThemeID": "theme.dungeon"
 }

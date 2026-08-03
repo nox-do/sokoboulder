@@ -365,32 +365,24 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
-### 3.8 Pixel-Art-Theme (Vellidragon) – Vertrag geklärt, Umsetzung noch nicht gestartet
+### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
-Plan: `docs/plans/3.8-pixel-art-vellidragon.md`
+Plan: `docs/plans/3.8-pixel-art-vellidragon.md` · ADR 0004
 
-Vertrag (fest):
-- Pack: [Sokoban Clone Tiles](https://opengameart.org/content/sokoban-clone-tiles) (Vellidragon, CC0)
-- Basis: **32×32 bird’s-eye**; Skala in Points (`baseTilePoints = 32`); Retina ohne `@2x`
-- `theme.retro` opt-in; `theme.standard` bleibt Default + Vektorvertrag ADR 0003
-- Schema **V1 additiv** (`rendering` optional); Verzweigung nur über Profil, nie Theme-ID
-- Fehlende Textur / kaputtes bekanntes Theme → Fallback Standard; Catalog bleibt ladbar
-- Pixel: Entity-Inset 0; Brett-Symbole/Strokes aus; Event-×/✓ bleiben
-- `crateOnGoal`: eigene Kachel bevorzugt, sonst Overlay nach Sheet-Inspektion
-- Untermaß (`continuous < 32`): kein Vorab-Fallback; **Release-Gate** manuell
-- Lizenz wie Audio: `THIRD_PARTY_NOTICES` + SHA + lokale CC0-Kopie
+Vertrag (aktuell):
+- **`theme.dungeon` Default** (Cobble/Stein/Kiste/Glow/Player-Mix; teils CC-BY / BY-SA)
+- **`theme.kenney`** zweites Theme (CC0), umschaltbar in Settings
+- `theme.standard` nur Code-Fallback / `DevVisualThemeSwitch.forceVectorStandard`
+- Schema V1 additiv; Pixel füllt kontinuierlich + `.nearest` (kein Integer-Cap); Entity-Inset 0
+- Notices + lokale Lizenztexte unter `Textures/Licenses/`
 
-Arbeitspakete (Reihenfolge):
-- [ ] ADR 0004 (Pixel-Profil) + Verweis in 0003
-- [ ] Assets schneiden → `Resources/Textures/vellidragon/` + Notices + `crateOnGoal`-Entscheidung
-- [ ] Theme-Schema V1 additiv + Loader/Fallback/Tests
-- [ ] `GridGeometry` Integer-Scale + nearest
-- [ ] `SokobanBoardScene`: Texturen, Inset 0, Feedback ohne Color-Fill-Annahme
-- [ ] Theme `theme.retro` + Manifest; Settings-Picker
-- [ ] Tests + Playtest (Untermaß/Letterbox, Resize-Sprünge, Graustufen, Reduce Motion)
+Arbeitspakete:
+- [x] Zwei Pixel-Themes + Manifest + Settings-Picker
+- [x] Unit-/Integrationstests
+- [x] Dungeon-Assets: Floor/Wall-Kontrast + Player-Einzel-Frame
+- [x] Kenney-Assets: Floor kühl / Wall warm (Pattern gleich)
+- [ ] Manueller Playtest / Release-Gate
 
-Implikationen kurz: größerer Letterbox; Resize springt; Push-/Goal-Pulse → Blend/Overlay;
-StrictThemeJSON additiv; VoiceOver unverändert.
 
 - Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
 - Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Leichtgewicht-Push-Suche
