@@ -219,7 +219,15 @@ final class SokobanPlayController: ObservableObject {
     // MARK: - Presentation models
 
     var levelIntroPresentation: LevelIntroPresentation {
-        PresentationFactory.levelIntro(title: levelTitle, body: tutorialHintText)
+        if isCaveMode {
+            return PresentationFactory.caveLevelIntro(
+                title: levelTitle,
+                requiredDiamonds: caveSession?.requiredDiamonds ?? 0,
+                timeLimitTicks: caveSession?.remainingTicks ?? 0,
+                hint: tutorialHintText
+            )
+        }
+        return PresentationFactory.levelIntro(title: levelTitle, body: tutorialHintText)
     }
 
     var pausePresentation: PausePresentation {
@@ -333,9 +341,14 @@ final class SokobanPlayController: ObservableObject {
     }
 
     /// Dismisses the level-intro overlay and begins accepting moves.
+    ///
+    /// Cave sessions stay in ``SessionPhase/ready`` until the first gameplay
+    /// intent; Sokoban enters ``SessionPhase/playing`` via the existing session.
     func dismissLevelIntro() {
         guard presentationPhase == .levelIntro else { return }
-        markCurrentIntroHintSeen()
+        if !isCaveMode {
+            markCurrentIntroHintSeen()
+        }
         presentationPhase = .playing
         router.enterGameplay()
         // Focus may have been lost during intro; ensure playback is audible again.
@@ -827,8 +840,7 @@ final class SokobanPlayController: ObservableObject {
             outcomeNewBestPushes = false
 
             emissions.apply(emission)
-            presentationPhase = .playing
-            router.enterGameplay()
+            enterLevelIntro()
             refreshPublishedState()
         } catch {
             setActivePlay(nil)

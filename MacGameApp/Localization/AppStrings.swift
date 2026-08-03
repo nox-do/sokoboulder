@@ -9,6 +9,10 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiIntroContinue = "ui.intro.continue"
     case uiIntroSkipHint = "ui.intro.skip_hint"
     case uiIntroClose = "ui.intro.close"
+    case uiCaveIntroStart = "ui.cave.intro.start"
+    case uiCaveIntroDiamonds = "ui.cave.intro.diamonds"
+    case uiCaveIntroTime = "ui.cave.intro.time"
+    case uiCaveIntroReadyHint = "ui.cave.intro.ready_hint"
 
     // Outcome
     case uiOutcomeLevelComplete = "ui.outcome.level_complete"
@@ -143,6 +147,11 @@ enum AppStrings {
         AppStringID.uiIntroContinue.rawValue: "Weiter",
         AppStringID.uiIntroSkipHint.rawValue: "Return, Leertaste oder Escape startet",
         AppStringID.uiIntroClose.rawValue: "Schließen",
+        AppStringID.uiCaveIntroStart.rawValue: "Starten",
+        AppStringID.uiCaveIntroDiamonds.rawValue: "Diamanten",
+        AppStringID.uiCaveIntroTime.rawValue: "Zeit",
+        AppStringID.uiCaveIntroReadyHint.rawValue:
+            "Return, Leertaste oder Escape — danach startet die Höhle mit der ersten Bewegung",
 
         AppStringID.uiOutcomeLevelComplete.rawValue: "Level geschafft",
         AppStringID.uiOutcomeTutorialComplete.rawValue: "Tutorial geschafft",

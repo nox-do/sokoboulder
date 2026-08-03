@@ -12,6 +12,40 @@ enum PresentationFactory {
         )
     }
 
+    /// Cave ready card: goal + time + tutorial hint before the first tick.
+    static func caveLevelIntro(
+        title: String,
+        requiredDiamonds: Int,
+        timeLimitTicks: Int,
+        hint: String
+    ) -> LevelIntroPresentation {
+        let seconds = max(1, Int((Double(timeLimitTicks) * CaveRules.fixedStepSeconds).rounded()))
+        let goals =
+            "\(AppStrings.text(.uiCaveIntroDiamonds)): \(requiredDiamonds)\n"
+            + "\(AppStrings.text(.uiCaveIntroTime)): \(formatCaveTimeLimit(seconds: seconds))"
+        let body: String
+        if hint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body = goals
+        } else {
+            body = goals + "\n\n" + hint
+        }
+        return LevelIntroPresentation(
+            title: title,
+            body: body,
+            continueTitle: AppStrings.text(.uiCaveIntroStart),
+            skipHint: AppStrings.text(.uiCaveIntroReadyHint)
+        )
+    }
+
+    static func formatCaveTimeLimit(seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds) s"
+        }
+        let minutes = seconds / 60
+        let rem = seconds % 60
+        return String(format: "%d:%02d", minutes, rem)
+    }
+
     static func pause(isCaveMode: Bool) -> PausePresentation {
         PausePresentation(
             title: AppStrings.text(.uiPauseTitle),

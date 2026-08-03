@@ -406,6 +406,7 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Cave-Erfolg / shared Win: `objectiveCompleted` → `shared/levelCompleted.wav`
 - [x] Unbenutzte Duplikat-WAV `shared/objectiveCompleted.wav` entfernt
 - [x] Drei Demo-Level (`cave.demo.001`–`003`) + Progression „Nächstes Level“
+- [x] Cave-Intro/Ready-Karte (Diamanten, Zeit, Hinweis) vor dem ersten Zug
 - [ ] Optional: RenderSnapshot-eigene Cave-HUD-Felder statt Counter-Hack
 - [ ] Optional: Step-Varianten / manuelles Pegel-Playtest
 - [ ] Optional: Cave-JSON/Manifest statt hardcoded ASCII-Katalog
