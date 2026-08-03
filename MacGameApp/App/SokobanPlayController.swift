@@ -789,13 +789,22 @@ final class SokobanPlayController: ObservableObject {
     /// Starts the playable cave demo from the top-level picker.
     func selectCaveFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
-        startCaveDemo()
+        startCaveDemo(id: CaveDemoCatalog.first.id)
     }
 
-    private func startCaveDemo() {
+    private func startCaveDemo(id: String) {
+        guard let descriptor = CaveDemoCatalog.descriptor(id: id) else {
+            setActivePlay(nil)
+            faultMessage = "Unknown cave demo: \(id)"
+            presentationPhase = .faulted
+            router.enterModalBlocked()
+            refreshPublishedState()
+            return
+        }
+
         do {
-            let level = try CaveDemoLevel.makeLevel()
-            let newSession = try CaveSession(level: level, levelID: CaveDemoLevel.id)
+            let level = try descriptor.makeLevel()
+            let newSession = try CaveSession(level: level, levelID: descriptor.id)
             clearMoveHold()
             cancelShowOutcome()
             scene.prepareForNewSession()
@@ -805,16 +814,13 @@ final class SokobanPlayController: ObservableObject {
 
             let emission = newSession.start()
             setActivePlay(.cave(newSession))
-            currentLevelID = CaveDemoLevel.id
-            levelTitle = CaveDemoLevel.title
-            tutorialHintText = AppStrings.text(.uiCaveDemoHint)
+            currentLevelID = descriptor.id
+            levelTitle = descriptor.title
+            tutorialHintText = descriptor.tutorialHint
             faultMessage = nil
             recoveryMessage = nil
             overlayReturnOrigin = nil
-            outcomePrimaryAction = .openLaunchMenu
-            outcomePrimaryTitle = AppStrings.text(.uiOutcomeBack)
-            outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
-            outcomeHint = AppStrings.text(.uiOutcomeHintCave)
+            configureCaveOutcomeActions(for: descriptor.id)
             outcomeBestMoveCount = nil
             outcomeBestPushCount = nil
             outcomeNewBestMoves = false
@@ -830,6 +836,20 @@ final class SokobanPlayController: ObservableObject {
             presentationPhase = .faulted
             router.enterModalBlocked()
             refreshPublishedState()
+        }
+    }
+
+    private func configureCaveOutcomeActions(for levelID: String) {
+        if let next = CaveDemoCatalog.descriptor(after: levelID) {
+            outcomePrimaryAction = .nextLevel(id: next.id)
+            outcomePrimaryTitle = AppStrings.text(.uiOutcomeNextLevel)
+            outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+            outcomeHint = AppStrings.text(.uiOutcomeHintCave)
+        } else {
+            outcomePrimaryAction = .openLaunchMenu
+            outcomePrimaryTitle = AppStrings.text(.uiLaunchBackToGames)
+            outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
+            outcomeHint = AppStrings.text(.uiOutcomeHintCave)
         }
     }
 
@@ -934,8 +954,12 @@ final class SokobanPlayController: ObservableObject {
         guard presentationPhase == .outcomeAwaitingChoice else { return }
         switch outcomePrimaryAction {
         case .nextLevel(let id):
-            // Variant B: only show intro when the next hint is still unseen.
-            startSelectedLevel(id: id)
+            if isCaveMode {
+                startCaveDemo(id: id)
+            } else {
+                // Variant B: only show intro when the next hint is still unseen.
+                startSelectedLevel(id: id)
+            }
         case .openLaunchMenu:
             if !isCaveMode {
                 runPersistence.removeRunFile()
@@ -1374,10 +1398,7 @@ final class SokobanPlayController: ObservableObject {
                     outcomePrimaryTitle = AppStrings.text(.uiOutcomePlayAgain)
                     outcomeHint = AppStrings.text(.uiOutcomeHintCave)
                 } else {
-                    outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)
-                    outcomePrimaryAction = .openLaunchMenu
-                    outcomePrimaryTitle = AppStrings.text(.uiLaunchBackToGames)
-                    outcomeHint = AppStrings.text(.uiOutcomeHintCave)
+                    configureCaveOutcomeActions(for: currentLevelID)
                 }
             } else {
                 recordCompletionIfNeeded(snapshot: emission.render.snapshot)

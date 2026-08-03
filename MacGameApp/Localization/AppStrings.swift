@@ -171,9 +171,9 @@ enum AppStrings {
         AppStringID.uiGameSelectSokoban.rawValue: "Sokoban",
         AppStringID.uiGameSelectCave.rawValue: "Höhle",
         AppStringID.uiGameSelectCaveComingSoon.rawValue: "Demnächst",
-        AppStringID.uiGameSelectCaveDemoHint.rawValue: "Demo · Pfeile bewegen · Leertaste warten",
+        AppStringID.uiGameSelectCaveDemoHint.rawValue: "3 Demo-Level · Pfeile · Leertaste warten",
         AppStringID.uiCaveDemoHint.rawValue:
-            "Sammle den Diamanten und erreiche den Ausgang. Leertaste = warten.",
+            "Sammle Diamanten und erreiche den Ausgang. Leertaste = warten.",
         AppStringID.uiLaunchTitle.rawValue: "Sokoban",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",

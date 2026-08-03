@@ -405,8 +405,10 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Level-Complete: BGM soft-fadet sofort unter dem Jingle (nicht erst mit Overlay)
 - [x] Cave-Erfolg / shared Win: `objectiveCompleted` → `shared/levelCompleted.wav`
 - [x] Unbenutzte Duplikat-WAV `shared/objectiveCompleted.wav` entfernt
+- [x] Drei Demo-Level (`cave.demo.001`–`003`) + Progression „Nächstes Level“
 - [ ] Optional: RenderSnapshot-eigene Cave-HUD-Felder statt Counter-Hack
 - [ ] Optional: Step-Varianten / manuelles Pegel-Playtest
+- [ ] Optional: Cave-JSON/Manifest statt hardcoded ASCII-Katalog
 
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 
