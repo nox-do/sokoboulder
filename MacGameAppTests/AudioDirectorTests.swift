@@ -12,9 +12,10 @@ struct AudioDirectorTests {
 
     private func context(
         status: PlayStatus = .playing,
-        levelID: String = "test.level"
+        levelID: String = "test.level",
+        game: AudioGameMode = .sokoban
     ) -> AudioContext {
-        AudioContext(levelID: levelID, status: status)
+        AudioContext(game: game, levelID: levelID, status: status)
     }
 
     private func update(
@@ -63,7 +64,7 @@ struct AudioDirectorTests {
 
         #expect(director.lastAppliedRevision == 2)
         #expect(spy.playedEffects == [.step])
-        #expect(spy.musicStates == [.sokobanLoop])
+        #expect(spy.musicStates == [.themeLoop])
     }
 
     @Test("push maps to cratePushed without a step cue")
@@ -115,7 +116,7 @@ struct AudioDirectorTests {
 
         #expect(spy.playedEffects.isEmpty)
         #expect(spy.calls.contains(.stopAllEffects))
-        #expect(spy.musicStates == [.sokobanLoop])
+        #expect(spy.musicStates == [.themeLoop])
         #expect(director.lastAppliedRevision == 3)
     }
 
@@ -213,7 +214,7 @@ struct AudioDirectorTests {
 
         #expect(spy.playedEffects.isEmpty)
         #expect(spy.calls.contains(.stopAllEffects))
-        #expect(spy.musicStates == [.sokobanLoop])
+        #expect(spy.musicStates == [.themeLoop])
     }
 
     @Test("interrupt stops voices; resume restores music without replaying cues")
@@ -232,7 +233,7 @@ struct AudioDirectorTests {
         spy.resetCalls()
         director.resumePlayback()
         #expect(spy.playedEffects.isEmpty)
-        #expect(spy.musicStates == [.sokobanLoop])
+        #expect(spy.musicStates == [.themeLoop])
     }
 
     @Test("perform while interrupted stores revision but plays nothing")
@@ -248,7 +249,7 @@ struct AudioDirectorTests {
 
         #expect(director.lastAppliedRevision == 2)
         #expect(spy.playedEffects.isEmpty)
-        #expect(!spy.musicStates.contains(.sokobanLoop))
+        #expect(!spy.musicStates.contains(.themeLoop))
     }
 
     @Test("reset clears revision tracking and stops playback")
@@ -271,7 +272,7 @@ struct AudioDirectorTests {
             AudioDirector.musicState(for: context(status: .completed)) == .stopped
         )
         #expect(
-            AudioDirector.musicState(for: context(status: .playing)) == .sokobanLoop
+            AudioDirector.musicState(for: context(status: .playing)) == .themeLoop
         )
     }
 }

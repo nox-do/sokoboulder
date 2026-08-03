@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "audio.cave",
+  "game": "cave",
+  "music": {
+    "playing": null
+  },
+  "cues": {
+    "step": null,
+    "blocked": null,
+    "cratePushed": null,
+    "goalEntered": null,
+    "goalLeft": null,
+    "levelCompleted": null
+  }
+}

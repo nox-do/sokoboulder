@@ -2,9 +2,10 @@
 ///
 /// Implementations must not block the caller and must not throw into session /
 /// presentation flow. Tests use a spy; production uses bundled music and
-/// procedural effects through AVFoundation.
+/// procedural/file effects through AVFoundation.
 @MainActor
 protocol AudioPlaybackBackend: AnyObject {
+    func applyTheme(_ theme: AudioTheme)
     func playEffect(_ cue: AudioCue)
     func setMusic(_ state: MusicPlaybackState)
     func stopAllEffects()
@@ -16,6 +17,7 @@ protocol AudioPlaybackBackend: AnyObject {
 /// Silent backend for tests that do not assert audio.
 @MainActor
 final class NoOpAudioPlaybackBackend: AudioPlaybackBackend {
+    func applyTheme(_ theme: AudioTheme) {}
     func playEffect(_ cue: AudioCue) {}
     func setMusic(_ state: MusicPlaybackState) {}
     func stopAllEffects() {}

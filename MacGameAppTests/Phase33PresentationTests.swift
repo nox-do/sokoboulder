@@ -112,7 +112,7 @@ struct Phase33PresentationTests {
         #expect(spy.musicStates.last == .stopped)
 
         bundle.controller.handleAppActivation()
-        #expect(spy.musicStates.last == .sokobanLoop)
+        #expect(spy.musicStates.last == .themeLoop)
         #expect(bundle.controller.presentationPhase == .levelIntro)
         #expect(!bundle.progress.file.hasSeenHint(hintID))
     }

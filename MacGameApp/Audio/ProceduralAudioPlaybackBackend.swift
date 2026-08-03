@@ -1,69 +1,69 @@
 import AVFoundation
 import Foundation
 
-/// Bundled music plus quiet procedural effects via AVFoundation.
+/// Theme-backed music plus file or procedural effects via AVFoundation.
 ///
-/// Missing/invalid audio and engine failures degrade to silence; they never propagate.
+/// Missing/invalid audio and engine failures degrade to silence / procedural
+/// tones; they never propagate.
 @MainActor
 final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
-    static let musicResourceName = "sokoban-puzzling"
-    static let musicResourceExtension = "mp3"
-    static let musicResourceSubdirectory = "Audio/Music"
-
+    private let resources: any ContentResourceProvider
     private let engine = AVAudioEngine()
     private let effectPlayer = AVAudioPlayerNode()
-    private let musicPlayer: AVAudioPlayer?
     private let format: AVAudioFormat
     private var engineRunning = false
     private var currentMusic: MusicPlaybackState = .stopped
+    private var musicPlayer: AVAudioPlayer?
+    private var activeTheme: AudioTheme
     private var outputSettings: AudioOutputSettings = .default
+    private lazy var proceduralBuffers: [AudioCue: AVAudioPCMBuffer] = Self.makeProceduralBuffers(
+        format: format
+    )
+    /// File-backed cue URLs that decoded successfully. Missing paths stay absent.
+    private var fileCueURLs: [AudioCue: URL] = [:]
+    private var fileCuePlayers: [AVAudioPlayer] = []
 
     /// The source is mastered music; keep headroom for gameplay feedback.
     private var effectiveMusicVolume: Float {
         outputSettings.effectiveMusicGain * 0.5
     }
 
-    private lazy var cueBuffers: [AudioCue: AVAudioPCMBuffer] = [
-        .step: Self.toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
-        .blocked: Self.toneBuffer(frequency: 160, duration: 0.05, amplitude: 0.1, format: format),
-        .cratePushed: Self.toneBuffer(frequency: 280, duration: 0.07, amplitude: 0.14, format: format),
-        .goalEntered: Self.toneBuffer(frequency: 660, duration: 0.12, amplitude: 0.16, format: format),
-        .goalLeft: Self.toneBuffer(frequency: 360, duration: 0.1, amplitude: 0.1, format: format),
-        .levelCompleted: Self.chordBuffer(
-            frequencies: [523.25, 659.25, 783.99],
-            duration: 0.45,
-            amplitude: 0.14,
-            format: format
+    init(
+        resources: any ContentResourceProvider = BundleContentResources(
+            bundle: Bundle(for: ProceduralAudioPlaybackBackend.self)
         ),
-    ]
-
-    init(bundle: Bundle = Bundle(for: ProceduralAudioPlaybackBackend.self)) {
+        theme: AudioTheme = BuiltInAudioThemes.sokoban
+    ) {
+        self.resources = resources
+        self.activeTheme = theme
         format = AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)
             ?? AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
-        if let url = Self.musicAssetURL(in: bundle) {
-            musicPlayer = try? AVAudioPlayer(contentsOf: url)
-        } else {
-            musicPlayer = nil
-        }
         engine.attach(effectPlayer)
         engine.connect(effectPlayer, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = 0.8
-        musicPlayer?.numberOfLoops = -1
-        musicPlayer?.prepareToPlay()
+        reloadThemeAssets()
         startEngineIfNeeded()
     }
 
-    static func musicAssetURL(in bundle: Bundle) -> URL? {
-        bundle.url(
-            forResource: musicResourceName,
-            withExtension: musicResourceExtension,
-            subdirectory: musicResourceSubdirectory
-        )
+    func applyTheme(_ theme: AudioTheme) {
+        guard theme != activeTheme else { return }
+        let wasPlaying = currentMusic == .themeLoop && musicPlayer?.isPlaying == true
+        activeTheme = theme
+        reloadThemeAssets()
+        if currentMusic == .themeLoop {
+            stopMusicPlayback()
+            if wasPlaying || effectiveMusicVolume > 0 {
+                startThemeMusicIfNeeded()
+            }
+        }
     }
 
     func playEffect(_ cue: AudioCue) {
         guard outputSettings.effectiveEffectsGain > 0 else { return }
-        guard startEngineIfNeeded(), let buffer = cueBuffers[cue] else { return }
+        if let url = fileCueURLs[cue], playFileCue(url: url) {
+            return
+        }
+        guard startEngineIfNeeded(), let buffer = proceduralBuffers[cue] else { return }
         effectPlayer.volume = outputSettings.effectiveEffectsGain
         effectPlayer.scheduleBuffer(buffer, completionHandler: nil)
         if !effectPlayer.isPlaying {
@@ -78,19 +78,20 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         }
         currentMusic = state
         stopMusicPlayback()
-        guard state == .sokobanLoop else { return }
-        musicPlayer?.volume = effectiveMusicVolume
-        if effectiveMusicVolume > 0 {
-            musicPlayer?.play()
-        }
+        guard state == .themeLoop else { return }
+        startThemeMusicIfNeeded()
     }
 
     func stopAllEffects() {
         effectPlayer.stop()
+        for player in fileCuePlayers {
+            player.stop()
+        }
+        fileCuePlayers.removeAll()
     }
 
     func stopAll() {
-        effectPlayer.stop()
+        stopAllEffects()
         stopMusicPlayback()
         currentMusic = .stopped
     }
@@ -100,10 +101,54 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         applyGains()
     }
 
+    private func reloadThemeAssets() {
+        fileCueURLs = [:]
+        for cue in AudioCue.allCases {
+            guard let path = activeTheme.resourcePath(for: cue) else { continue }
+            guard let url = try? resources.url(at: path) else { continue }
+            // Probe decode once; unloadable files fall back to procedural at play time.
+            guard (try? AVAudioFile(forReading: url)) != nil else { continue }
+            fileCueURLs[cue] = url
+        }
+
+        let previousTime = musicPlayer?.currentTime ?? 0
+        musicPlayer = nil
+        if let path = activeTheme.musicPlayingPath,
+           let url = try? resources.url(at: path),
+           let player = try? AVAudioPlayer(contentsOf: url)
+        {
+            player.numberOfLoops = -1
+            player.prepareToPlay()
+            player.currentTime = min(previousTime, player.duration)
+            musicPlayer = player
+        }
+    }
+
+    @discardableResult
+    private func playFileCue(url: URL) -> Bool {
+        guard let player = try? AVAudioPlayer(contentsOf: url) else { return false }
+        player.volume = outputSettings.effectiveEffectsGain
+        player.prepareToPlay()
+        guard player.play() else { return false }
+        fileCuePlayers.append(player)
+        fileCuePlayers.removeAll { !$0.isPlaying && $0 !== player }
+        return true
+    }
+
+    private func startThemeMusicIfNeeded() {
+        musicPlayer?.volume = effectiveMusicVolume
+        if effectiveMusicVolume > 0 {
+            musicPlayer?.play()
+        }
+    }
+
     private func applyGains() {
         effectPlayer.volume = outputSettings.effectiveEffectsGain
         musicPlayer?.volume = effectiveMusicVolume
-        guard currentMusic == .sokobanLoop else { return }
+        for player in fileCuePlayers where player.isPlaying {
+            player.volume = outputSettings.effectiveEffectsGain
+        }
+        guard currentMusic == .themeLoop else { return }
 
         if effectiveMusicVolume > 0 {
             if musicPlayer?.isPlaying == false {
@@ -132,7 +177,23 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         }
     }
 
-    // MARK: - Buffer synthesis
+    // MARK: - Procedural fallbacks
+
+    private static func makeProceduralBuffers(format: AVAudioFormat) -> [AudioCue: AVAudioPCMBuffer] {
+        [
+            .step: toneBuffer(frequency: 420, duration: 0.04, amplitude: 0.12, format: format),
+            .blocked: toneBuffer(frequency: 160, duration: 0.05, amplitude: 0.1, format: format),
+            .cratePushed: toneBuffer(frequency: 280, duration: 0.07, amplitude: 0.14, format: format),
+            .goalEntered: toneBuffer(frequency: 660, duration: 0.12, amplitude: 0.16, format: format),
+            .goalLeft: toneBuffer(frequency: 360, duration: 0.1, amplitude: 0.1, format: format),
+            .levelCompleted: chordBuffer(
+                frequencies: [523.25, 659.25, 783.99],
+                duration: 0.45,
+                amplitude: 0.14,
+                format: format
+            ),
+        ]
+    }
 
     private static func toneBuffer(
         frequency: Double,

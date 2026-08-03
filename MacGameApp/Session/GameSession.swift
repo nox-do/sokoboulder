@@ -446,7 +446,7 @@ final class GameSession {
         )
         let audio = AudioUpdate(
             targetRevision: target,
-            context: AudioContext(levelID: levelID, status: state.status),
+            context: AudioContext(game: .sokoban, levelID: levelID, status: state.status),
             events: audioDelivery == .perform ? events : [],
             delivery: audioDelivery
         )

@@ -6,6 +6,9 @@ protocol ContentResourceProvider: Sendable {
     ///
     /// Paths use `/` separators and must resolve inside the provider root.
     func data(at path: String) throws -> Data
+
+    /// Returns a file URL for a path relative to the content root.
+    func url(at path: String) throws -> URL
 }
 
 /// Bundle-backed provider. Paths are relative to ``Bundle/resourceURL``.
@@ -17,15 +20,19 @@ struct BundleContentResources: ContentResourceProvider {
     }
 
     func data(at path: String) throws -> Data {
-        guard let root = bundle.resourceURL else {
-            throw ContentLoadError.missingResource(path: path)
-        }
-        let url = try ContentPath.resolve(path, under: root)
+        let url = try url(at: path)
         do {
             return try Data(contentsOf: url)
         } catch {
             throw ContentLoadError.unreadable(path: path, detail: String(describing: error))
         }
+    }
+
+    func url(at path: String) throws -> URL {
+        guard let root = bundle.resourceURL else {
+            throw ContentLoadError.missingResource(path: path)
+        }
+        return try ContentPath.resolve(path, under: root)
     }
 }
 
@@ -38,12 +45,16 @@ struct DirectoryContentResources: ContentResourceProvider {
     }
 
     func data(at path: String) throws -> Data {
-        let url = try ContentPath.resolve(path, under: root)
+        let url = try url(at: path)
         do {
             return try Data(contentsOf: url)
         } catch {
             throw ContentLoadError.unreadable(path: path, detail: String(describing: error))
         }
+    }
+
+    func url(at path: String) throws -> URL {
+        try ContentPath.resolve(path, under: root)
     }
 }
 

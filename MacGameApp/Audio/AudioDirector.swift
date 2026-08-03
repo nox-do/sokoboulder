@@ -1,3 +1,4 @@
+import Foundation
 import GameCore
 
 /// Session-facing audio service: revisioned ``AudioUpdate``s plus shell lifecycle.
@@ -5,19 +6,32 @@ import GameCore
 /// Pause / focus loss / fault use ``interrupt()`` / ``resumePlayback()`` /
 /// ``reset()`` — they are not revisioned ``AudioUpdate``s.
 ///
-/// User volumes / mute (Phase 3.3) are applied via ``applyOutputSettings(_:)``
-/// and reused later by Phase 3.5 audio themes.
+/// User volumes / mute (Phase 3.3) are applied via ``applyOutputSettings(_:)``.
+/// Theme selection is mode-driven from ``AudioContext.game`` (Phase 3.5).
 @MainActor
 final class AudioDirector {
     private let backend: any AudioPlaybackBackend
+    private let catalog: AudioThemeCatalog
 
     private(set) var lastAppliedRevision: UInt64?
     private(set) var outputSettings: AudioOutputSettings = .default
+    private(set) var activeTheme: AudioTheme
     private var desiredMusic: MusicPlaybackState = .stopped
     private var interrupted = false
 
-    init(backend: any AudioPlaybackBackend = ProceduralAudioPlaybackBackend()) {
+    init(
+        backend: any AudioPlaybackBackend = ProceduralAudioPlaybackBackend(),
+        catalog: AudioThemeCatalog? = nil
+    ) {
         self.backend = backend
+        let resolvedCatalog =
+            catalog
+            ?? AudioThemeCatalogLoader.load(
+                from: BundleContentResources(bundle: Bundle(for: AudioDirector.self))
+            )
+        self.catalog = resolvedCatalog
+        self.activeTheme = resolvedCatalog.resolvedTheme(for: .sokoban)
+        backend.applyTheme(activeTheme)
         backend.applyOutputSettings(outputSettings)
     }
 
@@ -34,6 +48,7 @@ final class AudioDirector {
             return
         }
 
+        selectTheme(for: update.context.game)
         desiredMusic = Self.musicState(for: update.context)
 
         if let last = lastAppliedRevision, update.targetRevision > last + 1 {
@@ -87,7 +102,7 @@ final class AudioDirector {
     static func musicState(for context: AudioContext) -> MusicPlaybackState {
         switch context.status {
         case .playing:
-            return .sokobanLoop
+            return .themeLoop
         case .completed, .failed:
             return .stopped
         }
@@ -122,6 +137,13 @@ final class AudioDirector {
             }
         }
         return cues
+    }
+
+    private func selectTheme(for game: AudioGameMode) {
+        let theme = catalog.resolvedTheme(for: game)
+        guard theme.id != activeTheme.id else { return }
+        activeTheme = theme
+        backend.applyTheme(theme)
     }
 
     private func playCues(from events: [GameEvent]) {

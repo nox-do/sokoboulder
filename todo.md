@@ -266,7 +266,7 @@ Vertragsentscheidungen:
 - [x] Introvertrag ohne 5-Sekunden-Auto-Dismiss
 - [x] App-Tests grün
 
-### 3.4 Theme und Renderer-Härtung – implementiert (manuelle Abnahme offen)
+### 3.4 Theme und Renderer-Härtung – abgenommen
 
 Vertragsentscheidungen (Spielerentscheidung 2026-08-02):
 - **Skalierung B:** auflösungsunabhängiger Shape-/Vektor-Stil (ADR 0003):
@@ -301,7 +301,7 @@ Review-Nachzug:
 - [x] P1 Abschlussfeier nach Settle/Undo/Hard-Resync zurückgesetzt
 - [x] P2 Outcome-Timeout 1.5 s
 - [x] P2 Catalog-`defaultThemeID` beim Erststart
-- [x] P2 Status: implementiert – manuelle Abnahme offen
+- [x] P2 Status: abgenommen (Playtest 2026-08-03)
 - [x] Recovery / Fault / Outcome-Animating an Theme-Tokens
 - [x] Tutorial 1 in offenen Raum verlegt; Spieler/Kiste/Ziel im Hinweis benannt
 - [x] JSON-Content-Gate gegen statisch tote Kisten-Startfelder
@@ -316,17 +316,8 @@ Review-Nachzug:
 - [x] Differenziertes Event-Feedback inkl. Abschlussfeier
 - [x] SwiftUI-Overlays/HUD an Theme-Tokens
 - [x] Tests (MacGameAppTests)
-- [ ] Manuelles Playtest-Protokoll (Tastatur, Stumm, Graustufen, Reduce Motion)
-
-Manuelles Playtest-Protokoll (kurz, vor Abnahme abhaken):
-1. Standard-Theme lesbar; Fokusring und Beschriftung erkennbar
-2. Graustufen-Filter / Display: Wand/Boden/Ziel/Spieler/Kiste unterscheidbar
-3. Mute an: Blockade, Schub, Zielwechsel und Abschluss weiterhin sichtbar
-4. Reduce Motion: keine langen Animationen; Zustände sofort erkennbar
-5. Minimale Fenstergröße: gesamtes Raster sichtbar, HUD deckt nichts ab
-6. Hard-Resync via Undo/Redo nach Abschluss: keine Feier-Wiederholung,
-   Ziele wieder in Theme-Farbe, kein Erfolgsrahmen
-7. Resize: Brett-Seitenverhältnis (quadratische Tiles / Letterbox) erhalten
+- [x] Manuelles Playtest-Protokoll (Tastatur, Stumm, Graustufen, Reduce Motion)
+  — abgenommen 2026-08-03
 
 ### 3.4 Playtest-Nachzug (2026-08-02)
 
@@ -336,12 +327,33 @@ Manuelles Playtest-Protokoll (kurz, vor Abnahme abhaken):
 - [x] High-Contrast-Theme entfernt; Settings ohne Theme-Picker bei einem Theme
 - [x] Live-Resize: kein Stretch während Fensterskalierung (`duringViewResize` + Geometrie-Sync)
 
+### 3.5 Audio-Manifest + Theme-Mapping – Infrastruktur fertig (Cue-WAVs optional)
+
+Vertragsentscheidungen (Spieler 2026-08-03):
+- **Variante B:** gebündelte WAV/OGG/MP3 für Musik + Effekte/Jingles;
+  prozedural nur noch Fallback wenn Datei fehlt
+- **Zwei Audio-Themes:** `audio.sokoban` und `audio.cave` (unterschiedliche
+  Musik und Cues); Selection über Spielmodus, nicht Settings-Picker
+- **Kein Laufzeit-MIDI:** OGA-MIDI nur Produktionsquelle; in der App nur
+  vorgerenderte Dateien (wie AUDIO.md §7). Fehlende Renderings = Fallback
+- **Fehlende Assets blockieren nicht:** still / prozedural; App bleibt spielbar
+- Lautstärken/Mute bleiben Settings 3.3; kein eigener Audio-Theme-Picker nötig
+- UI-Sounds und Audiopolishing später (nicht 3.5-Abnahme)
+
+Umgesetzt:
+- [x] Schema V1 (`Audio/manifest.json`, `Audio/Themes/audio.{sokoban,cave}.json`)
+- [x] Loader + Built-in-Fallbacks + strikte JSON-Validierung
+- [x] `AudioContext.game` → Theme-Auswahl; `MusicPlaybackState.themeLoop`
+- [x] Backend: Theme-Musikpfad + File-Cues (AVAudioPlayer) + Prozedural-Fallback
+- [x] Tests (Phase35 + bestehende Audio-/Controller-Tests grün)
+- [ ] Sokoban Cue-WAVs von OGA nachziehen (optional; null → Prozedural)
+- [ ] Cave-Musik-MP3/OGG vor Phase 4 (Slot vorhanden, playing: null)
+
 ## Als Nächstes
 
-- Manuelles 3.4-Playtest-Protokoll abhaken
-- Phase 3.5: Audio-Manifest + Theme-Mapping (Settings-UI/Persistenz bereits in 3.3)
+- Optional: Sokoban Cue-Dateien (WAV/OGG) + THIRD_PARTY_NOTICES
 - Phase 3.6: Replay-Grundlage
-- Phase 3.7 (Höhlen-Spike) / Phase 4+: Cave…
+- Phase 3.7 (Höhlen-Spike) / Phase 4+: Cave… (+ Cave-Musik-Asset)
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll

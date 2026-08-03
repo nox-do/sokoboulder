@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "themes": [
+    "Audio/Themes/audio.sokoban.json",
+    "Audio/Themes/audio.cave.json"
+  ],
+  "defaultThemeID": "audio.sokoban"
+}

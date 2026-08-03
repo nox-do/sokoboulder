@@ -183,14 +183,14 @@ struct SokobanTutorialFlowTests {
             settingsStore: AppSettingsStore.ephemeral()
         )
         #expect(controller.presentationPhase == .levelIntro)
-        #expect(spy.musicStates.contains(.sokobanLoop))
+        #expect(spy.musicStates.contains(.themeLoop))
 
         controller.handleAppDeactivation()
         #expect(controller.presentationPhase == .levelIntro)
         spy.resetCalls()
 
         controller.handleAppActivation()
-        #expect(spy.musicStates.contains(.sokobanLoop))
+        #expect(spy.musicStates.contains(.themeLoop))
 
         controller.dismissLevelIntro()
         spy.resetCalls()

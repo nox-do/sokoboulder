@@ -40,7 +40,7 @@ struct SokobanPlayControllerAudioTests {
     func emissionReachesAudio() throws {
         let (controller, spy) = makeController()
         #expect(controller.audioDirector.lastAppliedRevision == 1)
-        #expect(spy.musicStates.contains(.sokobanLoop))
+        #expect(spy.musicStates.contains(.themeLoop))
         spy.resetCalls()
 
         completeFirstLevel(controller)
@@ -63,7 +63,7 @@ struct SokobanPlayControllerAudioTests {
         controller.undo()
         #expect(spy.playedEffects.isEmpty)
         #expect(spy.calls.contains(.stopAllEffects))
-        #expect(spy.musicStates.contains(.sokobanLoop))
+        #expect(spy.musicStates.contains(.themeLoop))
     }
 
     @Test("pause interrupt leaves no audible music; resume restores loop")
@@ -78,7 +78,7 @@ struct SokobanPlayControllerAudioTests {
         spy.resetCalls()
         controller.resumeFromPauseOverlay()
         #expect(spy.playedEffects.isEmpty)
-        #expect(spy.musicStates == [.sokobanLoop])
+        #expect(spy.musicStates == [.themeLoop])
     }
 
     @Test("focus loss interrupts audio like pause")
@@ -115,8 +115,8 @@ struct SokobanPlayControllerAudioTests {
 
     @Test("bundled Sokoban music is present and natively decodable")
     func bundledMusicIsDecodable() throws {
-        let bundle = Bundle(for: SokobanPlayController.self)
-        let url = try #require(ProceduralAudioPlaybackBackend.musicAssetURL(in: bundle))
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        let url = try resources.url(at: "Audio/Music/sokoban-puzzling.mp3")
         let file = try AVAudioFile(forReading: url)
 
         #expect(url.lastPathComponent == "sokoban-puzzling.mp3")

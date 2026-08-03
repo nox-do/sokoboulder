@@ -1,5 +1,5 @@
 /// Transient gameplay sound mapped from ``GameEvent``s.
-enum AudioCue: Equatable, Sendable {
+enum AudioCue: String, Equatable, Sendable, CaseIterable {
     case step
     case blocked
     case cratePushed
@@ -8,8 +8,9 @@ enum AudioCue: Equatable, Sendable {
     case levelCompleted
 }
 
-/// Desired background music derived from ``AudioContext``.
+/// Desired background music derived from ``AudioContext`` + active theme.
 enum MusicPlaybackState: Equatable, Sendable {
     case stopped
-    case sokobanLoop
+    /// Loop the active theme's `music.playing` asset (silence if missing).
+    case themeLoop
 }

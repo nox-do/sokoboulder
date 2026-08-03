@@ -5,6 +5,7 @@ import GameCore
 @MainActor
 final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
     enum Call: Equatable, Sendable {
+        case applyTheme(String)
         case playEffect(AudioCue)
         case setMusic(MusicPlaybackState)
         case stopAllEffects
@@ -14,6 +15,12 @@ final class SpyAudioPlaybackBackend: AudioPlaybackBackend {
 
     private(set) var calls: [Call] = []
     private(set) var lastOutputSettings: AudioOutputSettings?
+    private(set) var lastThemeID: String?
+
+    func applyTheme(_ theme: AudioTheme) {
+        lastThemeID = theme.id
+        calls.append(.applyTheme(theme.id))
+    }
 
     func playEffect(_ cue: AudioCue) {
         calls.append(.playEffect(cue))
