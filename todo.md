@@ -327,7 +327,7 @@ Review-Nachzug:
 - [x] High-Contrast-Theme entfernt; Settings ohne Theme-Picker bei einem Theme
 - [x] Live-Resize: kein Stretch während Fensterskalierung (`duringViewResize` + Geometrie-Sync)
 
-### 3.5 Audio-Manifest + Theme-Mapping – Infrastruktur fertig (Cue-WAVs optional)
+### 3.5 Audio-Manifest + Theme-Mapping – abgenommen
 
 Vertragsentscheidungen (Spieler 2026-08-03):
 - **Variante B:** gebündelte WAV/OGG/MP3 für Musik + Effekte/Jingles;
@@ -345,15 +345,26 @@ Umgesetzt:
 - [x] Loader + Built-in-Fallbacks + strikte JSON-Validierung
 - [x] `AudioContext.game` → Theme-Auswahl; `MusicPlaybackState.themeLoop`
 - [x] Backend: Theme-Musikpfad + File-Cues (AVAudioPlayer) + Prozedural-Fallback
-- [x] Tests (Phase35 + bestehende Audio-/Controller-Tests grün)
-- [ ] Sokoban Cue-WAVs von OGA nachziehen (optional; null → Prozedural)
+- [x] Sokoban Cue-WAVs (Kenney / Robin Lamb / Listener) + THIRD_PARTY_NOTICES
+- [x] Tests (Phase35 + bestehende Audio-/Controller-Tests)
 - [ ] Cave-Musik-MP3/OGG vor Phase 4 (Slot vorhanden, playing: null)
+
+### 3.6 Replay-Grundlage – abgenommen
+
+Vertragsentscheidungen:
+- `ReplayFileV1` in GameCore: levelID, contentHash, ruleVersion, productive
+  Sokoban-Befehle, expectedDigest
+- `SokobanStateDigest`: kanonischer SHA-256 (kein Swift-`Hasher`)
+- `SokobanReplayRunner`: headless; blockierte Befehle werden abgelehnt
+- Kein Renderer/Audio; Cave-Tick-Replays folgen später
+
+- [x] Digest + ReplayFileV1 + Runner + Tests (GameCore)
+- [ ] Optional später: Fixture-Datei im Bundle / App-Debug-Export
 
 ## Als Nächstes
 
-- Optional: Sokoban Cue-Dateien (WAV/OGG) + THIRD_PARTY_NOTICES
-- Phase 3.6: Replay-Grundlage
-- Phase 3.7 (Höhlen-Spike) / Phase 4+: Cave… (+ Cave-Musik-Asset)
+- Phase 3.7 Cave-Spike (ADR Tick Semantics) / Phase 4+: Cave…
+- Cave-Musik-Asset (MP3/OGG) wenn Phase 4 startet
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll

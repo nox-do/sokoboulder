@@ -7,7 +7,14 @@ enum BuiltInAudioThemes {
             id: AudioTheme.sokobanID,
             game: .sokoban,
             musicPlayingPath: "Audio/Music/sokoban-puzzling.mp3",
-            cueResourcePaths: [:]
+            cueResourcePaths: [
+                .step: "Audio/Effects/sokoban-step.wav",
+                .blocked: "Audio/Effects/sokoban-blocked.wav",
+                .cratePushed: "Audio/Effects/sokoban-crate-pushed.wav",
+                .goalEntered: "Audio/Effects/sokoban-goal-entered.wav",
+                .goalLeft: "Audio/Effects/sokoban-goal-left.wav",
+                .levelCompleted: "Audio/Jingles/sokoban-level-completed.wav",
+            ]
         )
     }
 

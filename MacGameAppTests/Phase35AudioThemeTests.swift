@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Testing
 
@@ -16,6 +17,19 @@ struct Phase35AudioThemeTests {
         #expect(catalog.theme(id: AudioTheme.caveID)?.musicPlayingPath == nil)
         #expect(catalog.resolvedTheme(for: .sokoban).id == AudioTheme.sokobanID)
         #expect(catalog.resolvedTheme(for: .cave).id == AudioTheme.caveID)
+    }
+
+    @Test("bundled sokoban theme maps all cues to wav assets")
+    func bundledSokobanCuePaths() throws {
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        let catalog = try AudioThemeCatalogLoader.loadStrict(from: resources)
+        let theme = try #require(catalog.theme(id: AudioTheme.sokobanID))
+        for cue in AudioCue.allCases {
+            let path = try #require(theme.resourcePath(for: cue))
+            let url = try resources.url(at: path)
+            #expect(url.pathExtension == "wav")
+            #expect((try? AVAudioFile(forReading: url)) != nil)
+        }
     }
 
     @Test("unknown keys are rejected by audio theme codec")
