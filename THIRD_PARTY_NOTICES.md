@@ -69,3 +69,12 @@ Attribution is not required by CC0. The author and source are listed voluntarily
 - Changes: renamed to `sokoban-level-completed.wav`; audio data otherwise unchanged.
 
 Attribution is not required by CC0. The author and source are listed voluntarily.
+
+## Sokoban campaign levels (`sokoban.campaign.001`–`090`)
+
+- Pack: Still Yet Another Sokoban (default 90)
+- Source note in import file: Public Domain
+- Local import: `Downloads/sokoban_levels_001-090.txt` (2026-08-03)
+- Changes: German titles kept; levels ordered by annotated difficulty
+  (`schwer`), then crate count / map size; renumbered to
+  `sokoban.campaign.001`…`090` after the three tutorials.

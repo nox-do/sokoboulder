@@ -71,6 +71,7 @@ final class SokobanPlayController: ObservableObject {
     private var recordedCompletionForSession = false
     private var settingsHandlerID: UUID?
     private var appIsActive = true
+    private let moveHoldRepeater = SokobanMoveHoldRepeater()
 
     private(set) var currentLevelID: String
 
@@ -105,6 +106,7 @@ final class SokobanPlayController: ObservableObject {
         self.progressPersistence.onSaveFailure = { [weak self] message in
             self?.persistenceDiagnostic = message
         }
+        bindMoveHoldRepeater()
         refreshPersistenceDiagnostic()
         bindSettingsSideEffects()
         bootstrapFromPersistence()
@@ -172,6 +174,7 @@ final class SokobanPlayController: ObservableObject {
         self.faultMessage = contentLoadFailureMessage
         self.router.enterModalBlocked()
         self.audioDirector.reset()
+        bindMoveHoldRepeater()
         bindSettingsSideEffects()
     }
 
@@ -338,6 +341,7 @@ final class SokobanPlayController: ObservableObject {
     /// Shows an explicit-dismiss level intro for an unseen tutorial hint. In-session
     /// restart keeps the existing session and does not call this path.
     func startLevel(id: String? = nil, showIntro: Bool? = nil) {
+        clearMoveHold()
         cancelShowOutcome()
         audioDirector.reset()
         applyAudioSettingsFromStore()
@@ -412,6 +416,9 @@ final class SokobanPlayController: ObservableObject {
         guard presentationPhase != .faulted, presentationPhase != .runRecovery else {
             return false
         }
+        if handleMoveHoldKeyUp(event) {
+            return true
+        }
         switch router.routeDecision(event) {
         case .unhandled:
             return handleOverlayMenuKeyEvent(event)
@@ -420,7 +427,7 @@ final class SokobanPlayController: ObservableObject {
         case .routed(let routed):
             switch routed {
             case .gameplay(let intent):
-                handleGameplay(intent)
+                handleGameplay(intent, keyCode: event.keyCode)
             case .outcomeAction:
                 handleOutcomeAction()
             case .dismissIntro:
@@ -428,6 +435,35 @@ final class SokobanPlayController: ObservableObject {
             }
             return true
         }
+    }
+
+    private func bindMoveHoldRepeater() {
+        moveHoldRepeater.onFire = { [weak self] direction in
+            self?.performHeldMove(direction)
+        }
+    }
+
+    private func handleMoveHoldKeyUp(_ event: NSEvent) -> Bool {
+        guard event.type == .keyUp else { return false }
+        guard InputMapper.moveDirection(keyCode: event.keyCode) != nil else { return false }
+        moveHoldRepeater.noteKeyUp(keyCode: event.keyCode)
+        return true
+    }
+
+    private func clearMoveHold() {
+        moveHoldRepeater.clear()
+    }
+
+    private func performHeldMove(_ direction: Direction) {
+        guard presentationPhase == .playing, let session, session.phase == .playing else {
+            clearMoveHold()
+            return
+        }
+        let results = session.submitMove(direction)
+        applyResults(results)
+        gameplayNotice = session.preventedStaticDeadlockOnLastMove
+            ? AppStrings.text(.uiDeadlockPrevented)
+            : nil
     }
 
     /// Menu navigation / activate / cancel owned by the local key monitor path.
@@ -722,6 +758,7 @@ final class SokobanPlayController: ObservableObject {
 
     func handleAppDeactivation() {
         appIsActive = false
+        clearMoveHold()
         router.clearPendingInputs()
         audioDirector.interrupt()
         Task { await runPersistence.flush() }
@@ -1009,6 +1046,12 @@ final class SokobanPlayController: ObservableObject {
             guard presentationPhase != .outcomeAwaitingChoice else { return }
             enterOutcomeAwaitingChoice()
         }
+
+        /// Test helper: shorten hold-repeat timings.
+        func configureMoveHoldForTesting(initialDelay: TimeInterval, repeatInterval: TimeInterval) {
+            moveHoldRepeater.initialDelay = initialDelay
+            moveHoldRepeater.repeatInterval = repeatInterval
+        }
     #endif
 
     // MARK: - Private bootstrap
@@ -1168,6 +1211,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func enterLevelIntro() {
+        clearMoveHold()
         presentationPhase = .levelIntro
         router.enterLevelIntro()
     }
@@ -1219,6 +1263,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func teardownSessionForNavigation(phase: GamePresentationPhase) {
+        clearMoveHold()
         cancelShowOutcome()
         session = nil
         scene.prepareForNewSession()
@@ -1263,28 +1308,28 @@ final class SokobanPlayController: ObservableObject {
 
     // MARK: - Private gameplay
 
-    private func handleGameplay(_ intent: GameplayIntent) {
+    private func handleGameplay(_ intent: GameplayIntent, keyCode: UInt16) {
         switch intent {
         case .move(let direction):
             guard presentationPhase == .playing, let session, session.phase == .playing else {
                 return
             }
-            let results = session.submitMove(direction)
-            applyResults(results)
-            gameplayNotice = session.preventedStaticDeadlockOnLastMove
-                ? AppStrings.text(.uiDeadlockPrevented)
-                : nil
+            moveHoldRepeater.noteKeyDown(keyCode: keyCode, direction: direction)
 
         case .undo:
+            clearMoveHold()
             undo()
 
         case .redo:
+            clearMoveHold()
             redo()
 
         case .restart:
+            clearMoveHold()
             restart()
 
         case .pause:
+            clearMoveHold()
             togglePause()
         }
     }
@@ -1296,6 +1341,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
         guard let session, session.phase == .playing else { return }
+        clearMoveHold()
         session.pause()
         if !alreadyInterrupted {
             audioDirector.interrupt()
@@ -1344,6 +1390,7 @@ final class SokobanPlayController: ObservableObject {
                 applyEmissionSideEffects(emission)
 
             case .faulted(let message):
+                clearMoveHold()
                 cancelShowOutcome()
                 presentationPhase = .faulted
                 faultMessage = message
@@ -1361,10 +1408,12 @@ final class SokobanPlayController: ObservableObject {
     private func applyEmissionSideEffects(_ emission: SessionEmission) {
         switch emission.appTransition {
         case .enterOutcomePresenting:
+            clearMoveHold()
             recordCompletionIfNeeded(snapshot: emission.render.snapshot)
             router.enterOutcomePresenting()
             scheduleShowOutcome()
         case .returnToPlaying:
+            clearMoveHold()
             clearCompletionRecordingState()
             cancelShowOutcome()
             presentationPhase = .playing

@@ -32,21 +32,33 @@ enum InputMapper {
             return nil
         }
 
+        if let direction = moveDirection(keyCode: event.keyCode) {
+            return .move(direction)
+        }
+
         switch event.keyCode {
-        case KeyCode.upArrow, KeyCode.w:
-            return .move(.up)
-        case KeyCode.downArrow, KeyCode.s:
-            return .move(.down)
-        case KeyCode.leftArrow, KeyCode.a:
-            return .move(.left)
-        case KeyCode.rightArrow, KeyCode.d:
-            return .move(.right)
         case KeyCode.z:
             return .undo
         case KeyCode.r:
             return .restart
         case KeyCode.escape:
             return .pause
+        default:
+            return nil
+        }
+    }
+
+    /// Movement direction for a hardware key, including key-up tracking.
+    static func moveDirection(keyCode: UInt16) -> Direction? {
+        switch keyCode {
+        case KeyCode.upArrow, KeyCode.w:
+            return .up
+        case KeyCode.downArrow, KeyCode.s:
+            return .down
+        case KeyCode.leftArrow, KeyCode.a:
+            return .left
+        case KeyCode.rightArrow, KeyCode.d:
+            return .right
         default:
             return nil
         }

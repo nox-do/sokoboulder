@@ -11,7 +11,7 @@ struct BundleContentLoaderTests {
             from: Bundle(for: SokobanPlayController.self)
         )
         #expect(catalog.campaignID == "campaign.sokoban.main")
-        #expect(catalog.levels.count == 23)
+        #expect(catalog.levels.count == 93)
         #expect(catalog.defaultThemeID == nil)
         #expect(catalog.defaultAudioThemeID == nil)
 

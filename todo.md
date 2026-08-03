@@ -48,7 +48,8 @@ Audio-Mixer/Settings und CC0-Assets später.
 - Target/Modul/Scheme: `MacGameApp`
 - Öffentlicher Produktname: **SokoBoulder**
 - Bundle-Identifier: **`com.sokoboulder.app`** (Tests: `com.sokoboulder.app.tests`)
-- Sokoban Key-Repeat: System-Repeats verwerfen (`isARepeat`); keine eigene Hold-Wiederholung in Phase 2
+- Sokoban Key-Repeat: System-Repeats verwerfen (`isARepeat`); Hold-Wiederholung
+  app-seitig (Anlauf ~0.30s, Intervall ~0.16s, letzte gedrückte Richtung)
 - FIFO-Limit: 2 noch nicht verarbeitete Bewegungsbefehle
 - Snapshot: flach, row-major, `(0,0)` links oben; Index `row * width + column`; Länge `width * height`; Helper am Snapshot
 - `RenderEntity` nutzt `EntityRef`; Spieler separat; `entities` = Kisten
@@ -163,6 +164,7 @@ Audio-Mixer/Settings und CC0-Assets später.
 - Asset-/Audiopolishing vor Hard-Resync
 - `ObservableObject` pro Tile/Entity (Session-weit ok)
 - eigene Hold-Wiederholung unabhängig von macOS-Repeat
+- [x] Sokoban Hold-to-move (Anlauf 0.30s / Intervall 0.16s; 2026-08-03)
 - Lautstärke-/Mute-UI, UI-Sounds, Menü-Audio ohne Revision (später)
 - weitere CC0-Bundle-Assets für Effekte/Jingles; Sokoban-Playtest-Musik samt Lizenznachweis ist bereits eingebunden
 
@@ -363,7 +365,7 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
-- Playtest der 20 Kampagnen-Level (nach 3 Tutorials freischaltbar)
+- Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
@@ -374,10 +376,10 @@ Vertragsentscheidungen:
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
   (derzeit ignoriert, weil keine Abhängigkeiten existieren)
 
-### Content: Sokoban-Kampagne 001–020 – eingebunden
+### Content: Sokoban-Kampagne 001–090 – eingebunden
 
-- [x] 20 Level-JSON unter `Levels/sokoban.campaign.NNN.json` (ohne Tutorial-Hints)
-- [x] Manifest: Tutorials 1–3, dann Kampagne; Kampagnen-ID `campaign.sokoban.main`
-- [x] Titel in `ContentStrings.de.json`
-- [x] Catalog-/Loader-/Flow-Tests angepasst (23 Level)
-- [x] 017 tote Startkiste korrigiert (JSON-Deadlock-Gate)
+- [x] 90 Level aus SYAS-Pack (Public Domain), Codec-validiert
+- [x] Sortierung leicht→schwer (`schwer`, dann Kisten/Größe)
+- [x] JSON `sokoban.campaign.001`–`090`, Manifest, DE-Titel
+- [x] Alte 20 Kampagnen-Level ersetzt; Catalog-Tests: 93 Level
+- [x] Hinweis in `THIRD_PARTY_NOTICES.md`

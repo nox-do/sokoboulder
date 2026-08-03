@@ -20,7 +20,7 @@ struct SokobanLevelCatalogTests {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
         )
-        #expect(catalog.levels.count == 23)
+        #expect(catalog.levels.count == 93)
         #expect(
             catalog.levels.prefix(3).map(\.id) == [
                 "sokoban.tutorial.001",
@@ -28,7 +28,7 @@ struct SokobanLevelCatalogTests {
                 "sokoban.tutorial.003",
             ])
         #expect(catalog.levels[3].id == "sokoban.campaign.001")
-        #expect(catalog.levels.last?.id == "sokoban.campaign.020")
+        #expect(catalog.levels.last?.id == "sokoban.campaign.090")
 
         for descriptor in catalog.levels.prefix(3) {
             #expect(!catalog.title(for: descriptor).isEmpty)
@@ -106,7 +106,7 @@ struct SokobanLevelCatalogTests {
             catalog.descriptor(after: "sokoban.tutorial.003")?.id
                 == "sokoban.campaign.001"
         )
-        #expect(catalog.descriptor(after: "sokoban.campaign.020") == nil)
+        #expect(catalog.descriptor(after: "sokoban.campaign.090") == nil)
     }
 
     @Test("play controller boots the first catalog level")
