@@ -46,6 +46,14 @@ struct SokobanLaunchMenuOverlay: View {
                 ) {
                     controller.resetCampaignProgressFromLaunchMenu()
                 }
+
+                themedButton(
+                    AppStrings.text(.uiLaunchBackToGames),
+                    action: .backToGameSelection,
+                    primary: false
+                ) {
+                    controller.returnToGameSelectionFromLaunchMenu()
+                }
             }
             .padding(32)
             .background(

@@ -123,6 +123,7 @@ struct SokobanLevelCatalogTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         #expect(controller.levelTitle == "Der erste Schub")
         #expect(controller.session != nil)
         #expect(controller.presentationPhase == .levelIntro)

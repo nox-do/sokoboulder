@@ -3,7 +3,9 @@ import Foundation
 /// SwiftUI-facing presentation phase. Complements ``SessionPhase``:
 /// session gates simulation input; this selects visible overlays.
 enum GamePresentationPhase: Equatable, Sendable {
-    /// Continue / level-select hub after the first session.
+    /// Top-level game picker (Sokoban / Höhle). Entry after boot when not restoring a run.
+    case gameSelection
+    /// Sokoban hub: continue / level-select / help / settings.
     case launchMenu
     /// Minimal campaign level list.
     case levelSelection

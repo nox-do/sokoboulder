@@ -52,6 +52,8 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var outcomeBestPushCount: Int?
     /// Keyboard-confirm target while the result overlay is visible.
     @Published private(set) var focusedOutcomeAction: OutcomeFocusedAction = .primary
+    /// Game-selection keyboard focus (skips disabled Höhle).
+    @Published private(set) var focusedGameSelectionAction: GameSelectionAction = .sokoban
     /// Launch-menu keyboard selection.
     @Published private(set) var focusedLaunchAction: LaunchMenuAction = .continueCampaign
     /// Pause-menu keyboard selection.
@@ -472,6 +474,8 @@ final class SokobanPlayController: ObservableObject {
             return false
         }
         switch presentationPhase {
+        case .gameSelection:
+            return handleGameSelectionCommand(command, isRepeat: event.isARepeat)
         case .launchMenu:
             return handleLaunchMenuCommand(command, isRepeat: event.isARepeat)
         case .paused:
@@ -485,6 +489,33 @@ final class SokobanPlayController: ObservableObject {
         case .outcomeAwaitingChoice:
             return handleOutcomeMenuCommand(command, isRepeat: event.isARepeat)
         default:
+            return false
+        }
+    }
+
+    private func handleGameSelectionCommand(_ command: OverlayMenuCommand, isRepeat: Bool) -> Bool {
+        switch command {
+        case .moveUp, .moveLeft:
+            focusedGameSelectionAction =
+                KeyboardFocusCycle.move(
+                    from: focusedGameSelectionAction,
+                    in: GameSelectionAction.focusOrder,
+                    offset: -1
+                ) ?? .sokoban
+            return true
+        case .moveDown, .moveRight:
+            focusedGameSelectionAction =
+                KeyboardFocusCycle.move(
+                    from: focusedGameSelectionAction,
+                    in: GameSelectionAction.focusOrder,
+                    offset: 1
+                ) ?? .sokoban
+            return true
+        case .activate:
+            guard !isRepeat else { return true }
+            performFocusedGameSelectionAction()
+            return true
+        case .cancel:
             return false
         }
     }
@@ -512,7 +543,9 @@ final class SokobanPlayController: ObservableObject {
             performFocusedLaunchAction()
             return true
         case .cancel:
-            return false
+            guard !isRepeat else { return true }
+            returnToGameSelectionFromLaunchMenu()
+            return true
         }
     }
 
@@ -644,6 +677,19 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
+    private func performFocusedGameSelectionAction() {
+        switch focusedGameSelectionAction {
+        case .sokoban:
+            selectSokobanFromGameSelection()
+        case .cave:
+            break
+        case .help:
+            openHelpFromGameSelection()
+        case .settings:
+            openSettingsFromGameSelection()
+        }
+    }
+
     private func performFocusedLaunchAction() {
         switch focusedLaunchAction {
         case .continueCampaign:
@@ -656,6 +702,8 @@ final class SokobanPlayController: ObservableObject {
             openSettingsFromLaunchMenu()
         case .resetProgress:
             resetCampaignProgressFromLaunchMenu()
+        case .backToGameSelection:
+            returnToGameSelectionFromLaunchMenu()
         }
     }
 
@@ -741,6 +789,8 @@ final class SokobanPlayController: ObservableObject {
 
     private func resetOverlayFocus(for phase: GamePresentationPhase) {
         switch phase {
+        case .gameSelection:
+            focusedGameSelectionAction = .sokoban
         case .launchMenu:
             focusedLaunchAction = .continueCampaign
         case .paused:
@@ -791,7 +841,7 @@ final class SokobanPlayController: ObservableObject {
             if overlayReturnOrigin == .paused {
                 requestPauseOverlayFocus()
             }
-        case .playing, .launchMenu, .levelSelection, .faulted, .runRecovery:
+        case .playing, .gameSelection, .launchMenu, .levelSelection, .faulted, .runRecovery:
             break
         }
     }
@@ -860,6 +910,16 @@ final class SokobanPlayController: ObservableObject {
         openSettings(returningTo: .paused)
     }
 
+    func openHelpFromGameSelection() {
+        guard presentationPhase == .gameSelection else { return }
+        openHelp(returningTo: .gameSelection)
+    }
+
+    func openSettingsFromGameSelection() {
+        guard presentationPhase == .gameSelection else { return }
+        openSettings(returningTo: .gameSelection)
+    }
+
     func openHelpFromLaunchMenu() {
         guard presentationPhase == .launchMenu else { return }
         openHelp(returningTo: .launchMenu)
@@ -873,11 +933,15 @@ final class SokobanPlayController: ObservableObject {
     func dismissHelpOrSettings() {
         guard presentationPhase == .help || presentationPhase == .settings else { return }
         guard let origin = overlayReturnOrigin else {
-            openLaunchMenu()
+            openGameSelection()
             return
         }
         overlayReturnOrigin = nil
         switch origin {
+        case .gameSelection:
+            presentationPhase = .gameSelection
+            router.enterModalBlocked()
+            resetOverlayFocus(for: .gameSelection)
         case .launchMenu:
             presentationPhase = .launchMenu
             router.enterModalBlocked()
@@ -890,8 +954,27 @@ final class SokobanPlayController: ObservableObject {
         refreshPublishedState()
     }
 
+    func openGameSelection() {
+        teardownSessionForNavigation(phase: .gameSelection)
+    }
+
     func openLaunchMenu() {
         teardownSessionForNavigation(phase: .launchMenu)
+    }
+
+    /// Enters Sokoban from the top-level picker.
+    func selectSokobanFromGameSelection() {
+        guard presentationPhase == .gameSelection else { return }
+        if progressPersistence.file.isFreshCampaign {
+            startLevel(id: catalog.first.id, showIntro: true)
+        } else {
+            openLaunchMenu()
+        }
+    }
+
+    func returnToGameSelectionFromLaunchMenu() {
+        guard presentationPhase == .launchMenu else { return }
+        openGameSelection()
     }
 
     func openLevelSelection() {
@@ -980,7 +1063,7 @@ final class SokobanPlayController: ObservableObject {
             startSelectedLevel(id: id)
         case .openLaunchMenu:
             runPersistence.removeRunFile()
-            openLaunchMenu()
+            openGameSelection()
         }
     }
 
@@ -1007,6 +1090,11 @@ final class SokobanPlayController: ObservableObject {
             return
         }
         focusedOutcomeAction = action
+    }
+
+    func setFocusedGameSelectionAction(_ action: GameSelectionAction) {
+        guard action.isEnabled else { return }
+        focusedGameSelectionAction = action
     }
 
     func setFocusedLaunchAction(_ action: LaunchMenuAction) {
@@ -1104,19 +1192,15 @@ final class SokobanPlayController: ObservableObject {
     private func bootstrapFromPersistence() {
         switch runPersistence.load() {
         case .absent:
-            if progressPersistence.file.isFreshCampaign {
-                startLevel(id: catalog.first.id)
-            } else {
-                openLaunchMenu()
-            }
+            openGameSelection()
 
         case .loaded(let file):
             if progressPersistence.file.isFreshCampaign {
                 // Mid-first-tutorial resume: still a fresh campaign, restore directly.
                 restoreRun(file)
             } else {
-                // Non-fresh campaigns always land on the launch menu; Continue restores.
-                openLaunchMenu()
+                // Non-fresh campaigns land on game selection; Sokoban hub via Continue.
+                openGameSelection()
             }
 
         case .invalid(let message, _):

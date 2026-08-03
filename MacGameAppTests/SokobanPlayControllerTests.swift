@@ -21,6 +21,9 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        if controller.presentationPhase == .gameSelection {
+            controller.selectSokobanFromGameSelection()
+        }
         controller.dismissLevelIntro()
         controller.scene.holdAnimationsForTesting = holdAnimations
         return controller
@@ -89,8 +92,8 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .playing)
     }
 
-    @Test("launch menu arrows move selection")
-    func launchMenuArrowsMoveSelection() throws {
+    @Test("game selection arrows skip disabled cave and activate Sokoban hub")
+    func gameSelectionKeyboard() throws {
         let runPersistence = try SokobanRunPersistence.ephemeral()
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
@@ -111,14 +114,21 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        #expect(controller.presentationPhase == .gameSelection)
+        #expect(controller.focusedGameSelectionAction == .sokoban)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
+        #expect(controller.focusedGameSelectionAction == .help)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.upArrow)))
+        #expect(controller.focusedGameSelectionAction == .sokoban)
+        #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return)))
         #expect(controller.presentationPhase == .launchMenu)
         #expect(controller.focusedLaunchAction == .continueCampaign)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
         #expect(controller.focusedLaunchAction == .selectLevel)
     }
 
-    @Test("completed campaign progress without a run opens launch menu")
-    func nonFreshProgressBootsToLaunchMenu() throws {
+    @Test("completed campaign progress without a run opens game selection")
+    func nonFreshProgressBootsToGameSelection() throws {
         let runPersistence = try SokobanRunPersistence.ephemeral()
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
@@ -141,8 +151,10 @@ struct SokobanPlayControllerTests {
             settingsStore: AppSettingsStore.ephemeral()
         )
 
-        #expect(controller.presentationPhase == .launchMenu)
+        #expect(controller.presentationPhase == .gameSelection)
         #expect(controller.session == nil)
+        controller.selectSokobanFromGameSelection()
+        #expect(controller.presentationPhase == .launchMenu)
     }
 
     @Test("launch menu reset clears progress and restarts tutorial 1")
@@ -169,6 +181,7 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         #expect(controller.presentationPhase == .launchMenu)
         #expect(!progress.file.isFreshCampaign)
 
@@ -186,8 +199,8 @@ struct SokobanPlayControllerTests {
         }
     }
 
-    @Test("non-fresh campaign with a saved run still opens launch menu")
-    func nonFreshProgressWithRunBootsToLaunchMenu() async throws {
+    @Test("non-fresh campaign with a saved run still opens game selection")
+    func nonFreshProgressWithRunBootsToGameSelection() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("SokoBoulder-launch-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -212,6 +225,7 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        priming.selectSokobanFromGameSelection()
         priming.dismissLevelIntro()
         completeDemoLevel(priming)
         awaitOutcomeChoice(priming)
@@ -235,9 +249,11 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
-        #expect(relaunch.presentationPhase == .launchMenu)
+        #expect(relaunch.presentationPhase == .gameSelection)
         #expect(relaunch.session == nil)
 
+        relaunch.selectSokobanFromGameSelection()
+        #expect(relaunch.presentationPhase == .launchMenu)
         relaunch.continueCampaign()
         #expect(relaunch.session != nil)
         #expect(
@@ -314,6 +330,7 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         controller.dismissLevelIntro()
 
         completeDemoLevel(controller)
@@ -361,6 +378,7 @@ struct SokobanPlayControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         controller.dismissLevelIntro()
 
         completeDemoLevel(controller)

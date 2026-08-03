@@ -39,6 +39,10 @@ enum TestPlayControllerFactory {
         reduceMotion.onChange = { [weak controller] in
             controller?.reduceMotionProvider.refresh()
         }
+        // Fresh boots land on game selection; most tests want the Sokoban session.
+        if controller.presentationPhase == .gameSelection {
+            controller.selectSokobanFromGameSelection()
+        }
         if markIntroDismissed, controller.presentationPhase == .levelIntro {
             controller.dismissLevelIntro()
         }

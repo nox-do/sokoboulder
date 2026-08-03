@@ -13,13 +13,17 @@ struct SokobanTutorialFlowTests {
             from: Bundle(for: SokobanPlayController.self)
         )
         let progress = try! ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
-        return SokobanPlayController(
+        let controller = SokobanPlayController(
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: persistence,
             progressPersistence: progress,
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        if controller.presentationPhase == .gameSelection {
+            controller.selectSokobanFromGameSelection()
+        }
+        return controller
     }
 
     private func playMoves(_ controller: SokobanPlayController, _ moves: [Direction]) {
@@ -43,9 +47,22 @@ struct SokobanTutorialFlowTests {
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
     }
 
-    @Test("fresh boot shows level intro with localized hint")
+    @Test("fresh boot shows game selection then Sokoban intro with localized hint")
     func freshBootShowsIntro() throws {
-        let controller = makeController()
+        let persistence = try SokobanRunPersistence.ephemeral()
+        let catalog = try BundleContentLoader.loadSokobanCatalog(
+            from: Bundle(for: SokobanPlayController.self)
+        )
+        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        let controller = SokobanPlayController(
+            audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
+            runPersistence: persistence,
+            progressPersistence: progress,
+            catalog: catalog,
+            settingsStore: AppSettingsStore.ephemeral()
+        )
+        #expect(controller.presentationPhase == .gameSelection)
+        controller.selectSokobanFromGameSelection()
         #expect(controller.presentationPhase == .levelIntro)
         #expect(controller.currentLevelID == "sokoban.tutorial.001")
         let level1 = try #require(controller.catalog.descriptor(id: "sokoban.tutorial.001"))
@@ -183,6 +200,7 @@ struct SokobanTutorialFlowTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         #expect(controller.presentationPhase == .levelIntro)
         #expect(spy.musicStates.contains(.themeLoop))
 
@@ -213,6 +231,7 @@ struct SokobanTutorialFlowTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        controller.selectSokobanFromGameSelection()
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)
         awaitOutcome(controller)

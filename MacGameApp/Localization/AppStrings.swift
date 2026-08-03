@@ -28,12 +28,18 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiOutcomeBestPushes = "ui.outcome.best_pushes"
 
     // Launch / level select
+    case uiGameSelectTitle = "ui.game_select.title"
+    case uiGameSelectSubtitle = "ui.game_select.subtitle"
+    case uiGameSelectSokoban = "ui.game_select.sokoban"
+    case uiGameSelectCave = "ui.game_select.cave"
+    case uiGameSelectCaveComingSoon = "ui.game_select.cave_coming_soon"
     case uiLaunchTitle = "ui.launch.title"
     case uiLaunchContinue = "ui.launch.continue"
     case uiLaunchSelectLevel = "ui.launch.select_level"
     case uiLaunchHelp = "ui.launch.help"
     case uiLaunchSettings = "ui.launch.settings"
     case uiLaunchResetProgress = "ui.launch.reset_progress"
+    case uiLaunchBackToGames = "ui.launch.back_to_games"
     case uiLevelSelectTitle = "ui.level_select.title"
     case uiLevelSelectBack = "ui.level_select.back"
     case uiLevelSelectLocked = "ui.level_select.locked"
@@ -137,12 +143,18 @@ enum AppStrings {
         AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
         AppStringID.uiOutcomeBestPushes.rawValue: "Beste Schübe",
 
-        AppStringID.uiLaunchTitle.rawValue: "SokoBoulder",
+        AppStringID.uiGameSelectTitle.rawValue: "SokoBoulder",
+        AppStringID.uiGameSelectSubtitle.rawValue: "Spielauswahl",
+        AppStringID.uiGameSelectSokoban.rawValue: "Sokoban",
+        AppStringID.uiGameSelectCave.rawValue: "Höhle",
+        AppStringID.uiGameSelectCaveComingSoon.rawValue: "Demnächst",
+        AppStringID.uiLaunchTitle.rawValue: "Sokoban",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
         AppStringID.uiLaunchHelp.rawValue: "Hilfe",
         AppStringID.uiLaunchSettings.rawValue: "Einstellungen",
         AppStringID.uiLaunchResetProgress.rawValue: "Spielstand zurücksetzen",
+        AppStringID.uiLaunchBackToGames.rawValue: "Spielauswahl",
         AppStringID.uiLevelSelectTitle.rawValue: "Levelauswahl",
         AppStringID.uiLevelSelectBack.rawValue: "Zurück",
         AppStringID.uiLevelSelectLocked.rawValue: "Gesperrt",

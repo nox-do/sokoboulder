@@ -85,6 +85,9 @@ struct SokobanHoldMoveControllerTests {
             catalog: catalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
+        if controller.presentationPhase == .gameSelection {
+            controller.selectSokobanFromGameSelection()
+        }
         controller.dismissLevelIntro()
         return controller
     }

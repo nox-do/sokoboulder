@@ -47,7 +47,7 @@ struct ContentView: View {
 
     private var showsHUD: Bool {
         switch controller.presentationPhase {
-        case .launchMenu, .levelSelection, .help, .settings, .faulted, .runRecovery:
+        case .gameSelection, .launchMenu, .levelSelection, .help, .settings, .faulted, .runRecovery:
             false
         case .levelIntro, .playing, .paused, .outcomeAwaitingChoice:
             true
@@ -121,6 +121,8 @@ struct ContentView: View {
                 )
             case .runRecovery:
                 SokobanRunRecoveryOverlay(controller: controller)
+            case .gameSelection:
+                GameSelectionOverlay(controller: controller)
             case .launchMenu:
                 SokobanLaunchMenuOverlay(controller: controller)
             case .levelSelection:

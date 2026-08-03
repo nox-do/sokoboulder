@@ -365,6 +365,15 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
+### Spielauswahl-Hülle – umgesetzt (2026-08-03)
+
+Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
+
+- [x] Phase `gameSelection`: Sokoban | Höhle (disabled „Demnächst“) | Hilfe | Settings
+- [x] Boot → Spielauswahl; frisch + Sokoban → Tutorial; sonst Sokoban-Hub
+- [x] Escape / Zurück vom Hub zur Spielauswahl
+- [x] Tests angepasst
+
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
 Plan: `docs/plans/3.8-pixel-art-themes.md` · ADR 0004
@@ -392,7 +401,7 @@ Arbeitspakete:
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
-- Phase 3.7 Cave-Spike (ADR Tick Semantics) / Phase 4+: Cave…
+- **Als Nächstes:** Phase 3.7 Cave-Spike (ADR Tick Semantics) — siehe Plan 3.9
 - Cave-Musik-Asset (MP3/OGG) wenn Phase 4 startet
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
