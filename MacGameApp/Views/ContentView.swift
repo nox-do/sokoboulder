@@ -11,6 +11,7 @@ struct ContentView: View {
         runPersistence: SokobanRunPersistence,
         progressPersistence: ProgressPersistence,
         catalog: SokobanContentCatalog,
+        caveCatalog: CaveContentCatalog,
         settingsStore: AppSettingsStore = AppSettingsStore()
     ) {
         _controller = StateObject(
@@ -18,6 +19,7 @@ struct ContentView: View {
                 runPersistence: runPersistence,
                 progressPersistence: progressPersistence,
                 catalog: catalog,
+                caveCatalog: caveCatalog,
                 settingsStore: settingsStore
             )
         )
@@ -228,9 +230,10 @@ struct ContentView: View {
 }
 
 #Preview {
-    if let catalog = try? BundleContentLoader.loadSokobanCatalog(
-        from: Bundle(for: SokobanPlayController.self)
-    ) {
+    let bundle = Bundle(for: SokobanPlayController.self)
+    if let catalog = try? BundleContentLoader.loadSokobanCatalog(from: bundle),
+        let caveCatalog = try? BundleContentLoader.loadCaveCatalog(from: bundle)
+    {
         ContentView(
             runPersistence: SokobanRunPersistence.disabled(reason: "Preview"),
             progressPersistence: ProgressPersistence.disabled(
@@ -238,6 +241,7 @@ struct ContentView: View {
                 firstLevelID: catalog.first.id
             ),
             catalog: catalog,
+            caveCatalog: caveCatalog,
             settingsStore: AppSettingsStore.ephemeral()
         )
     } else {

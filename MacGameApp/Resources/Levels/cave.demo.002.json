@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.002",
+  "game": "cave",
+  "titleID": "level.cave.demo.002.title",
+  "tutorialHintID": "hint.cave.falling_rock",
+  "width": 14,
+  "height": 8,
+  "rows": [
+    "##############",
+    "#............#",
+    "#....O.......#",
+    "#....P..*....#",
+    "#............#",
+    "#.........E..#",
+    "#............#",
+    "##############"
+  ],
+  "rules": {
+    "requiredDiamonds": 1,
+    "timeLimitTicks": 750,
+    "diamondValue": 10,
+    "extraDiamondValue": 15
+  }
+}

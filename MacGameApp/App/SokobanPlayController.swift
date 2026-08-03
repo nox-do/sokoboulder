@@ -18,6 +18,7 @@ final class SokobanPlayController: ObservableObject {
     let runPersistence: SokobanRunPersistence
     let progressPersistence: ProgressPersistence
     let catalog: SokobanContentCatalog
+    let caveCatalog: CaveContentCatalog
     let themeCatalog: ThemeCatalog
     let musicTrackCatalog: MusicTrackCatalog
     let settingsStore: AppSettingsStore
@@ -92,6 +93,7 @@ final class SokobanPlayController: ObservableObject {
         runPersistence: SokobanRunPersistence,
         progressPersistence: ProgressPersistence,
         catalog: SokobanContentCatalog,
+        caveCatalog: CaveContentCatalog,
         settingsStore: AppSettingsStore = AppSettingsStore(),
         reduceMotionSource: (any SystemReduceMotionSource)? = nil,
         themeCatalog: ThemeCatalog? = nil
@@ -107,6 +109,7 @@ final class SokobanPlayController: ObservableObject {
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = catalog
+        self.caveCatalog = caveCatalog
         self.themeCatalog =
             themeCatalog
             ?? ThemeCatalogLoader.load(
@@ -134,6 +137,36 @@ final class SokobanPlayController: ObservableObject {
         bootstrapFromPersistence()
     }
 
+    /// Loads the bundled cave catalog for call sites that only inject Sokoban content.
+    convenience init(
+        audioDirector: AudioDirector = AudioDirector(),
+        runPersistence: SokobanRunPersistence,
+        progressPersistence: ProgressPersistence,
+        catalog: SokobanContentCatalog,
+        settingsStore: AppSettingsStore = AppSettingsStore(),
+        reduceMotionSource: (any SystemReduceMotionSource)? = nil,
+        themeCatalog: ThemeCatalog? = nil
+    ) {
+        let caveCatalog: CaveContentCatalog
+        do {
+            caveCatalog = try BundleContentLoader.loadCaveCatalog(
+                from: Bundle(for: SokobanPlayController.self)
+            )
+        } catch {
+            preconditionFailure("Failed to load bundled cave catalog: \(error)")
+        }
+        self.init(
+            audioDirector: audioDirector,
+            runPersistence: runPersistence,
+            progressPersistence: progressPersistence,
+            catalog: catalog,
+            caveCatalog: caveCatalog,
+            settingsStore: settingsStore,
+            reduceMotionSource: reduceMotionSource,
+            themeCatalog: themeCatalog
+        )
+    }
+
     /// Loads bundled content; on failure enters a faulted presentation with no session.
     convenience init(
         audioDirector: AudioDirector = AudioDirector(),
@@ -144,11 +177,13 @@ final class SokobanPlayController: ObservableObject {
     ) {
         do {
             let catalog = try BundleContentLoader.loadSokobanCatalog(from: bundle)
+            let caveCatalog = try BundleContentLoader.loadCaveCatalog(from: bundle)
             self.init(
                 audioDirector: audioDirector,
                 runPersistence: runPersistence,
                 progressPersistence: progressPersistence,
                 catalog: catalog,
+                caveCatalog: caveCatalog,
                 settingsStore: settingsStore
             )
         } catch {
@@ -186,6 +221,11 @@ final class SokobanPlayController: ObservableObject {
             strings: ContentStringTable(values: [:]),
             defaultThemeID: nil,
             defaultAudioThemeID: nil
+        )
+        self.caveCatalog = CaveContentCatalog(
+            campaignID: "",
+            levels: [],
+            strings: ContentStringTable(values: [:])
         )
         self.themeCatalog = ThemeCatalog(
             themes: BuiltInThemes.allFallbacks(),
@@ -802,11 +842,11 @@ final class SokobanPlayController: ObservableObject {
     /// Starts the playable cave demo from the top-level picker.
     func selectCaveFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
-        startCaveDemo(id: CaveDemoCatalog.first.id)
+        startCaveDemo(id: caveCatalog.first.id)
     }
 
     private func startCaveDemo(id: String) {
-        guard let descriptor = CaveDemoCatalog.descriptor(id: id) else {
+        guard let descriptor = caveCatalog.descriptor(id: id) else {
             setActivePlay(nil)
             faultMessage = "Unknown cave demo: \(id)"
             presentationPhase = .faulted
@@ -816,7 +856,7 @@ final class SokobanPlayController: ObservableObject {
         }
 
         do {
-            let level = try descriptor.makeLevel()
+            let level = descriptor.makeLevel()
             let newSession = try CaveSession(level: level, levelID: descriptor.id)
             clearMoveHold()
             cancelShowOutcome()
@@ -828,8 +868,8 @@ final class SokobanPlayController: ObservableObject {
             let emission = newSession.start()
             setActivePlay(.cave(newSession))
             currentLevelID = descriptor.id
-            levelTitle = descriptor.title
-            tutorialHintText = descriptor.tutorialHint
+            levelTitle = caveCatalog.title(for: descriptor)
+            tutorialHintText = caveCatalog.tutorialHint(for: descriptor)
             faultMessage = nil
             recoveryMessage = nil
             overlayReturnOrigin = nil
@@ -852,7 +892,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func configureCaveOutcomeActions(for levelID: String) {
-        if let next = CaveDemoCatalog.descriptor(after: levelID) {
+        if let next = caveCatalog.descriptor(after: levelID) {
             outcomePrimaryAction = .nextLevel(id: next.id)
             outcomePrimaryTitle = AppStrings.text(.uiOutcomeNextLevel)
             outcomeTitle = AppStrings.text(.uiOutcomeLevelComplete)

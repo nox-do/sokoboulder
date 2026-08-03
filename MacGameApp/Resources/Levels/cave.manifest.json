@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "campaigns": [
+    {
+      "id": "campaign.cave.demo",
+      "levels": [
+        "Levels/cave.demo.001.json",
+        "Levels/cave.demo.002.json",
+        "Levels/cave.demo.003.json"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.001",
+  "game": "cave",
+  "titleID": "level.cave.demo.001.title",
+  "tutorialHintID": "hint.cave.dig_and_collect",
+  "width": 12,
+  "height": 8,
+  "rows": [
+    "############",
+    "#P.........#",
+    "#..........#",
+    "#....*.....#",
+    "#..........#",
+    "#.......E..#",
+    "#..........#",
+    "############"
+  ],
+  "rules": {
+    "requiredDiamonds": 1,
+    "timeLimitTicks": 900,
+    "diamondValue": 10,
+    "extraDiamondValue": 15
+  }
+}

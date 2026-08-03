@@ -17,6 +17,7 @@ enum ContentLoadError: Error, Equatable, Sendable {
     case manifestUnknownKeys([String])
     case manifestMissingKeys([String])
     case level(SokobanLevelJSONError)
+    case caveLevel(CaveLevelJSONError)
 }
 
 /// Loaded Sokoban campaign content: ordered descriptors + string table.
@@ -56,10 +57,46 @@ struct SokobanContentCatalog: Equatable, Sendable {
     }
 }
 
+/// Loaded Cave campaign content: ordered descriptors + string table.
+struct CaveContentCatalog: Equatable, Sendable {
+    let campaignID: String
+    let levels: [CaveLevelDescriptor]
+    let strings: ContentStringTable
+
+    var first: CaveLevelDescriptor {
+        levels[0]
+    }
+
+    func descriptor(id: String) -> CaveLevelDescriptor? {
+        levels.first { $0.id == id }
+    }
+
+    func index(of id: String) -> Int? {
+        levels.firstIndex { $0.id == id }
+    }
+
+    func descriptor(after id: String) -> CaveLevelDescriptor? {
+        guard let index = index(of: id), index + 1 < levels.count else {
+            return nil
+        }
+        return levels[index + 1]
+    }
+
+    func title(for descriptor: CaveLevelDescriptor) -> String {
+        strings.text(descriptor.titleID)
+    }
+
+    func tutorialHint(for descriptor: CaveLevelDescriptor) -> String {
+        guard let hintID = descriptor.tutorialHintID else { return "" }
+        return strings.text(hintID)
+    }
+}
+
 /// Loads manifest, level JSON, and content strings from a ``ContentResourceProvider``.
 enum BundleContentLoader {
     /// Paths are relative to the app bundle Resources root (folder structure preserved).
     static let manifestPath = "Levels/manifest.json"
+    static let caveManifestPath = "Levels/cave.manifest.json"
     static let contentStringsPath = "Localization/ContentStrings.de.json"
 
     /// Loads and cross-validates the bundled Sokoban campaign from an app bundle.
@@ -67,9 +104,14 @@ enum BundleContentLoader {
         try loadSokobanCatalog(from: BundleContentResources(bundle: bundle))
     }
 
+    /// Loads and cross-validates the bundled Cave demo campaign from an app bundle.
+    static func loadCaveCatalog(from bundle: Bundle) throws -> CaveContentCatalog {
+        try loadCaveCatalog(from: BundleContentResources(bundle: bundle))
+    }
+
     /// Loads and cross-validates content via an injectable resource provider.
     static func loadSokobanCatalog(from resources: any ContentResourceProvider) throws -> SokobanContentCatalog {
-        let manifest = try loadManifest(from: resources)
+        let manifest = try loadManifest(at: manifestPath, from: resources)
         guard manifest.schemaVersion == ContentManifestV1.currentSchemaVersion else {
             throw ContentLoadError.manifestUnsupportedSchema(manifest.schemaVersion)
         }
@@ -134,6 +176,68 @@ enum BundleContentLoader {
         )
     }
 
+    /// Loads and cross-validates the Cave demo campaign via an injectable provider.
+    static func loadCaveCatalog(from resources: any ContentResourceProvider) throws -> CaveContentCatalog {
+        let manifest = try loadManifest(at: caveManifestPath, from: resources)
+        guard manifest.schemaVersion == ContentManifestV1.currentSchemaVersion else {
+            throw ContentLoadError.manifestUnsupportedSchema(manifest.schemaVersion)
+        }
+        guard manifest.campaigns.count == 1 else {
+            throw ContentLoadError.expectedExactlyOneCampaign(found: manifest.campaigns.count)
+        }
+        let campaign = manifest.campaigns[0]
+        guard !campaign.id.isEmpty else {
+            throw ContentLoadError.emptyCampaignID
+        }
+
+        let strings = try loadContentStrings(from: resources)
+        var levels: [CaveLevelDescriptor] = []
+        var seenPaths = Set<String>()
+        var seenIDs = Set<String>()
+
+        for path in campaign.levels {
+            guard !path.isEmpty else {
+                throw ContentLoadError.emptyLevelPath(campaignID: campaign.id)
+            }
+            guard seenPaths.insert(path).inserted else {
+                throw ContentLoadError.duplicateLevelPath(path)
+            }
+
+            let data = try resources.data(at: path)
+            let decoded: DecodedCaveLevelFile
+            do {
+                decoded = try CaveLevelJSONCodec.decode(data)
+            } catch let error as CaveLevelJSONError {
+                throw ContentLoadError.caveLevel(error)
+            } catch let error as ContentLoadError {
+                throw error
+            } catch {
+                throw ContentLoadError.unreadable(path: path, detail: String(describing: error))
+            }
+
+            guard seenIDs.insert(decoded.file.id).inserted else {
+                throw ContentLoadError.duplicateLevelID(decoded.file.id)
+            }
+
+            try requireNonEmptyString(decoded.file.titleID, in: strings)
+            if let tutorialHintID = decoded.file.tutorialHintID {
+                try requireNonEmptyString(tutorialHintID, in: strings)
+            }
+
+            levels.append(CaveLevelDescriptor(decoded: decoded))
+        }
+
+        guard !levels.isEmpty else {
+            throw ContentLoadError.emptyCampaignLevels(campaignID: campaign.id)
+        }
+
+        return CaveContentCatalog(
+            campaignID: campaign.id,
+            levels: levels,
+            strings: strings
+        )
+    }
+
     private static func requireNonEmptyString(_ id: String, in table: ContentStringTable) throws {
         guard table.contains(id) else {
             throw ContentLoadError.missingStringID(id)
@@ -143,15 +247,18 @@ enum BundleContentLoader {
         }
     }
 
-    private static func loadManifest(from resources: any ContentResourceProvider) throws -> ContentManifestV1 {
-        let data = try resources.data(at: manifestPath)
+    private static func loadManifest(
+        at path: String,
+        from resources: any ContentResourceProvider
+    ) throws -> ContentManifestV1 {
+        let data = try resources.data(at: path)
         do {
             try StrictManifestJSON.validateKeys(data)
             return try JSONDecoder().decode(ContentManifestV1.self, from: data)
         } catch let error as StrictManifestJSON.Error {
             switch error {
             case .notAnObject:
-                throw ContentLoadError.unreadable(path: manifestPath, detail: "Manifest must be a JSON object")
+                throw ContentLoadError.unreadable(path: path, detail: "Manifest must be a JSON object")
             case .unknownKeys(let keys):
                 throw ContentLoadError.manifestUnknownKeys(keys)
             case .missingKeys(let keys):
@@ -160,7 +267,7 @@ enum BundleContentLoader {
         } catch let error as ContentLoadError {
             throw error
         } catch {
-            throw ContentLoadError.unreadable(path: manifestPath, detail: String(describing: error))
+            throw ContentLoadError.unreadable(path: path, detail: String(describing: error))
         }
     }
 

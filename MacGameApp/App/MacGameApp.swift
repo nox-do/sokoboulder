@@ -4,7 +4,11 @@ import SwiftUI
 @main
 struct MacGameApp: App {
     private enum ContentBootstrap {
-        case ready(catalog: SokobanContentCatalog, progress: ProgressPersistence)
+        case ready(
+            catalog: SokobanContentCatalog,
+            caveCatalog: CaveContentCatalog,
+            progress: ProgressPersistence
+        )
         case fault(message: String, progress: ProgressPersistence)
     }
 
@@ -17,11 +21,12 @@ struct MacGameApp: App {
 
     init() {
         do {
-            let catalog = try BundleContentLoader.loadSokobanCatalog(
-                from: Bundle(for: SokobanPlayController.self)
-            )
+            let bundle = Bundle(for: SokobanPlayController.self)
+            let catalog = try BundleContentLoader.loadSokobanCatalog(from: bundle)
+            let caveCatalog = try BundleContentLoader.loadCaveCatalog(from: bundle)
             self.contentBootstrap = .ready(
                 catalog: catalog,
+                caveCatalog: caveCatalog,
                 progress: ProgressPersistence.makeDefault(firstLevelID: catalog.first.id)
             )
         } catch {
@@ -38,11 +43,12 @@ struct MacGameApp: App {
         Window("SokoBoulder", id: "main") {
             Group {
                 switch contentBootstrap {
-                case .ready(let catalog, let progress):
+                case .ready(let catalog, let caveCatalog, let progress):
                     ContentView(
                         runPersistence: runPersistence,
                         progressPersistence: progress,
-                        catalog: catalog
+                        catalog: catalog,
+                        caveCatalog: caveCatalog
                     )
                 case .fault(let message, let progress):
                     ContentView(

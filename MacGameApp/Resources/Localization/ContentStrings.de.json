@@ -94,5 +94,11 @@
   "level.sokoban.campaign.087.title": "Großes Finale",
   "level.sokoban.campaign.088.title": "Großes Raster",
   "level.sokoban.campaign.089.title": "Langer Block",
-  "level.sokoban.campaign.090.title": "Schachbrett"
+  "level.sokoban.campaign.090.title": "Schachbrett",
+  "level.cave.demo.001.title": "Der erste Diamant",
+  "level.cave.demo.002.title": "Unter dem Felsen",
+  "level.cave.demo.003.title": "Der Felsschacht",
+  "hint.cave.dig_and_collect": "Grabe dich durch die Erde und sammle den Diamanten. Danach öffnet sich der Ausgang.",
+  "hint.cave.falling_rock": "Ein ruhender Fels über dir ist ungefährlich. Sobald du seinen Platz freigibst, fällt er nach unten.",
+  "hint.cave.push_into_shaft": "Felsen lassen sich nur seitlich schieben. Schiebe den Fels über den Schacht, damit er nach unten fällt und den Weg freigibt."
 }
