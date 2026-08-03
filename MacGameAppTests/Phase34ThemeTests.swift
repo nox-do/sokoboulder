@@ -299,13 +299,4 @@ struct Phase34ThemeIntegrationTests {
         settings.seedThemeIDFromCatalogIfUnset("theme.other")
         #expect(settings.themeID == VisualTheme.standardID)
     }
-
-    @Test("outcome timeout covers queued moves plus celebration")
-    func outcomeTimeoutBudget() {
-        let budget =
-            TimeInterval(SokobanBoardScene.animationBudget)
-            * SokobanBoardScene.moveAnimationDuration
-            + SokobanBoardScene.completionCelebrationDuration
-        #expect(SokobanPlayController.outcomePresentationTimeout > budget)
-    }
 }

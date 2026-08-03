@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "sokoban.campaign.001",
+  "game": "sokoban",
+  "titleID": "level.sokoban.campaign.001.title",
+  "width": 9,
+  "height": 6,
+  "rows": [
+    "#########",
+    "###  ####",
+    "#     $ #",
+    "# #  #$ #",
+    "# . .#@ #",
+    "#########"
+  ],
+  "rules": {}
+}

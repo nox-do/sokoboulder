@@ -15,20 +15,22 @@ struct SokobanLevelCatalogTests {
     private static let hash003 =
         "3284cef6842fcd0846d64daafba7acecbdd41089f5a8e8da6461998698bb6e15"
 
-    @Test("bundled catalog loads three stable tutorial IDs with hashes")
-    func threeStableTutorials() throws {
+    @Test("bundled catalog loads tutorials then campaign levels")
+    func bundledCatalogShape() throws {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
         )
-        #expect(catalog.levels.count == 3)
+        #expect(catalog.levels.count == 23)
         #expect(
-            catalog.levels.map(\.id) == [
+            catalog.levels.prefix(3).map(\.id) == [
                 "sokoban.tutorial.001",
                 "sokoban.tutorial.002",
                 "sokoban.tutorial.003",
             ])
+        #expect(catalog.levels[3].id == "sokoban.campaign.001")
+        #expect(catalog.levels.last?.id == "sokoban.campaign.020")
 
-        for descriptor in catalog.levels {
+        for descriptor in catalog.levels.prefix(3) {
             #expect(!catalog.title(for: descriptor).isEmpty)
             #expect(descriptor.tutorialHintID != nil)
             #expect(!(descriptor.tutorialHintID ?? "").isEmpty)
@@ -41,6 +43,13 @@ struct SokobanLevelCatalogTests {
                     map: try SokobanASCIIParser.parse(descriptor.rows.joined(separator: "\n"))
                 ) == descriptor.contentHash
             )
+            _ = descriptor.makeLevel()
+        }
+
+        for descriptor in catalog.levels.dropFirst(3) {
+            #expect(!catalog.title(for: descriptor).isEmpty)
+            #expect(descriptor.tutorialHintID == nil)
+            #expect(descriptor.contentHash.count == 64)
             _ = descriptor.makeLevel()
         }
     }
@@ -67,7 +76,7 @@ struct SokobanLevelCatalogTests {
             SokobanTutorialSolutions.level003,
         ]
 
-        for (descriptor, moves) in zip(catalog.levels, solutions) {
+        for (descriptor, moves) in zip(catalog.levels.prefix(3), solutions) {
             var state = try rules.start(level: descriptor.makeLevel())
             for direction in moves {
                 let transition = try rules.move(direction, in: state)
@@ -93,7 +102,11 @@ struct SokobanLevelCatalogTests {
             catalog.descriptor(after: "sokoban.tutorial.001")?.id
                 == "sokoban.tutorial.002"
         )
-        #expect(catalog.descriptor(after: "sokoban.tutorial.003") == nil)
+        #expect(
+            catalog.descriptor(after: "sokoban.tutorial.003")?.id
+                == "sokoban.campaign.001"
+        )
+        #expect(catalog.descriptor(after: "sokoban.campaign.020") == nil)
     }
 
     @Test("play controller boots the first catalog level")

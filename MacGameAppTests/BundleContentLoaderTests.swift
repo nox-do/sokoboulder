@@ -10,8 +10,8 @@ struct BundleContentLoaderTests {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
         )
-        #expect(catalog.campaignID == "campaign.sokoban.tutorial")
-        #expect(catalog.levels.count == 3)
+        #expect(catalog.campaignID == "campaign.sokoban.main")
+        #expect(catalog.levels.count == 23)
         #expect(catalog.defaultThemeID == nil)
         #expect(catalog.defaultAudioThemeID == nil)
 

@@ -109,7 +109,7 @@ Audio-Mixer/Settings und CC0-Assets später.
 - `GamePresentationPhase` steuert Overlays; `SessionPhase` steuert Simulationseingaben
 - HUD: Level, Züge, Schübe, Goals, Undo/Redo-Verfügbarkeit; Goal-Zähler in `RenderSnapshot`
 - Pause-Overlay fokussierbar; Fokusverlust pausiert nur aus `.playing`
-- Outcome zweistufig: `outcomeAnimating` (Settle/Timeout/Skip) → `outcomeAwaitingChoice`
+- Outcome: 1.5s Delay, dann `outcomeAwaitingChoice` (kein Zwischen-Banner)
 - `SokobanBoardScene.whenSettled(revision:)` + festes Timeout (0.45s)
 - Skip-Return bestätigt nicht die Ergebnisaktion (`releaseOutcomeLocksPreservingPressedKeys`)
 - SwiftUI Commands via `FocusedValues` → dieselben Controller-Methoden
@@ -363,9 +363,20 @@ Vertragsentscheidungen:
 
 ## Als Nächstes
 
+- Playtest der 20 Kampagnen-Level (nach 3 Tutorials freischaltbar)
+- Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
+- [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
 - Phase 3.7 Cave-Spike (ADR Tick Semantics) / Phase 4+: Cave…
 - Cave-Musik-Asset (MP3/OGG) wenn Phase 4 startet
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
   (derzeit ignoriert, weil keine Abhängigkeiten existieren)
+
+### Content: Sokoban-Kampagne 001–020 – eingebunden
+
+- [x] 20 Level-JSON unter `Levels/sokoban.campaign.NNN.json` (ohne Tutorial-Hints)
+- [x] Manifest: Tutorials 1–3, dann Kampagne; Kampagnen-ID `campaign.sokoban.main`
+- [x] Titel in `ContentStrings.de.json`
+- [x] Catalog-/Loader-/Flow-Tests angepasst (23 Level)
+- [x] 017 tote Startkiste korrigiert (JSON-Deadlock-Gate)

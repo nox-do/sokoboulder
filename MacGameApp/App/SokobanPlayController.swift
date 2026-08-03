@@ -5,18 +5,12 @@ import SwiftUI
 /// App-layer controller for one Sokoban window: session, input, scene, overlays.
 @MainActor
 final class SokobanPlayController: ObservableObject {
-    static let outcomePresentationTimeout: TimeInterval = 1.5
     private static let restartableSupersededTutorialHashes: [String: Set<String>] = [
         "sokoban.tutorial.001": [
             "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585",
             "d951ac0c0b9114dae245aecabc5befdac913614a096a21f3fd303f0777cfd594",
         ],
     ]
-
-    #if DEBUG
-        /// Test override for the outcome settle timeout.
-        var outcomePresentationTimeoutForTesting: TimeInterval?
-    #endif
 
     let scene: SokobanBoardScene
     let router = GameplayInputRouter()
@@ -67,9 +61,7 @@ final class SokobanPlayController: ObservableObject {
     /// Active visual theme resolved from settings + catalog fallbacks.
     @Published private(set) var visualTheme: VisualTheme = BuiltInThemes.standard
 
-    private var outcomeTimeoutItem: DispatchWorkItem?
-    private var outcomeTargetRevision: UInt64?
-    private var outcomeGeneration: UInt64 = 0
+    private var showOutcomeWorkItem: DispatchWorkItem?
     private var recordedCompletionForSession = false
     private var settingsHandlerID: UUID?
     private var appIsActive = true
@@ -340,7 +332,7 @@ final class SokobanPlayController: ObservableObject {
     /// Shows an explicit-dismiss level intro for an unseen tutorial hint. In-session
     /// restart keeps the existing session and does not call this path.
     func startLevel(id: String? = nil, showIntro: Bool? = nil) {
-        cancelOutcomeWait()
+        cancelShowOutcome()
         audioDirector.reset()
         applyAudioSettingsFromStore()
         scene.prepareForNewSession()
@@ -456,7 +448,7 @@ final class SokobanPlayController: ObservableObject {
     func handleAppActivation() {
         appIsActive = true
         switch presentationPhase {
-        case .outcomeAnimating, .outcomeAwaitingChoice:
+        case .outcomeAwaitingChoice:
             audioDirector.resumePlayback()
         case .levelIntro:
             audioDirector.resumePlayback()
@@ -492,9 +484,7 @@ final class SokobanPlayController: ObservableObject {
         guard presentationPhase != .help, presentationPhase != .settings else { return }
         resumeIfPaused()
         clearCompletionRecordingState()
-        if presentationPhase == .outcomeAnimating || presentationPhase == .outcomeAwaitingChoice {
-            cancelOutcomeWait()
-        }
+        cancelShowOutcome()
         if presentationPhase == .levelIntro {
             // Restart from intro dismisses without re-showing; hint is marked seen.
             dismissLevelIntro()
@@ -698,12 +688,14 @@ final class SokobanPlayController: ObservableObject {
         openLevelSelection()
     }
 
-    /// Skips remaining terminal presentation and opens the result overlay.
-    func skipOutcomePresentation() {
-        guard presentationPhase == .outcomeAnimating else { return }
-        scene.discardPendingPresentation()
-        enterOutcomeAwaitingChoice()
-    }
+    #if DEBUG
+        /// Test helper: skip the post-clear delay and open the result overlay.
+        func showOutcomeOverlayNowForTesting() {
+            guard session?.phase == .outcomePresenting else { return }
+            guard presentationPhase != .outcomeAwaitingChoice else { return }
+            enterOutcomeAwaitingChoice()
+        }
+    #endif
 
     // MARK: - Private bootstrap
 
@@ -786,7 +778,7 @@ final class SokobanPlayController: ObservableObject {
                 enterRunRecovery(message: "Saved level is no longer in the catalog.")
                 return
             }
-            cancelOutcomeWait()
+            cancelShowOutcome()
             audioDirector.reset()
             applyAudioSettingsFromStore()
             scene.prepareForNewSession()
@@ -912,7 +904,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func teardownSessionForNavigation(phase: GamePresentationPhase) {
-        cancelOutcomeWait()
+        cancelShowOutcome()
         session = nil
         scene.prepareForNewSession()
         audioDirector.reset()
@@ -982,14 +974,8 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func handleOutcomeAction() {
-        switch presentationPhase {
-        case .outcomeAnimating:
-            skipOutcomePresentation()
-        case .outcomeAwaitingChoice:
-            performFocusedOutcomeAction()
-        default:
-            break
-        }
+        guard presentationPhase == .outcomeAwaitingChoice else { return }
+        performFocusedOutcomeAction()
     }
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
@@ -1042,7 +1028,7 @@ final class SokobanPlayController: ObservableObject {
                 applyEmissionSideEffects(emission)
 
             case .faulted(let message):
-                cancelOutcomeWait()
+                cancelShowOutcome()
                 presentationPhase = .faulted
                 faultMessage = message
                 router.enterModalBlocked()
@@ -1060,10 +1046,11 @@ final class SokobanPlayController: ObservableObject {
         switch emission.appTransition {
         case .enterOutcomePresenting:
             recordCompletionIfNeeded(snapshot: emission.render.snapshot)
-            beginOutcomeAnimating(targetRevision: emission.render.targetRevision)
+            router.enterOutcomePresenting()
+            scheduleShowOutcome()
         case .returnToPlaying:
             clearCompletionRecordingState()
-            cancelOutcomeWait()
+            cancelShowOutcome()
             presentationPhase = .playing
             router.enterGameplay()
         case nil:
@@ -1120,57 +1107,35 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    private func beginOutcomeAnimating(targetRevision: UInt64) {
-        cancelOutcomeWait()
-        presentationPhase = .outcomeAnimating
-        router.enterOutcomePresenting()
-        outcomeTargetRevision = targetRevision
-        outcomeGeneration &+= 1
-        let generation = outcomeGeneration
-
-        scene.whenSettled(revision: targetRevision) { [weak self] in
+    private func scheduleShowOutcome() {
+        cancelShowOutcome()
+        let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            guard generation == self.outcomeGeneration else { return }
-            guard self.presentationPhase == .outcomeAnimating else { return }
+            guard self.session?.phase == .outcomePresenting else { return }
+            guard self.presentationPhase != .outcomeAwaitingChoice else { return }
             self.enterOutcomeAwaitingChoice()
         }
+        showOutcomeWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
 
-        let timeout = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            guard generation == self.outcomeGeneration else { return }
-            guard self.presentationPhase == .outcomeAnimating else { return }
-            self.scene.discardPendingPresentation()
-            self.enterOutcomeAwaitingChoice()
-        }
-        outcomeTimeoutItem = timeout
-        let delay: TimeInterval
-        #if DEBUG
-            delay = outcomePresentationTimeoutForTesting ?? Self.outcomePresentationTimeout
-        #else
-            delay = Self.outcomePresentationTimeout
-        #endif
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: timeout)
+    private func cancelShowOutcome() {
+        showOutcomeWorkItem?.cancel()
+        showOutcomeWorkItem = nil
     }
 
     private func enterOutcomeAwaitingChoice() {
-        cancelOutcomeWait(clearGeneration: false)
+        cancelShowOutcome()
         presentationPhase = .outcomeAwaitingChoice
         if router.mode != .outcomePresenting {
             router.enterOutcomePresenting()
         }
+        // Open confirm gate; still-held keys stay in pressedKeyCodes so they are
+        // not treated as a fresh Return/Space confirm.
         router.releaseOutcomeLocksPreservingPressedKeys()
         focusedOutcomeAction = .primary
         configureOutcomeActions(for: currentLevelID)
         refreshPublishedState()
-    }
-
-    private func cancelOutcomeWait(clearGeneration: Bool = true) {
-        outcomeTimeoutItem?.cancel()
-        outcomeTimeoutItem = nil
-        outcomeTargetRevision = nil
-        if clearGeneration {
-            outcomeGeneration &+= 1
-        }
     }
 
     private func refreshPublishedState() {

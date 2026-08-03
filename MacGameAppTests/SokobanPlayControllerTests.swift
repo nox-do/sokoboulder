@@ -36,9 +36,8 @@ struct SokobanPlayControllerTests {
     }
 
     private func awaitOutcomeChoice(_ controller: SokobanPlayController) {
-        controller.scene.settleAnimationsForTesting()
-        if controller.presentationPhase == .outcomeAnimating {
-            controller.skipOutcomePresentation()
+        if controller.presentationPhase != .outcomeAwaitingChoice {
+            controller.showOutcomeOverlayNowForTesting()
         }
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
     }
@@ -366,10 +365,7 @@ struct SokobanPlayControllerTests {
         #expect(controller.session?.phase == .playing)
 
         controller.redo()
-        #expect(
-            controller.presentationPhase == .outcomeAnimating
-                || controller.presentationPhase == .outcomeAwaitingChoice
-        )
+        awaitOutcomeChoice(controller)
     }
 
     @Test("pause overlay path stops gameplay input")
@@ -394,49 +390,31 @@ struct SokobanPlayControllerTests {
         #expect(controller.session?.phase == .paused)
     }
 
-    @Test("terminal move reaches settled revision before outcome awaiting choice")
-    func terminalMoveSettlesBeforeOutcomeOverlay() throws {
+    @Test("terminal move delays the outcome overlay")
+    func terminalMoveDelaysOutcomeOverlay() throws {
         let controller = makeController(holdAnimations: true)
-        controller.outcomePresentationTimeoutForTesting = 10
 
         completeDemoLevel(controller)
-        #expect(controller.presentationPhase == .outcomeAnimating)
+        #expect(controller.presentationPhase == .playing)
+        #expect(controller.session?.phase == .outcomePresenting)
         let target = try #require(controller.session).revision
         #expect(controller.scene.appliedRevision == target)
         #expect(controller.scene.pendingAnimationCount > 0)
-        #expect(controller.scene.settledRevision < target)
 
-        controller.scene.settleAnimationsForTesting()
-        #expect(controller.scene.settledRevision >= target)
+        controller.showOutcomeOverlayNowForTesting()
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
     }
 
-    @Test("Return during outcome animation skips only presentation")
-    func returnDuringAnimationSkipsOnly() throws {
-        let controller = makeController(holdAnimations: true)
-        controller.outcomePresentationTimeoutForTesting = 10
-
-        completeDemoLevel(controller)
-        #expect(controller.presentationPhase == .outcomeAnimating)
-
-        _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
-        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
-
-        #expect(controller.presentationPhase == .outcomeAwaitingChoice)
-        // Same held Return must not restart.
-        #expect(controller.router.route(TestKeyEvent.keyDown(KeyCode.return)) == nil)
-        #expect(controller.session?.phase == .outcomePresenting)
-    }
-
-    @Test("held confirm repeat is consumed after skipping outcome presentation")
+    @Test("held confirm after delay opens overlay without advancing on repeat")
     func heldConfirmRepeatIsConsumed() throws {
         let controller = makeController(holdAnimations: true)
-        controller.outcomePresentationTimeoutForTesting = 10
         completeDemoLevel(controller)
         _ = controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow))
+        controller.showOutcomeOverlayNowForTesting()
+        #expect(controller.presentationPhase == .outcomeAwaitingChoice)
 
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.space)))
-        #expect(controller.presentationPhase == .outcomeAwaitingChoice)
+        #expect(controller.currentLevelID == "sokoban.tutorial.002")
         let revision = try #require(controller.session).revision
 
         #expect(
@@ -445,7 +423,6 @@ struct SokobanPlayControllerTests {
             )
         )
         #expect(controller.session?.revision == revision)
-        #expect(controller.session?.phase == .outcomePresenting)
     }
 
     @Test("independent Return after awaiting choice advances to next level")
@@ -539,14 +516,13 @@ struct SokobanPlayControllerTests {
     @Test("deactivation during outcome clears locks without pausing")
     func deactivationDuringOutcome() throws {
         let controller = makeController(holdAnimations: true)
-        controller.outcomePresentationTimeoutForTesting = 10
         completeDemoLevel(controller)
-        #expect(controller.presentationPhase == .outcomeAnimating)
+        #expect(controller.session?.phase == .outcomePresenting)
         #expect(controller.router.lockedKeyCodes.contains(KeyCode.rightArrow))
 
         controller.handleAppDeactivation()
         #expect(controller.session?.phase == .outcomePresenting)
-        #expect(controller.presentationPhase == .outcomeAnimating)
+        #expect(controller.presentationPhase == .playing)
         #expect(controller.router.lockedKeyCodes.isEmpty)
         #expect(controller.router.outcomeGateOpen)
     }
@@ -554,9 +530,9 @@ struct SokobanPlayControllerTests {
     @Test("new session resets scene revision stream before bootstrap")
     func newSessionResetsRevisionStream() throws {
         let controller = makeController(holdAnimations: true)
-        controller.outcomePresentationTimeoutForTesting = 10
         completeDemoLevel(controller)
         controller.scene.settleAnimationsForTesting()
+        controller.showOutcomeOverlayNowForTesting()
         #expect(controller.scene.settledRevision >= 2)
 
         controller.startLevel(showIntro: false)
@@ -566,7 +542,7 @@ struct SokobanPlayControllerTests {
 
         controller.scene.holdAnimationsForTesting = true
         completeDemoLevel(controller)
-        #expect(controller.presentationPhase == .outcomeAnimating)
+        #expect(controller.session?.phase == .outcomePresenting)
         let target = try #require(controller.session).revision
         #expect(controller.scene.settledRevision < target)
     }

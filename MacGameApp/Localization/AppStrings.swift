@@ -26,9 +26,6 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiOutcomeNewRecordPushes = "ui.outcome.new_record_pushes"
     case uiOutcomeBestMoves = "ui.outcome.best_moves"
     case uiOutcomeBestPushes = "ui.outcome.best_pushes"
-    case uiOutcomeAnimatingTitle = "ui.outcome.animating_title"
-    case uiOutcomeAnimatingBody = "ui.outcome.animating_body"
-    case uiOutcomeSkip = "ui.outcome.skip"
 
     // Launch / level select
     case uiLaunchTitle = "ui.launch.title"
@@ -137,10 +134,6 @@ enum AppStrings {
         AppStringID.uiOutcomeNewRecordPushes.rawValue: "Neuer Schubrekord",
         AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
         AppStringID.uiOutcomeBestPushes.rawValue: "Beste Schübe",
-        AppStringID.uiOutcomeAnimatingTitle.rawValue: "Level geschafft",
-        AppStringID.uiOutcomeAnimatingBody.rawValue:
-            "Zug wird beendet… Return oder Space überspringt",
-        AppStringID.uiOutcomeSkip.rawValue: "Überspringen",
 
         AppStringID.uiLaunchTitle.rawValue: "SokoBoulder",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",

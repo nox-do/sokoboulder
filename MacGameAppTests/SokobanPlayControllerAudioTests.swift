@@ -94,10 +94,7 @@ struct SokobanPlayControllerAudioTests {
     func focusLossDuringOutcomeInterruptsAudio() throws {
         let (controller, spy) = makeController()
         completeFirstLevel(controller)
-        controller.scene.settleAnimationsForTesting()
-        if controller.presentationPhase == .outcomeAnimating {
-            controller.skipOutcomePresentation()
-        }
+        controller.showOutcomeOverlayNowForTesting()
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
         spy.resetCalls()
 

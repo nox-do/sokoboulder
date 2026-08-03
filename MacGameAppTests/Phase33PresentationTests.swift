@@ -45,9 +45,8 @@ struct Phase33PresentationTests {
     }
 
     private func awaitOutcome(_ controller: SokobanPlayController) {
-        controller.scene.settleAnimationsForTesting()
-        if controller.presentationPhase == .outcomeAnimating {
-            controller.skipOutcomePresentation()
+        if controller.presentationPhase != .outcomeAwaitingChoice {
+            controller.showOutcomeOverlayNowForTesting()
         }
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
     }
@@ -138,7 +137,7 @@ struct Phase33PresentationTests {
         bundle.controller.openHelpFromLaunchMenu()
         let help = bundle.controller.helpPresentation
         #expect(help.tutorialHints.contains { $0.id == hintID })
-        #expect(help.tutorialHints.count == bundle.catalog.levels.count)
+        #expect(help.tutorialHints.count == 3)
     }
 
     @Test("8 help and settings return to the correct origin")

@@ -35,10 +35,20 @@ final class KeyHandlingSKView: SKView {
     }
 
     override func keyDown(with event: NSEvent) {
+        // While overlays own the keyboard, do not swallow events as first
+        // responder — forward so SwiftUI `.onMoveCommand` / `.onKeyPress` work.
+        guard claimsKeyboardFocus else {
+            nextResponder?.keyDown(with: event)
+            return
+        }
         onKeyEvent?(event)
     }
 
     override func keyUp(with event: NSEvent) {
+        guard claimsKeyboardFocus else {
+            nextResponder?.keyUp(with: event)
+            return
+        }
         onKeyEvent?(event)
     }
 
@@ -52,6 +62,13 @@ final class KeyHandlingSKView: SKView {
     func claimFocusIfNeeded() {
         guard claimsKeyboardFocus else { return }
         window?.makeFirstResponder(self)
+    }
+
+    /// Releases AppKit first-responder so pause / menus can receive arrow keys.
+    func resignFocusIfNeeded() {
+        guard !claimsKeyboardFocus else { return }
+        guard window?.firstResponder === self else { return }
+        window?.makeFirstResponder(nil)
     }
 
     /// Keeps ``SokobanBoardScene`` letterboxing in sync during live resize.
@@ -109,13 +126,17 @@ struct SokobanSpriteView: NSViewRepresentable {
             nsView.presentScene(scene)
         }
 
-        // Claim focus only on the transition into gameplay — never on every
-        // SwiftUI redraw (that steals FocusState from pause/outcome overlays).
-        let becameGameplayFocus = claimsKeyboardFocus && !context.coordinator.wasClaimingFocus
+        // Claim / resign only on transitions — never on every SwiftUI redraw
+        // (that steals FocusState from pause/outcome overlays).
+        let wasClaiming = context.coordinator.wasClaimingFocus
         context.coordinator.wasClaimingFocus = claimsKeyboardFocus
-        if becameGameplayFocus {
+        if claimsKeyboardFocus, !wasClaiming {
             DispatchQueue.main.async {
                 nsView.claimFocusIfNeeded()
+            }
+        } else if !claimsKeyboardFocus, wasClaiming {
+            DispatchQueue.main.async {
+                nsView.resignFocusIfNeeded()
             }
         }
     }

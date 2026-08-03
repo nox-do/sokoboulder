@@ -2,11 +2,31 @@
   "schemaVersion": 1,
   "campaigns": [
     {
-      "id": "campaign.sokoban.tutorial",
+      "id": "campaign.sokoban.main",
       "levels": [
         "Levels/sokoban.tutorial.001.json",
         "Levels/sokoban.tutorial.002.json",
-        "Levels/sokoban.tutorial.003.json"
+        "Levels/sokoban.tutorial.003.json",
+        "Levels/sokoban.campaign.001.json",
+        "Levels/sokoban.campaign.002.json",
+        "Levels/sokoban.campaign.003.json",
+        "Levels/sokoban.campaign.004.json",
+        "Levels/sokoban.campaign.005.json",
+        "Levels/sokoban.campaign.006.json",
+        "Levels/sokoban.campaign.007.json",
+        "Levels/sokoban.campaign.008.json",
+        "Levels/sokoban.campaign.009.json",
+        "Levels/sokoban.campaign.010.json",
+        "Levels/sokoban.campaign.011.json",
+        "Levels/sokoban.campaign.012.json",
+        "Levels/sokoban.campaign.013.json",
+        "Levels/sokoban.campaign.014.json",
+        "Levels/sokoban.campaign.015.json",
+        "Levels/sokoban.campaign.016.json",
+        "Levels/sokoban.campaign.017.json",
+        "Levels/sokoban.campaign.018.json",
+        "Levels/sokoban.campaign.019.json",
+        "Levels/sokoban.campaign.020.json"
       ]
     }
   ]

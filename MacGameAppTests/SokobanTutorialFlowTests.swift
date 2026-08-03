@@ -37,9 +37,8 @@ struct SokobanTutorialFlowTests {
     }
 
     private func awaitOutcome(_ controller: SokobanPlayController) {
-        controller.scene.settleAnimationsForTesting()
-        if controller.presentationPhase == .outcomeAnimating {
-            controller.skipOutcomePresentation()
+        if controller.presentationPhase != .outcomeAwaitingChoice {
+            controller.showOutcomeOverlayNowForTesting()
         }
         #expect(controller.presentationPhase == .outcomeAwaitingChoice)
     }
@@ -76,14 +75,16 @@ struct SokobanTutorialFlowTests {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
         )
-        for descriptor in catalog.levels {
+        let withHints = catalog.levels.filter { $0.tutorialHintID != nil }
+        #expect(withHints.count == 3)
+        for descriptor in withHints {
             let text = catalog.tutorialHint(for: descriptor)
             #expect(text != descriptor.tutorialHintID)
             #expect(!text.isEmpty)
         }
     }
 
-    @Test("levels 1 and 2 primary action advances; level 3 opens launch menu")
+    @Test("tutorial levels advance; after tutorial 3 continues into the campaign")
     func outcomePrimaryActionsAcrossTutorial() throws {
         let controller = makeController()
         controller.dismissLevelIntro()
@@ -111,14 +112,15 @@ struct SokobanTutorialFlowTests {
         #expect(controller.currentLevelID == "sokoban.tutorial.003")
         controller.dismissLevelIntro()
 
-        // Level 3 → Zurück to campaign overview
+        // Level 3 → first campaign level
         playMoves(controller, SokobanTutorialSolutions.level003)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .openLaunchMenu)
-        #expect(controller.outcomeTitle == AppStrings.text(.uiOutcomeTutorialComplete))
-        #expect(controller.outcomePrimaryTitle == AppStrings.text(.uiOutcomeBack))
+        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.campaign.001"))
+        #expect(controller.outcomeTitle == AppStrings.text(.uiOutcomeLevelComplete))
+        #expect(controller.outcomePrimaryTitle == AppStrings.text(.uiOutcomeNextLevel))
         controller.performOutcomePrimaryAction()
-        #expect(controller.presentationPhase == .launchMenu)
+        #expect(controller.currentLevelID == "sokoban.campaign.001")
+        #expect(controller.presentationPhase == .playing)
     }
 
     @Test("Return confirms the focused outcome button, not always primary")

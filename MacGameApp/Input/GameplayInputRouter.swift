@@ -94,10 +94,10 @@ final class GameplayInputRouter {
         outcomeGateOpen = lockedKeyCodes.isEmpty
     }
 
-    /// Opens the outcome confirm gate while keeping currently held keys blocked.
+    /// Opens the outcome confirm gate while keeping currently held keys blocked
+    /// from counting as a fresh Return/Space press (via ``pressedKeyCodes``).
     ///
-    /// Used when entering ``GamePresentationPhase/outcomeAwaitingChoice`` so a
-    /// Return/Space that skipped the presentation cannot also confirm.
+    /// Used when entering ``GamePresentationPhase/outcomeAwaitingChoice``.
     func releaseOutcomeLocksPreservingPressedKeys() {
         guard mode == .outcomePresenting else { return }
         lockedKeyCodes.removeAll(keepingCapacity: true)

@@ -42,13 +42,14 @@ struct ContentView: View {
 
     private var boardClaimsKeyboardFocus: Bool {
         controller.presentationPhase == .playing
+            && controller.session?.phase == .playing
     }
 
     private var showsHUD: Bool {
         switch controller.presentationPhase {
         case .launchMenu, .levelSelection, .help, .settings, .faulted, .runRecovery:
             false
-        case .levelIntro, .playing, .paused, .outcomeAnimating, .outcomeAwaitingChoice:
+        case .levelIntro, .playing, .paused, .outcomeAwaitingChoice:
             true
         }
     }
@@ -105,11 +106,6 @@ struct ContentView: View {
                     onMuteChange: { controller.updateMuted($0) },
                     onBack: { controller.dismissHelpOrSettings() }
                 )
-            case .outcomeAnimating:
-                VStack {
-                    Spacer()
-                    SokobanOutcomeAnimatingOverlay(controller: controller)
-                }
             case .outcomeAwaitingChoice:
                 OutcomeOverlay(
                     model: controller.outcomePresentation,
