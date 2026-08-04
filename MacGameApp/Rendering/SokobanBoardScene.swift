@@ -58,6 +58,11 @@ final class SokobanBoardScene: SKScene {
         gridWidth: 0,
         gridHeight: 0
     )
+    private var boardCamera = BoardCamera()
+    /// SpriteKit frame time for camera smoothing; `nil` until the first ``update``.
+    private var lastCameraFrameTime: TimeInterval?
+    /// After a mandatory snap, soft follow stays off until the next player move (GAMEPLAY §6.4).
+    private var cameraSoftFollowSuspended = false
     private var terrainNodes: [SKSpriteNode] = []
     private var entityNodes: [EntityID: SKSpriteNode] = [:]
     private var playerNode: SKSpriteNode?
@@ -112,7 +117,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        _ = currentTime
+        tickCamera(currentTime: currentTime)
         onSimulationFrame?()
     }
 
@@ -176,6 +181,7 @@ final class SokobanBoardScene: SKScene {
         geometry.renderingProfile = theme.rendering.profile
         geometry.baseTilePoints = theme.rendering.baseTilePoints
         geometry.maxIntegerScale = theme.rendering.maxIntegerScale
+        geometry.minTilePoints = theme.rendering.baseTilePoints
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -183,18 +189,23 @@ final class SokobanBoardScene: SKScene {
         resize(to: size)
     }
 
-    /// Updates letterboxing only. Does not touch session state or revision.
+    /// Updates letterboxing / camera viewport only. Does not touch session state or revision.
     ///
     /// Aborts in-flight presentation and snaps nodes to the last accepted snapshot
     /// so cancelled SKActions cannot leave ``pendingAnimationCount`` stranded.
     func resize(to availableSize: CGSize) {
         geometry.availableSize = availableSize
-        guard let snapshot = appliedSnapshot else { return }
+        guard let snapshot = appliedSnapshot else {
+            // No board yet — keep identity transform (do not pan from stale grid size).
+            boardRoot.position = .zero
+            return
+        }
         geometry.gridWidth = snapshot.width
         geometry.gridHeight = snapshot.height
         cancelAnimationsAndPending()
         relayoutExistingNodes(using: snapshot)
         clearCelebrationPresentation(using: snapshot)
+        snapCamera(to: snapshot)
         markSettled(appliedRevision)
     }
 
@@ -209,6 +220,7 @@ final class SokobanBoardScene: SKScene {
         cancelAnimationsAndPending()
         snapEntities(to: snapshot)
         clearCelebrationPresentation(using: snapshot)
+        snapCamera(to: snapshot)
         markSettled(appliedRevision)
     }
 
@@ -223,6 +235,12 @@ final class SokobanBoardScene: SKScene {
         settledRevision = 0
         appliedSnapshot = nil
         presentsCaveContent = false
+        boardCamera.reset()
+        lastCameraFrameTime = nil
+        cameraSoftFollowSuspended = false
+        geometry.gridWidth = 0
+        geometry.gridHeight = 0
+        boardRoot.position = .zero
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
         effectLayer.removeAllChildren()
@@ -266,6 +284,10 @@ final class SokobanBoardScene: SKScene {
         // Accept the revision immediately so ordered follow-ups chain correctly.
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
+        if let direction = BoardCamera.playerMoveDirection(from: update.events) {
+            boardCamera.lastMoveDirection = direction
+            cameraSoftFollowSuspended = false
+        }
         animationQueue.append(
             QueuedAnimate(
                 snapshot: update.snapshot,
@@ -307,6 +329,11 @@ final class SokobanBoardScene: SKScene {
 
     private func hardResync(to update: RenderUpdate) {
         cancelAnimationsAndPending()
+        if let direction = BoardCamera.playerMoveDirection(from: update.events) {
+            boardCamera.lastMoveDirection = direction
+        } else {
+            boardCamera.lastMoveDirection = nil
+        }
         rebuild(from: update.snapshot)
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
@@ -382,6 +409,7 @@ final class SokobanBoardScene: SKScene {
         playerNode = player
         updateGoalStateMarkers(using: snapshot)
         layoutCompletionFrame()
+        snapCamera(to: snapshot)
     }
 
     private func relayoutExistingNodes(using snapshot: RenderSnapshot) {
@@ -415,6 +443,7 @@ final class SokobanBoardScene: SKScene {
         }
         updateGoalStateMarkers(using: snapshot)
         layoutCompletionFrame()
+        snapCamera(to: snapshot)
     }
 
     private func snapEntities(to snapshot: RenderSnapshot) {
@@ -426,6 +455,103 @@ final class SokobanBoardScene: SKScene {
         playerNode?.position = geometry.center(for: snapshot.player.position)
         playerNode?.setScale(1)
         updateGoalStateMarkers(using: snapshot)
+    }
+
+    // MARK: - Camera
+
+    private func lookAheadEnabled(forCamera: Bool) -> Bool {
+        forCamera && !prefersReducedMotion
+    }
+
+    private func playerPresentationCenter() -> CGPoint? {
+        if let playerNode {
+            return playerNode.position
+        }
+        guard let snapshot = appliedSnapshot else { return nil }
+        return geometry.center(for: snapshot.player.position)
+    }
+
+    private func snapCamera(to snapshot: RenderSnapshot) {
+        syncGeometryProfile()
+        geometry.gridWidth = snapshot.width
+        geometry.gridHeight = snapshot.height
+        if geometry.availableSize == .zero {
+            geometry.availableSize = size
+        }
+        guard geometry.usesCamera else {
+            boardRoot.position = .zero
+            cameraSoftFollowSuspended = false
+            return
+        }
+        let playerCenter = geometry.center(for: snapshot.player.position)
+        boardCamera.snap(
+            toPlayerCenter: playerCenter,
+            geometry: geometry,
+            lookAheadEnabled: lookAheadEnabled(forCamera: true)
+        )
+        // Hold the snap until the next player move so ``tickCamera`` cannot ease
+        // toward a different safe-zone / look-ahead target (GAMEPLAY §6.4).
+        cameraSoftFollowSuspended = true
+        applyBoardRootTransform(snap: true)
+    }
+
+    private func applyBoardRootTransform(snap: Bool) {
+        guard geometry.usesCamera else {
+            boardRoot.position = .zero
+            return
+        }
+        _ = snap
+        boardRoot.position = BoardCamera.boardRootPosition(
+            focus: boardCamera.focus,
+            viewSize: geometry.availableSize
+        )
+    }
+
+    private func tickCamera(currentTime: TimeInterval) {
+        defer { lastCameraFrameTime = currentTime }
+
+        guard geometry.usesCamera, appliedSnapshot != nil else {
+            boardRoot.position = .zero
+            return
+        }
+        guard let playerCenter = playerPresentationCenter() else { return }
+
+        if cameraSoftFollowSuspended {
+            // Keep the mandatory snap; only re-apply transform (e.g. after rare no-ops).
+            applyBoardRootTransform(snap: true)
+            return
+        }
+
+        let lookAhead = lookAheadEnabled(forCamera: true)
+        let desired = BoardCamera.desiredFocus(
+            playerCenter: playerCenter,
+            currentFocus: boardCamera.focus,
+            viewSize: geometry.availableSize,
+            boardBounds: geometry.boardBounds,
+            tileSize: geometry.tileSize,
+            lookAheadDirection: boardCamera.lastMoveDirection,
+            lookAheadEnabled: lookAhead
+        )
+
+        if prefersReducedMotion {
+            boardCamera.focus = desired
+        } else if let last = lastCameraFrameTime {
+            let dt = max(0, currentTime - last)
+            // Ignore huge gaps (background / first hitch) — snap instead of leaping.
+            if dt > 0.25 {
+                boardCamera.focus = desired
+            } else {
+                boardCamera.focus = BoardCamera.stepFocus(
+                    from: boardCamera.focus,
+                    toward: desired,
+                    deltaTime: dt
+                )
+            }
+        } else {
+            boardCamera.focus = desired
+        }
+
+        applyBoardRootTransform(snap: false)
     }
 
     private func animate(
@@ -1118,6 +1244,10 @@ final class SokobanBoardScene: SKScene {
         var terrainNodeCountForTesting: Int { terrainNodes.count }
         var entityNodeCountForTesting: Int { entityNodes.count + (playerNode == nil ? 0 : 1) }
         var geometryForTesting: GridGeometry { geometry }
+        var boardRootPositionForTesting: CGPoint { boardRoot.position }
+        var cameraFocusForTesting: CGPoint { boardCamera.focus }
+        var usesCameraForTesting: Bool { geometry.usesCamera }
+        var cameraSoftFollowSuspendedForTesting: Bool { cameraSoftFollowSuspended }
         var playerPositionForTesting: CGPoint? { playerNode?.position }
         var isAnimatingForTesting: Bool { isAnimating }
         var queuedAnimationCountForTesting: Int { animationQueue.count }

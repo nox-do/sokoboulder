@@ -67,6 +67,14 @@ struct CaveContentCatalog: Equatable, Sendable {
         levels[0]
     }
 
+    /// Levels with a tutorial hint — always unlocked in campaign progress.
+    var tutorialLevelIDs: [String] {
+        levels.compactMap { descriptor in
+            guard let hintID = descriptor.tutorialHintID, !hintID.isEmpty else { return nil }
+            return descriptor.id
+        }
+    }
+
     func descriptor(id: String) -> CaveLevelDescriptor? {
         levels.first { $0.id == id }
     }

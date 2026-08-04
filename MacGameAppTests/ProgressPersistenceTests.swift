@@ -63,7 +63,11 @@ struct ProgressPersistenceTests {
             completedLevelIDs: ["level.001"],
             lastSelectedLevelID: "level.002",
             seenTutorialHintIDs: ["hint.001"],
-            records: []
+            records: [],
+            unlockedCaveLevelIDs: ["cave.001"],
+            completedCaveLevelIDs: [],
+            lastSelectedCaveLevelID: "cave.001",
+            caveRecords: []
         )
 
         try ProgressFileCodec.atomicWrite(original, to: configuration.fileURL)
@@ -146,5 +150,124 @@ struct ProgressPersistenceTests {
         let onDisk = try Data(contentsOf: configuration.fileURL)
         #expect(onDisk == originalData)
         #expect(ProgressFileCodec.peekSchemaVersion(onDisk) == 2)
+    }
+
+    @Test("legacy progress JSON without cave keys still decodes")
+    func legacyProgressDecodesWithEmptyCaveFields() throws {
+        let configuration = try ProgressPersistence.Configuration.ephemeral()
+        let legacy = """
+            {
+              "schemaVersion": 1,
+              "unlockedLevelIDs": ["level.001"],
+              "completedLevelIDs": [],
+              "lastSelectedLevelID": "level.001",
+              "seenTutorialHintIDs": [],
+              "records": []
+            }
+            """
+        try Data(legacy.utf8).write(to: configuration.fileURL)
+
+        let persistence = ProgressPersistence(
+            configuration: configuration,
+            firstLevelID: "level.001",
+            caveTutorialLevelIDs: ["cave.demo.001", "cave.demo.002", "cave.demo.003"]
+        )
+        #expect(persistence.file.unlockedLevelIDs == ["level.001"])
+        #expect(persistence.file.unlockedCaveLevelIDs == [
+            "cave.demo.001",
+            "cave.demo.002",
+            "cave.demo.003",
+        ])
+        #expect(persistence.isFreshCaveCampaign)
+    }
+
+    @Test("cave completion unlocks next level and tracks score highs")
+    func caveCompletionUnlocksAndRecords() throws {
+        let tutorials = ["cave.demo.001", "cave.demo.002", "cave.demo.003"]
+        let persistence = try ProgressPersistence.ephemeral(
+            firstLevelID: "level.001",
+            caveTutorialLevelIDs: tutorials
+        )
+        #expect(persistence.isFreshCaveCampaign)
+        #expect(persistence.file.isCaveUnlocked("cave.demo.003"))
+        #expect(!persistence.file.isCaveUnlocked("cave.demo.004"))
+
+        let delta = persistence.recordCaveCompletion(
+            levelID: "cave.demo.003",
+            contentHash: "hash-a",
+            ruleVersion: 1,
+            score: 120,
+            remainingTicks: 40,
+            nextLevelID: "cave.demo.004"
+        )
+        #expect(delta.newlyCompleted)
+        #expect(delta.unlockedLevelID == "cave.demo.004")
+        #expect(persistence.file.isCaveUnlocked("cave.demo.004"))
+        #expect(!persistence.isFreshCaveCampaign)
+        #expect(delta.bestScore == 120)
+        #expect(delta.bestRemainingTicks == 40)
+
+        let worse = persistence.recordCaveCompletion(
+            levelID: "cave.demo.003",
+            contentHash: "hash-a",
+            ruleVersion: 1,
+            score: 50,
+            remainingTicks: 10,
+            nextLevelID: "cave.demo.004"
+        )
+        #expect(!worse.newBestScore)
+        #expect(!worse.newBestRemainingTicks)
+        #expect(worse.bestScore == 120)
+
+        let better = persistence.recordCaveCompletion(
+            levelID: "cave.demo.003",
+            contentHash: "hash-a",
+            ruleVersion: 1,
+            score: 200,
+            remainingTicks: 55,
+            nextLevelID: "cave.demo.004"
+        )
+        #expect(better.newBestScore)
+        #expect(better.newBestRemainingTicks)
+        #expect(better.bestScore == 200)
+    }
+
+    @Test("cheat unlocks all cave levels")
+    func unlockAllCaveLevels() throws {
+        let tutorials = ["cave.demo.001", "cave.demo.002", "cave.demo.003"]
+        let persistence = try ProgressPersistence.ephemeral(
+            firstLevelID: "level.001",
+            caveTutorialLevelIDs: tutorials
+        )
+        persistence.unlockAllCaveLevels([
+            "cave.demo.001",
+            "cave.demo.002",
+            "cave.demo.003",
+            "cave.demo.004",
+            "cave.demo.005",
+        ])
+        #expect(persistence.file.isCaveUnlocked("cave.demo.005"))
+        #expect(!persistence.isFreshCaveCampaign)
+    }
+
+    @Test("sokoban reset preserves cave progress")
+    func sokobanResetKeepsCave() throws {
+        let tutorials = ["cave.demo.001"]
+        let persistence = try ProgressPersistence.ephemeral(
+            firstLevelID: "level.001",
+            caveTutorialLevelIDs: tutorials
+        )
+        _ = persistence.recordCaveCompletion(
+            levelID: "cave.demo.001",
+            contentHash: "h",
+            ruleVersion: 1,
+            score: 10,
+            remainingTicks: 5,
+            nextLevelID: "cave.demo.002"
+        )
+        persistence.resetToFresh(firstLevelID: "level.001")
+        #expect(persistence.file.isFreshCampaign)
+        #expect(persistence.file.isCaveCompleted("cave.demo.001"))
+        #expect(persistence.file.isCaveUnlocked("cave.demo.002"))
     }
 }

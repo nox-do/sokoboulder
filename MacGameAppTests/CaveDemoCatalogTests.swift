@@ -19,6 +19,11 @@ struct CaveDemoCatalogTests {
         #expect(catalog.title(for: catalog.levels[3]) == "Höhle 4")
         #expect(!catalog.tutorialHint(for: catalog.first).isEmpty)
         #expect(catalog.tutorialHint(for: catalog.levels[3]).isEmpty)
+        #expect(catalog.tutorialLevelIDs == [
+            "cave.demo.001",
+            "cave.demo.002",
+            "cave.demo.003",
+        ])
     }
 
     @Test("compatibility helper loads first demo")
@@ -37,7 +42,10 @@ struct CaveDemoCatalogTests {
         let controller = SokobanPlayController(
             audioDirector: AudioDirector(backend: NoOpAudioPlaybackBackend()),
             runPersistence: try SokobanRunPersistence.ephemeral(),
-            progressPersistence: try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id),
+            progressPersistence: try ProgressPersistence.ephemeral(
+                firstLevelID: catalog.first.id,
+                caveTutorialLevelIDs: caveCatalog.tutorialLevelIDs
+            ),
             catalog: catalog,
             caveCatalog: caveCatalog,
             settingsStore: AppSettingsStore.ephemeral()

@@ -16,7 +16,13 @@ enum GameSelectionAction: String, CaseIterable, Equatable, Sendable {
     }
 }
 
-/// Sokoban hub selection owned by ``SokobanPlayController``.
+/// Which campaign hub / level list the shell menus currently drive.
+enum ShellCampaign: Equatable, Sendable {
+    case sokoban
+    case cave
+}
+
+/// Sokoban / Cave hub selection owned by ``SokobanPlayController``.
 enum LaunchMenuAction: String, CaseIterable, Equatable, Sendable {
     case continueCampaign
     case selectLevel

@@ -36,6 +36,8 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var levelTitle = ""
     @Published private(set) var tutorialHintText = ""
     @Published private(set) var isCaveMode = false
+    /// Which campaign the launch / level-selection menus currently operate on.
+    @Published private(set) var shellCampaign: ShellCampaign = .sokoban
     @Published private(set) var moveCount = 0
     @Published private(set) var pushCount = 0
     @Published private(set) var completedGoalCount = 0
@@ -271,11 +273,35 @@ final class SokobanPlayController: ObservableObject {
     }
 
     var pausePresentation: PausePresentation {
-        PresentationFactory.pause(isCaveMode: isCaveMode)
+        PresentationFactory.pause(isCaveMode: isCaveMode || shellCampaign == .cave)
+    }
+
+    var levelSelectionRows: [LevelSelectionRow] {
+        switch shellCampaign {
+        case .sokoban:
+            return catalog.levels.map { descriptor in
+                LevelSelectionRow(
+                    id: descriptor.id,
+                    title: catalog.title(for: descriptor),
+                    availability: levelAvailability(for: descriptor)
+                )
+            }
+        case .cave:
+            return caveCatalog.levels.map { descriptor in
+                LevelSelectionRow(
+                    id: descriptor.id,
+                    title: caveCatalog.title(for: descriptor),
+                    availability: caveLevelAvailability(for: descriptor)
+                )
+            }
+        }
     }
 
     var helpPresentation: HelpPresentation {
-        PresentationFactory.help(isCaveMode: isCaveMode, catalog: catalog)
+        PresentationFactory.help(
+            isCaveMode: isCaveMode || shellCampaign == .cave,
+            catalog: catalog
+        )
     }
 
     var settingsPresentation: SettingsPresentation {
@@ -333,6 +359,7 @@ final class SokobanPlayController: ObservableObject {
         scene.prepareForNewSession()
         recoveryMessage = nil
         gameplayNotice = nil
+        shellCampaign = .sokoban
         refreshPersistenceDiagnostic()
 
         let levelID = id ?? currentLevelID
@@ -477,6 +504,9 @@ final class SokobanPlayController: ObservableObject {
 
     /// Menu navigation / activate / cancel owned by the local key monitor path.
     private func handleOverlayMenuKeyEvent(_ event: NSEvent) -> Bool {
+        if handleUnlockCheatKey(event) {
+            return true
+        }
         guard let command = OverlayMenuCommandMapper.command(from: event) else {
             return false
         }
@@ -488,6 +518,48 @@ final class SokobanPlayController: ObservableObject {
             context: overlayNavigationContext
         )
         return applyOverlayNavigationResult(result)
+    }
+
+    /// Debug/cheat: `U` unlocks all levels for the active shell campaign.
+    @discardableResult
+    private func handleUnlockCheatKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, !event.isARepeat else { return false }
+        guard event.keyCode == KeyCode.u else { return false }
+        let blocking: NSEvent.ModifierFlags = [.command, .control, .option]
+        guard event.modifierFlags.intersection(blocking).isEmpty else { return false }
+
+        switch presentationPhase {
+        case .launchMenu, .levelSelection:
+            unlockAllLevelsForShellCampaign()
+            return true
+        case .playing, .paused, .levelIntro, .outcomeAwaitingChoice:
+            if isCaveMode || shellCampaign == .cave {
+                unlockAllLevelsForShellCampaign()
+                return true
+            }
+            if shellCampaign == .sokoban {
+                unlockAllLevelsForShellCampaign()
+                return true
+            }
+            return false
+        default:
+            return false
+        }
+    }
+
+    private func unlockAllLevelsForShellCampaign() {
+        switch shellCampaign {
+        case .sokoban:
+            progressPersistence.unlockAllLevels(catalog.levels.map(\.id))
+        case .cave:
+            progressPersistence.unlockAllCaveLevels(caveCatalog.levels.map(\.id))
+        }
+        gameplayNotice = AppStrings.text(.uiCheatLevelsUnlocked)
+        if presentationPhase == .levelSelection {
+            focusedLevelSelectionID =
+                levelSelectionFocusOrder.first ?? Self.levelSelectionBackID
+        }
+        refreshPublishedState()
     }
 
     private var overlayFocusState: OverlayFocusState {
@@ -526,8 +598,8 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private var levelSelectionFocusOrder: [String] {
-        catalog.levels.compactMap { descriptor in
-            levelAvailability(for: descriptor) == .locked ? nil : descriptor.id
+        levelSelectionRows.compactMap { row in
+            row.availability == .locked ? nil : row.id
         } + [Self.levelSelectionBackID]
     }
 
@@ -732,6 +804,7 @@ final class SokobanPlayController: ObservableObject {
     private func restartCave() {
         guard let caveSession else { return }
         clearMoveHold()
+        clearCompletionRecordingState()
         cancelShowOutcome()
         let emission = caveSession.restart()
         emissions.apply(emission)
@@ -763,7 +836,12 @@ final class SokobanPlayController: ObservableObject {
 
     func openLevelSelectionFromPauseOverlay() {
         guard presentationPhase == .paused else { return }
-        openGameSelection()
+        if isCaveMode {
+            shellCampaign = .cave
+            openLevelSelection()
+        } else {
+            openGameSelection()
+        }
     }
 
     func openHelpFromPause() {
@@ -831,6 +909,7 @@ final class SokobanPlayController: ObservableObject {
     /// Enters Sokoban from the top-level picker.
     func selectSokobanFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
+        shellCampaign = .sokoban
         setActivePlay(nil)
         if progressPersistence.file.isFreshCampaign {
             startLevel(id: catalog.first.id, showIntro: true)
@@ -839,16 +918,22 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    /// Starts the playable cave demo from the top-level picker.
+    /// Enters Cave from the top-level picker.
     func selectCaveFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
-        startCaveDemo(id: caveCatalog.first.id)
+        shellCampaign = .cave
+        setActivePlay(nil)
+        if progressPersistence.isFreshCaveCampaign {
+            startCaveLevel(id: caveCatalog.first.id)
+        } else {
+            openLaunchMenu()
+        }
     }
 
-    private func startCaveDemo(id: String) {
+    private func startCaveLevel(id: String) {
         guard let descriptor = caveCatalog.descriptor(id: id) else {
             setActivePlay(nil)
-            faultMessage = "Unknown cave demo: \(id)"
+            faultMessage = "Unknown cave level: \(id)"
             presentationPhase = .faulted
             router.enterModalBlocked()
             refreshPublishedState()
@@ -860,6 +945,7 @@ final class SokobanPlayController: ObservableObject {
             let newSession = try CaveSession(level: level, levelID: descriptor.id)
             clearMoveHold()
             cancelShowOutcome()
+            clearCompletionRecordingState()
             scene.prepareForNewSession()
             scene.presentsCaveContent = true
             audioDirector.reset()
@@ -867,17 +953,15 @@ final class SokobanPlayController: ObservableObject {
 
             let emission = newSession.start()
             setActivePlay(.cave(newSession))
+            shellCampaign = .cave
             currentLevelID = descriptor.id
             levelTitle = caveCatalog.title(for: descriptor)
             tutorialHintText = caveCatalog.tutorialHint(for: descriptor)
             faultMessage = nil
             recoveryMessage = nil
             overlayReturnOrigin = nil
+            progressPersistence.selectCaveLevel(descriptor.id)
             configureCaveOutcomeActions(for: descriptor.id)
-            outcomeBestMoveCount = nil
-            outcomeBestPushCount = nil
-            outcomeNewBestMoves = false
-            outcomeNewBestPushes = false
 
             emissions.apply(emission)
             enterLevelIntro()
@@ -923,6 +1007,15 @@ final class SokobanPlayController: ObservableObject {
     }
 
     func continueCampaign() {
+        switch shellCampaign {
+        case .sokoban:
+            continueSokobanCampaign()
+        case .cave:
+            continueCaveCampaign()
+        }
+    }
+
+    private func continueSokobanCampaign() {
         switch runPersistence.load() {
         case .loaded(let file):
             restoreRun(file)
@@ -940,23 +1033,56 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    /// Wipes run + campaign progress and restarts the first catalog level.
+    private func continueCaveCampaign() {
+        let levelID =
+            progressPersistence.file.lastSelectedCaveLevelID
+            .flatMap { progressPersistence.file.isCaveUnlocked($0) ? $0 : nil }
+            ?? caveCatalog.levels.first(where: {
+                progressPersistence.file.isCaveUnlocked($0.id)
+            })?.id
+            ?? caveCatalog.first.id
+        startSelectedLevel(id: levelID)
+    }
+
+    /// Wipes run + campaign progress for the active shell campaign and restarts.
     func resetCampaignProgressFromLaunchMenu() {
         guard presentationPhase == .launchMenu else { return }
-        runPersistence.removeRunFile()
-        progressPersistence.resetToFresh(firstLevelID: catalog.first.id)
-        clearCompletionRecordingState()
-        startLevel(id: catalog.first.id, showIntro: true)
+        switch shellCampaign {
+        case .sokoban:
+            runPersistence.removeRunFile()
+            progressPersistence.resetToFresh(firstLevelID: catalog.first.id)
+            clearCompletionRecordingState()
+            startLevel(id: catalog.first.id, showIntro: true)
+        case .cave:
+            progressPersistence.resetCaveToFresh(
+                tutorialLevelIDs: caveCatalog.tutorialLevelIDs
+            )
+            clearCompletionRecordingState()
+            startCaveLevel(id: caveCatalog.first.id)
+        }
     }
 
     func startSelectedLevel(id: String, showIntro: Bool? = nil) {
-        guard progressPersistence.availability(for: id, in: catalog) != .locked else { return }
-        progressPersistence.selectLevel(id)
-        startLevel(id: id, showIntro: showIntro)
+        switch shellCampaign {
+        case .sokoban:
+            guard progressPersistence.availability(for: id, in: catalog) != .locked else { return }
+            progressPersistence.selectLevel(id)
+            startLevel(id: id, showIntro: showIntro)
+        case .cave:
+            guard progressPersistence.caveAvailability(for: id, in: caveCatalog) != .locked else {
+                return
+            }
+            progressPersistence.selectCaveLevel(id)
+            startCaveLevel(id: id)
+        }
     }
 
     func levelAvailability(for descriptor: SokobanLevelDescriptor) -> LevelAvailability {
         progressPersistence.availability(for: descriptor.id, in: catalog)
+    }
+
+    func caveLevelAvailability(for descriptor: CaveLevelDescriptor) -> LevelAvailability {
+        progressPersistence.caveAvailability(for: descriptor.id, in: caveCatalog)
     }
 
     func updateReduceMotionEnabled(_ enabled: Bool) {
@@ -1007,16 +1133,18 @@ final class SokobanPlayController: ObservableObject {
         switch outcomePrimaryAction {
         case .nextLevel(let id):
             if isCaveMode {
-                startCaveDemo(id: id)
+                startCaveLevel(id: id)
             } else {
                 // Variant B: only show intro when the next hint is still unseen.
                 startSelectedLevel(id: id)
             }
         case .openLaunchMenu:
-            if !isCaveMode {
+            if isCaveMode {
+                openGameSelection()
+            } else {
                 runPersistence.removeRunFile()
+                openGameSelection()
             }
-            openGameSelection()
         case .playAgain:
             if isCaveMode {
                 restartCave()
@@ -1084,8 +1212,10 @@ final class SokobanPlayController: ObservableObject {
     func openLevelSelectionFromOutcome() {
         guard presentationPhase == .outcomeAwaitingChoice else { return }
         if isCaveMode {
-            openGameSelection()
+            shellCampaign = .cave
+            openLevelSelection()
         } else {
+            shellCampaign = .sokoban
             openLevelSelection()
         }
     }
@@ -1450,6 +1580,7 @@ final class SokobanPlayController: ObservableObject {
                     outcomePrimaryTitle = AppStrings.text(.uiOutcomePlayAgain)
                     outcomeHint = AppStrings.text(.uiOutcomeHintCave)
                 } else {
+                    recordCaveCompletionIfNeeded(snapshot: emission.render.snapshot)
                     configureCaveOutcomeActions(for: currentLevelID)
                 }
             } else {
@@ -1504,6 +1635,27 @@ final class SokobanPlayController: ObservableObject {
         outcomeNewBestPushes = delta.newBestPushes
         outcomeBestMoveCount = delta.bestMoveCount
         outcomeBestPushCount = delta.bestPushCount
+    }
+
+    private func recordCaveCompletionIfNeeded(snapshot: RenderSnapshot) {
+        guard !recordedCompletionForSession,
+            let descriptor = caveCatalog.descriptor(id: currentLevelID)
+        else { return }
+
+        // Cave snapshot: moveCount = remaining ticks, pushCount = score.
+        let delta = progressPersistence.recordCaveCompletion(
+            levelID: descriptor.id,
+            contentHash: descriptor.contentHash,
+            ruleVersion: CaveRules.ruleVersion,
+            score: snapshot.pushCount,
+            remainingTicks: snapshot.moveCount,
+            nextLevelID: caveCatalog.descriptor(after: descriptor.id)?.id
+        )
+        recordedCompletionForSession = true
+        outcomeNewBestMoves = delta.newBestRemainingTicks
+        outcomeNewBestPushes = delta.newBestScore
+        outcomeBestMoveCount = delta.bestRemainingTicks
+        outcomeBestPushCount = delta.bestScore
     }
 
     private func clearCompletionRecordingState() {

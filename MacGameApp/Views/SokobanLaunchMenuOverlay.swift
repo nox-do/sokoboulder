@@ -11,9 +11,13 @@ struct SokobanLaunchMenuOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                Text(AppStrings.text(.uiLaunchTitle))
-                    .font(.largeTitle.weight(.semibold))
-                    .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
+                Text(
+                    AppStrings.text(
+                        controller.shellCampaign == .cave ? .uiLaunchTitleCave : .uiLaunchTitle
+                    )
+                )
+                .font(.largeTitle.weight(.semibold))
+                .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
                 themedButton(
                     AppStrings.text(.uiLaunchContinue),

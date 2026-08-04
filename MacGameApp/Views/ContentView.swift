@@ -238,7 +238,8 @@ struct ContentView: View {
             runPersistence: SokobanRunPersistence.disabled(reason: "Preview"),
             progressPersistence: ProgressPersistence.disabled(
                 reason: "Preview",
-                firstLevelID: catalog.first.id
+                firstLevelID: catalog.first.id,
+                caveTutorialLevelIDs: caveCatalog.tutorialLevelIDs
             ),
             catalog: catalog,
             caveCatalog: caveCatalog,

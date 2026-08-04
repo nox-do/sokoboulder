@@ -305,20 +305,51 @@ Cave-Engine getrennt (App-/Fortschrittsschicht).
 
 ### 6.4 Kamera
 
-Die Kamera folgt nicht bei jedem einzelnen Rasterschritt exakt dem Spieler.
-Stattdessen verwendet sie:
+Vertrag (v1, 2026-08-04). Simulation und Replays bleiben kamerafrei; nur
+Rendering/Viewport kennt Fit- vs. Camera-Modus.
 
-- eine ruhige Safe Zone um die Spielerposition,
-- sanftes Nachführen außerhalb dieser Zone,
-- einen kleinen Blickvorsprung in die zuletzt aktive Bewegungsrichtung,
-- harte Begrenzung an den Levelrändern,
-- sofortige Positionierung ohne Fluganimation bei Neustart oder Hard-Resync.
+#### Fit vs. Camera
 
-Die Einstellung „Bewegung reduzieren“ verkleinert oder entfernt weiches
-Nachführen, Kamera-Look-ahead, Shake und starke Zoombewegungen.
+Pro Levelwechsel und Resize (nicht pro Frame):
 
-Gefahren dürfen nicht allein deshalb unfair werden, weil sie knapp außerhalb des
-sichtbaren Ausschnitts liegen. Leveldesign und Kamera werden gemeinsam
+```text
+fitSize = min(viewW / gridW, viewH / gridH)
+tileSize = max(fitSize, minTile)   // kein hartes maxTile in v1
+
+wenn gridW * tileSize ≤ viewW UND gridH * tileSize ≤ viewH:
+    mode = Fit      // ganzes Board zentriert, Letterbox, kein Scroll
+sonst:
+    mode = Camera   // tileSize = minTile; Viewport zeigt Ausschnitt
+```
+
+- `minTile` = **32 pt** (unterhalb wird nicht weiter gezoomt; Kamera greift).
+- Kein `maxTile`: auf großen Fenstern dürfen kleine Level über 32 pt wachsen.
+- Sokoban und Cave teilen dieselbe Logik; die meisten kleinen Katalog-Level
+  bleiben Fit (z. B. aktuelle Cave-Demos 14×9).
+
+#### Safe Zone und Nachführen (nur Camera)
+
+Die Kamera folgt nicht bei jedem Rasterschritt. Relative Safe Zone im
+sichtbaren Ausschnitt:
+
+- innere **60 %** der Viewport-Breite und -Höhe (~20 % Rand je Seite).
+- Spielerzentrum **in** der Zone → Kamera-Ziel unverändert.
+- Spielerzentrum **außerhalb** → Kamera so, dass der Spieler wieder an der
+  inneren Safe-Zone-Kante liegt (nicht zwingend Bildmitte).
+- Danach harter **Clamp** an den Levelrändern (kein leeres Raster außerhalb,
+  abgesehen von Letterbox durch Aspect).
+- **Look-ahead**: +**0,75 Tile** in die zuletzt aktive Bewegungsrichtung,
+  danach erneut clampein; bei Richtungswechsel sofort die neue Richtung.
+- Weiches Nachziehen ~**150 ms**, wenn die Safe Zone verlassen wird.
+- **Sofort-Snap** (kein Flug): Levelstart, Restart, Hard-Resync, Undo/Redo-
+  Sprung, Resize.
+- „Bewegung reduzieren“: Smoothing aus (immer Snap), Look-ahead aus;
+  Shake/starke Zooms bleiben aus (falls später ergänzt).
+
+#### Fairness
+
+Gefahren dürfen nicht allein deshalb unfair werden, weil sie knapp außerhalb
+des sichtbaren Ausschnitts liegen. Leveldesign und Kamera werden gemeinsam
 playgetestet.
 
 ### 6.5 Lesbarkeit und Fairness

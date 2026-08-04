@@ -22,8 +22,14 @@ enum TestPlayControllerFactory {
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Foundation.Bundle(for: SokobanPlayController.self)
         )
+        let caveCatalog = try BundleContentLoader.loadCaveCatalog(
+            from: Foundation.Bundle(for: SokobanPlayController.self)
+        )
         let runPersistence = try SokobanRunPersistence.ephemeral()
-        let progress = try ProgressPersistence.ephemeral(firstLevelID: catalog.first.id)
+        let progress = try ProgressPersistence.ephemeral(
+            firstLevelID: catalog.first.id,
+            caveTutorialLevelIDs: caveCatalog.tutorialLevelIDs
+        )
         let settings = AppSettingsStore.ephemeral()
         let reduceMotion = ManualReduceMotionSource(
             systemReduceMotionEnabled: systemReduceMotion

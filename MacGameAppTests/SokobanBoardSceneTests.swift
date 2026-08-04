@@ -378,4 +378,171 @@ struct SokobanBoardSceneTests {
         #expect(scene.geometryForTesting.availableSize == CGSize(width: 400, height: 300))
         #expect(scene.geometryForTesting.tileSize > 0)
     }
+
+    @Test("large grid engages camera and pans boardRoot")
+    func largeGridUsesCamera() throws {
+        let width = 20
+        let height = 16
+        var cells: [RenderCell] = []
+        cells.reserveCapacity(width * height)
+        for row in 0..<height {
+            for column in 0..<width {
+                let isBorder =
+                    row == 0 || row == height - 1 || column == 0 || column == width - 1
+                cells.append(RenderCell(terrain: isBorder ? .wall : .floor))
+            }
+        }
+        let player = RenderEntity(
+            ref: EntityRef(id: EntityID(1), kind: .player),
+            position: GridPosition(column: 1, row: 1)
+        )
+        let snapshot = RenderSnapshot(
+            width: width,
+            height: height,
+            cells: cells,
+            entities: [],
+            player: player,
+            moveCount: 0,
+            pushCount: 0,
+            completedGoalCount: 0,
+            totalGoalCount: 0,
+            status: .playing
+        )
+        let update = RenderUpdate(
+            baseRevision: 0,
+            targetRevision: 1,
+            snapshot: snapshot,
+            events: [],
+            delivery: .hardResync
+        )
+
+        let scene = makeScene(size: CGSize(width: 320, height: 240))
+        scene.apply(update)
+
+        #expect(scene.usesCameraForTesting)
+        #expect(scene.geometryForTesting.tileSize == 32)
+        #expect(scene.boardRootPositionForTesting != .zero)
+
+        let focus = scene.cameraFocusForTesting
+        #expect(focus.x >= 160 - 0.001)
+        #expect(focus.y <= scene.geometryForTesting.boardSize.height - 120 + 0.001)
+    }
+
+    @Test("camera snap holds focus across frames until a player move")
+    func cameraSnapSuspendsSoftFollow() throws {
+        let width = 20
+        let height = 16
+        var cells: [RenderCell] = []
+        for row in 0..<height {
+            for column in 0..<width {
+                let isBorder =
+                    row == 0 || row == height - 1 || column == 0 || column == width - 1
+                cells.append(RenderCell(terrain: isBorder ? .wall : .floor))
+            }
+        }
+        let playerRef = EntityRef(id: EntityID(1), kind: .player)
+        let snapshot = RenderSnapshot(
+            width: width,
+            height: height,
+            cells: cells,
+            entities: [],
+            player: RenderEntity(ref: playerRef, position: GridPosition(column: 1, row: 1)),
+            moveCount: 0,
+            pushCount: 0,
+            completedGoalCount: 0,
+            totalGoalCount: 0,
+            status: .playing
+        )
+        let scene = makeScene(size: CGSize(width: 320, height: 240))
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 0,
+                targetRevision: 1,
+                snapshot: snapshot,
+                events: [],
+                delivery: .hardResync
+            )
+        )
+
+        #expect(scene.cameraSoftFollowSuspendedForTesting)
+        let focusAfterSnap = scene.cameraFocusForTesting
+        scene.update(1.0)
+        scene.update(1.016)
+        #expect(scene.cameraFocusForTesting == focusAfterSnap)
+
+        let moved = RenderSnapshot(
+            width: width,
+            height: height,
+            cells: cells,
+            entities: [],
+            player: RenderEntity(ref: playerRef, position: GridPosition(column: 2, row: 1)),
+            moveCount: 1,
+            pushCount: 0,
+            completedGoalCount: 0,
+            totalGoalCount: 0,
+            status: .playing
+        )
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 1,
+                targetRevision: 2,
+                snapshot: moved,
+                events: [
+                    .entityMoved(
+                        playerRef,
+                        from: GridPosition(column: 1, row: 1),
+                        to: GridPosition(column: 2, row: 1)
+                    )
+                ],
+                delivery: .animate
+            )
+        )
+        scene.settleAnimationsForTesting()
+        #expect(!scene.cameraSoftFollowSuspendedForTesting)
+    }
+
+    @Test("resize without snapshot does not pan boardRoot")
+    func resizeWithoutSnapshotKeepsIdentity() throws {
+        let width = 20
+        let height = 16
+        var cells: [RenderCell] = []
+        for row in 0..<height {
+            for column in 0..<width {
+                let isBorder =
+                    row == 0 || row == height - 1 || column == 0 || column == width - 1
+                cells.append(RenderCell(terrain: isBorder ? .wall : .floor))
+            }
+        }
+        let snapshot = RenderSnapshot(
+            width: width,
+            height: height,
+            cells: cells,
+            entities: [],
+            player: RenderEntity(
+                ref: EntityRef(id: EntityID(1), kind: .player),
+                position: GridPosition(column: 1, row: 1)
+            ),
+            moveCount: 0,
+            pushCount: 0,
+            completedGoalCount: 0,
+            totalGoalCount: 0,
+            status: .playing
+        )
+        let scene = makeScene(size: CGSize(width: 320, height: 240))
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 0,
+                targetRevision: 1,
+                snapshot: snapshot,
+                events: [],
+                delivery: .hardResync
+            )
+        )
+        #expect(scene.boardRootPositionForTesting != .zero)
+
+        scene.prepareForNewSession()
+        scene.resize(to: CGSize(width: 400, height: 300))
+        #expect(scene.boardRootPositionForTesting == .zero)
+        #expect(!scene.usesCameraForTesting)
+    }
 }

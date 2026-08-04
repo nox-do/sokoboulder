@@ -19,8 +19,8 @@ struct SokobanLevelSelectionOverlay: View {
 
                 ScrollView {
                     VStack(spacing: 8) {
-                        ForEach(controller.catalog.levels, id: \.id) { descriptor in
-                            levelButton(for: descriptor)
+                        ForEach(controller.levelSelectionRows) { row in
+                            levelButton(for: row)
                         }
                     }
                 }
@@ -48,24 +48,23 @@ struct SokobanLevelSelectionOverlay: View {
         .accessibilityAddTraits(.isModal)
     }
 
-    private func levelButton(for descriptor: SokobanLevelDescriptor) -> some View {
-        let availability = controller.levelAvailability(for: descriptor)
-        let enabled = availability != .locked
+    private func levelButton(for row: LevelSelectionRow) -> some View {
+        let enabled = row.availability != .locked
         return Button {
-            controller.setFocusedLevelSelectionID(descriptor.id)
-            controller.startSelectedLevel(id: descriptor.id)
+            controller.setFocusedLevelSelectionID(row.id)
+            controller.startSelectedLevel(id: row.id)
         } label: {
             HStack {
-                Text(controller.catalog.title(for: descriptor))
+                Text(row.title)
                 Spacer()
-                Text(statusTitle(for: availability))
+                Text(statusTitle(for: row.availability))
                     .foregroundStyle(theme.ui.panelSecondary.swiftUIColor)
             }
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
         .themedFocus(
-            isFocused: controller.focusedLevelSelectionID == descriptor.id,
+            isFocused: controller.focusedLevelSelectionID == row.id,
             isEnabled: enabled,
             isPrimary: false
         )

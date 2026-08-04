@@ -416,8 +416,25 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 
 - [x] Cave-Pixelpack (`Textures/cave/` + `textures.cave`) — Playtest offen
-- Kamera für größere Höhlen (aktuell alle Demo-Level ≤14×9)
+- [x] Kamera-Vertrag dokumentiert (GAMEPLAY §6.4 / ARCHITECTURE §10.3): Fit vs Camera, minTile 32, Safe Zone 60 %, Look-ahead 0,75, kein maxTile
+- [x] Kamera implementiert: `GridGeometry` Fit/Camera, `BoardCamera` Safe-Zone/Look-ahead/Smooth, `SokobanBoardScene` verdrahtet — Playtest mit großem Cave-Level offen
+- [x] Bugbot-Fixes: Snap hält Soft-Follow bis zum nächsten Spielerzug; Resize ohne Snapshot pannt nicht
+- [x] Cave-Demo `004`–`033` durch v3-Pack ersetzt (Tutorials `001`–`003` unverändert; größere Maps für Kamera-Playtest)
+- [x] `cave.demo.009` Startkessel repariert: ein Fels, freier Schub auf Wandkante, Diamant unter Schacht (war unlösbar durch OO-Patt)
+- [x] `cave.demo.010` Schacht-Puzzle: Fels fällt auf Ausgang, muss seitlich auf Wandkante geschoben werden
+- [x] `cave.demo.014`: linker Kammer-Fels auf Erde, links frei zum Wegschieben vom Ausgang
+- [x] `cave.demo.029`: schwebende Steine mit Erde abgestützt (fielen/rollten in die Start-Spalte und erschlugen)
 - Timing-/Replay-Feinschliff; Cue-Pegel/Varianten optional
+
+### Cave-Fortschritt + Levelauswahl (2026-08-04)
+
+- [x] Tutorials (`001`–`003`) immer freigeschaltet; danach Freischaltung per Abschluss
+- [x] `ProgressFileV1` Cave-Felder (Unlock/Completed/Bestwerte Score+Restzeit); Legacy-JSON bleibt lesbar
+- [x] Cave-Hub + Levelauswahl (Reuse Launch-/Level-Overlays via `shellCampaign`)
+- [x] Cheat `U` schaltet alle Level der aktiven Kampagne frei
+- [x] Outcome/Pause → Cave-Levelauswahl; Boot: frisch → Tutorial 1, sonst Hub
+- Mid-run Cave weiterhin nicht persistiert (Ready beim Wiederöffnen)
+- [x] Bugbot-Fixes: Cave-Restart setzt Completion-Flag zurück; Hub-Hilfe nutzt `shellCampaign`
 
 ### Cave-Grafik-Recherche (OGA, 2026-08-03) — eingebunden 2026-08-04
 

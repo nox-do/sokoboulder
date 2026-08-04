@@ -30,8 +30,12 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiOutcomeCaveFailed = "ui.outcome.cave_failed"
     case uiOutcomeNewRecordMoves = "ui.outcome.new_record_moves"
     case uiOutcomeNewRecordPushes = "ui.outcome.new_record_pushes"
+    case uiOutcomeNewRecordScore = "ui.outcome.new_record_score"
+    case uiOutcomeNewRecordTime = "ui.outcome.new_record_time"
     case uiOutcomeBestMoves = "ui.outcome.best_moves"
     case uiOutcomeBestPushes = "ui.outcome.best_pushes"
+    case uiOutcomeBestScore = "ui.outcome.best_score"
+    case uiOutcomeBestTime = "ui.outcome.best_time"
 
     // Launch / level select
     case uiGameSelectTitle = "ui.game_select.title"
@@ -42,6 +46,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiGameSelectCaveDemoHint = "ui.game_select.cave_demo_hint"
     case uiCaveDemoHint = "ui.cave.demo_hint"
     case uiLaunchTitle = "ui.launch.title"
+    case uiLaunchTitleCave = "ui.launch.title_cave"
+    case uiCheatLevelsUnlocked = "ui.cheat.levels_unlocked"
     case uiLaunchContinue = "ui.launch.continue"
     case uiLaunchSelectLevel = "ui.launch.select_level"
     case uiLaunchHelp = "ui.launch.help"
@@ -172,18 +178,24 @@ enum AppStrings {
         AppStringID.uiOutcomeCaveFailed.rawValue: "Höhle gescheitert",
         AppStringID.uiOutcomeNewRecordMoves.rawValue: "Neuer Zugrekord",
         AppStringID.uiOutcomeNewRecordPushes.rawValue: "Neuer Schubrekord",
+        AppStringID.uiOutcomeNewRecordScore.rawValue: "Neuer Punkte-Rekord",
+        AppStringID.uiOutcomeNewRecordTime.rawValue: "Neuer Zeit-Rekord",
         AppStringID.uiOutcomeBestMoves.rawValue: "Beste Züge",
         AppStringID.uiOutcomeBestPushes.rawValue: "Beste Schübe",
+        AppStringID.uiOutcomeBestScore.rawValue: "Beste Punkte",
+        AppStringID.uiOutcomeBestTime.rawValue: "Beste Restzeit",
 
         AppStringID.uiGameSelectTitle.rawValue: "SokoBoulder",
         AppStringID.uiGameSelectSubtitle.rawValue: "Spielauswahl",
         AppStringID.uiGameSelectSokoban.rawValue: "Sokoban",
         AppStringID.uiGameSelectCave.rawValue: "Höhle",
         AppStringID.uiGameSelectCaveComingSoon.rawValue: "Demnächst",
-        AppStringID.uiGameSelectCaveDemoHint.rawValue: "3 Demo-Level · Pfeile · Leertaste warten",
+        AppStringID.uiGameSelectCaveDemoHint.rawValue: "Tutorials frei · danach freischalten",
         AppStringID.uiCaveDemoHint.rawValue:
             "Sammle Diamanten und erreiche den Ausgang. Leertaste = warten.",
         AppStringID.uiLaunchTitle.rawValue: "Sokoban",
+        AppStringID.uiLaunchTitleCave.rawValue: "Höhle",
+        AppStringID.uiCheatLevelsUnlocked.rawValue: "Alle Level freigeschaltet",
         AppStringID.uiLaunchContinue.rawValue: "Fortsetzen",
         AppStringID.uiLaunchSelectLevel.rawValue: "Levelauswahl",
         AppStringID.uiLaunchHelp.rawValue: "Hilfe",

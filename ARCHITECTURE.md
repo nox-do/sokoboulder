@@ -864,8 +864,10 @@ abdecken, bevor weitere Animationstypen ergänzt werden.
 - Vektor- und Pixel-Themes skalieren stufenlos; Pixel-Texturen nutzen
   Nearest-Neighbor (`docs/adr/0004-pixel-rendering-profile.md`).
 - Bei nicht passendem Fenster entstehen Ränder statt verzerrter Tiles.
-- Die Kamera folgt im Boulder-Dash-Modus dem Spieler innerhalb weicher Grenzen.
-- Kleine Sokoban-Level werden vollständig sichtbar und zentriert dargestellt.
+- Fit vs. Camera, `minTile` 32 pt, Safe Zone 60 %, Look-ahead und Snap:
+  siehe [GAMEPLAY.md](GAMEPLAY.md) §6.4. Simulation/Replay kennen keine Kamera.
+- Kleine Level (Sokoban und Cave), die bei `tileSize ≥ minTile` passen, bleiben
+  vollständig sichtbar und zentriert (Fit).
 
 ## 11. Eingabe
 

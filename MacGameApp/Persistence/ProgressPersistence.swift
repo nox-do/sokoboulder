@@ -46,6 +46,7 @@ final class ProgressPersistence {
     private let fileManager: FileManager
     /// When false, in-memory progress still drives UI but disk is never touched.
     private let allowsWrites: Bool
+    private let caveTutorialLevelIDs: [String]
 
     /// In-memory progress; always valid for gameplay decisions.
     private(set) var file: ProgressFileV1
@@ -66,6 +67,7 @@ final class ProgressPersistence {
         loadDiagnostic: String?,
         allowsWrites: Bool,
         fileManager: FileManager,
+        caveTutorialLevelIDs: [String],
         initial: ProgressFileV1
     ) {
         self.configuration = configuration
@@ -73,6 +75,7 @@ final class ProgressPersistence {
         self.loadDiagnostic = loadDiagnostic
         self.allowsWrites = allowsWrites
         self.fileManager = fileManager
+        self.caveTutorialLevelIDs = caveTutorialLevelIDs
         self.file = initial
     }
 
@@ -80,11 +83,13 @@ final class ProgressPersistence {
     convenience init(
         configuration: Configuration,
         firstLevelID: String,
+        caveTutorialLevelIDs: [String] = [],
         fileManager: FileManager = .default
     ) {
         let loaded = Self.loadFile(
             configuration: configuration,
             firstLevelID: firstLevelID,
+            caveTutorialLevelIDs: caveTutorialLevelIDs,
             fileManager: fileManager
         )
         self.init(
@@ -93,57 +98,86 @@ final class ProgressPersistence {
             loadDiagnostic: loaded.diagnostic,
             allowsWrites: loaded.allowsWrites,
             fileManager: fileManager,
+            caveTutorialLevelIDs: caveTutorialLevelIDs,
             initial: loaded.file
         )
+        if loaded.shouldPersistSeed {
+            persist()
+        }
     }
 
-    static func production(firstLevelID: String) throws -> ProgressPersistence {
+    static func production(
+        firstLevelID: String,
+        caveTutorialLevelIDs: [String] = []
+    ) throws -> ProgressPersistence {
         try ProgressPersistence(
             configuration: .applicationSupport(),
-            firstLevelID: firstLevelID
+            firstLevelID: firstLevelID,
+            caveTutorialLevelIDs: caveTutorialLevelIDs
         )
     }
 
-    static func ephemeral(firstLevelID: String) throws -> ProgressPersistence {
+    static func ephemeral(
+        firstLevelID: String,
+        caveTutorialLevelIDs: [String] = []
+    ) throws -> ProgressPersistence {
         try ProgressPersistence(
             configuration: .ephemeral(),
-            firstLevelID: firstLevelID
+            firstLevelID: firstLevelID,
+            caveTutorialLevelIDs: caveTutorialLevelIDs
         )
     }
 
     /// Shares a directory with run-file tests.
     static func ephemeral(
         directoryURL: URL,
-        firstLevelID: String
+        firstLevelID: String,
+        caveTutorialLevelIDs: [String] = []
     ) throws -> ProgressPersistence {
         try ProgressPersistence(
             configuration: Configuration(
                 directoryURL: directoryURL,
                 fileName: Configuration.defaultFileName
             ),
-            firstLevelID: firstLevelID
+            firstLevelID: firstLevelID,
+            caveTutorialLevelIDs: caveTutorialLevelIDs
         )
     }
 
-    static func makeDefault(firstLevelID: String) -> ProgressPersistence {
+    static func makeDefault(
+        firstLevelID: String,
+        caveTutorialLevelIDs: [String] = []
+    ) -> ProgressPersistence {
         do {
-            return try production(firstLevelID: firstLevelID)
+            return try production(
+                firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs
+            )
         } catch {
             return disabled(
                 reason: "Could not open the progress folder: \(error.localizedDescription)",
-                firstLevelID: firstLevelID
+                firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs
             )
         }
     }
 
-    static func disabled(reason: String, firstLevelID: String) -> ProgressPersistence {
+    static func disabled(
+        reason: String,
+        firstLevelID: String,
+        caveTutorialLevelIDs: [String] = []
+    ) -> ProgressPersistence {
         ProgressPersistence(
             configuration: nil,
             disabledReason: reason,
             loadDiagnostic: nil,
             allowsWrites: false,
             fileManager: .default,
-            initial: .fresh(firstLevelID: firstLevelID)
+            caveTutorialLevelIDs: caveTutorialLevelIDs,
+            initial: .fresh(
+                firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs
+            )
         )
     }
 
@@ -155,13 +189,18 @@ final class ProgressPersistence {
             loadDiagnostic: nil,
             allowsWrites: false,
             fileManager: .default,
+            caveTutorialLevelIDs: [],
             initial: ProgressFileV1(
                 schemaVersion: ProgressFileV1.currentSchemaVersion,
                 unlockedLevelIDs: [],
                 completedLevelIDs: [],
                 lastSelectedLevelID: nil,
                 seenTutorialHintIDs: [],
-                records: []
+                records: [],
+                unlockedCaveLevelIDs: [],
+                completedCaveLevelIDs: [],
+                lastSelectedCaveLevelID: nil,
+                caveRecords: []
             )
         )
     }
@@ -238,6 +277,76 @@ final class ProgressPersistence {
         )
     }
 
+    @discardableResult
+    func recordCaveCompletion(
+        levelID: String,
+        contentHash: String,
+        ruleVersion: Int,
+        score: Int,
+        remainingTicks: Int,
+        nextLevelID: String?
+    ) -> CaveProgressCompletionDelta {
+        var next = file
+        let newlyCompleted = !next.completedCaveLevelIDs.contains(levelID)
+        if newlyCompleted {
+            next.completedCaveLevelIDs.append(levelID)
+        }
+
+        var unlockedLevelID: String?
+        if let nextLevelID, !next.unlockedCaveLevelIDs.contains(nextLevelID) {
+            next.unlockedCaveLevelIDs.append(nextLevelID)
+            unlockedLevelID = nextLevelID
+        }
+
+        if !next.unlockedCaveLevelIDs.contains(levelID) {
+            next.unlockedCaveLevelIDs.append(levelID)
+        }
+
+        next.lastSelectedCaveLevelID = levelID
+
+        let existingIndex = next.caveRecords.firstIndex {
+            $0.levelID == levelID
+                && $0.contentHash == contentHash
+                && $0.ruleVersion == ruleVersion
+        }
+        var record = existingIndex.map { next.caveRecords[$0] }
+            ?? CaveLevelRecordV1(
+                levelID: levelID,
+                contentHash: contentHash,
+                ruleVersion: ruleVersion,
+                bestScore: nil,
+                bestRemainingTicks: nil
+            )
+
+        var newBestScore = false
+        var newBestRemainingTicks = false
+        if record.bestScore.map({ score > $0 }) ?? true {
+            record.bestScore = score
+            newBestScore = true
+        }
+        if record.bestRemainingTicks.map({ remainingTicks > $0 }) ?? true {
+            record.bestRemainingTicks = remainingTicks
+            newBestRemainingTicks = true
+        }
+
+        if let existingIndex {
+            next.caveRecords[existingIndex] = record
+        } else {
+            next.caveRecords.append(record)
+        }
+
+        file = next
+        persist()
+        return CaveProgressCompletionDelta(
+            newlyCompleted: newlyCompleted,
+            unlockedLevelID: unlockedLevelID,
+            newBestScore: newBestScore,
+            newBestRemainingTicks: newBestRemainingTicks,
+            bestScore: record.bestScore,
+            bestRemainingTicks: record.bestRemainingTicks
+        )
+    }
+
     func markHintSeen(_ hintID: String) {
         guard !hintID.isEmpty, !file.seenTutorialHintIDs.contains(hintID) else { return }
         file.seenTutorialHintIDs.append(hintID)
@@ -250,10 +359,54 @@ final class ProgressPersistence {
         persist()
     }
 
-    /// Clears unlocks, completions, records, and seen hints back to a fresh campaign.
-    func resetToFresh(firstLevelID: String) {
-        file = .fresh(firstLevelID: firstLevelID)
+    func selectCaveLevel(_ levelID: String) {
+        guard file.lastSelectedCaveLevelID != levelID else { return }
+        file.lastSelectedCaveLevelID = levelID
         persist()
+    }
+
+    /// Clears Sokoban unlocks, completions, records, and seen hints; Cave progress is kept.
+    func resetToFresh(firstLevelID: String) {
+        file.unlockedLevelIDs = [firstLevelID]
+        file.completedLevelIDs = []
+        file.lastSelectedLevelID = firstLevelID
+        file.seenTutorialHintIDs = []
+        file.records = []
+        persist()
+    }
+
+    /// Clears Cave unlocks/completions/records back to always-free tutorials.
+    func resetCaveToFresh(tutorialLevelIDs: [String]? = nil) {
+        let tutorials = tutorialLevelIDs ?? caveTutorialLevelIDs
+        file.unlockedCaveLevelIDs = tutorials
+        file.completedCaveLevelIDs = []
+        file.lastSelectedCaveLevelID = tutorials.first
+        file.caveRecords = []
+        persist()
+    }
+
+    /// Cheat: unlock every level ID in `ids` for the Sokoban campaign.
+    func unlockAllLevels(_ ids: [String]) {
+        var changed = false
+        for id in ids where !file.unlockedLevelIDs.contains(id) {
+            file.unlockedLevelIDs.append(id)
+            changed = true
+        }
+        if changed { persist() }
+    }
+
+    /// Cheat: unlock every level ID in `ids` for the Cave campaign.
+    func unlockAllCaveLevels(_ ids: [String]) {
+        var changed = false
+        for id in ids where !file.unlockedCaveLevelIDs.contains(id) {
+            file.unlockedCaveLevelIDs.append(id)
+            changed = true
+        }
+        if changed { persist() }
+    }
+
+    var isFreshCaveCampaign: Bool {
+        file.isFreshCaveCampaign(tutorialLevelIDs: caveTutorialLevelIDs)
     }
 
     func availability(
@@ -266,6 +419,16 @@ final class ProgressPersistence {
         return .available
     }
 
+    func caveAvailability(
+        for levelID: String,
+        in catalog: CaveContentCatalog
+    ) -> LevelAvailability {
+        guard catalog.descriptor(id: levelID) != nil else { return .locked }
+        if !file.isCaveUnlocked(levelID) { return .locked }
+        if file.isCaveCompleted(levelID) { return .completed }
+        return .available
+    }
+
     // MARK: - Private
 
     private struct LoadResult {
@@ -273,20 +436,26 @@ final class ProgressPersistence {
         let diagnostic: String?
         let disabledReason: String?
         let allowsWrites: Bool
+        let shouldPersistSeed: Bool
     }
 
     private static func loadFile(
         configuration: Configuration,
         firstLevelID: String,
+        caveTutorialLevelIDs: [String],
         fileManager: FileManager
     ) -> LoadResult {
         let url = configuration.fileURL
         guard fileManager.fileExists(atPath: url.path) else {
             return LoadResult(
-                file: .fresh(firstLevelID: firstLevelID),
+                file: .fresh(
+                    firstLevelID: firstLevelID,
+                    caveTutorialLevelIDs: caveTutorialLevelIDs
+                ),
                 diagnostic: nil,
                 disabledReason: nil,
-                allowsWrites: true
+                allowsWrites: true,
+                shouldPersistSeed: false
             )
         }
 
@@ -295,10 +464,14 @@ final class ProgressPersistence {
             data = try Data(contentsOf: url)
         } catch {
             return LoadResult(
-                file: .fresh(firstLevelID: firstLevelID),
+                file: .fresh(
+                    firstLevelID: firstLevelID,
+                    caveTutorialLevelIDs: caveTutorialLevelIDs
+                ),
                 diagnostic: "Could not read progress: \(error.localizedDescription)",
                 disabledReason: nil,
-                allowsWrites: true
+                allowsWrites: true,
+                shouldPersistSeed: false
             )
         }
 
@@ -306,6 +479,7 @@ final class ProgressPersistence {
             return quarantineCorrupt(
                 url: url,
                 firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs,
                 fileManager: fileManager
             )
         }
@@ -313,12 +487,16 @@ final class ProgressPersistence {
         if schemaVersion > ProgressFileV1.currentSchemaVersion {
             // Preserve the original file; play with an ephemeral in-memory campaign.
             return LoadResult(
-                file: .fresh(firstLevelID: firstLevelID),
+                file: .fresh(
+                    firstLevelID: firstLevelID,
+                    caveTutorialLevelIDs: caveTutorialLevelIDs
+                ),
                 diagnostic:
                     "Progress schema \(schemaVersion) is newer than this build; progress will not be saved.",
                 disabledReason:
                     "Progress file version \(schemaVersion) is not supported; writes are disabled.",
-                allowsWrites: false
+                allowsWrites: false,
+                shouldPersistSeed: false
             )
         }
 
@@ -327,25 +505,37 @@ final class ProgressPersistence {
             return quarantineCorrupt(
                 url: url,
                 firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs,
                 fileManager: fileManager
             )
         }
 
         do {
             var file = try ProgressFileCodec.decode(data)
+            var seeded = false
             if !file.unlockedLevelIDs.contains(firstLevelID) {
                 file.unlockedLevelIDs.insert(firstLevelID, at: 0)
+                seeded = true
+            }
+            for id in caveTutorialLevelIDs where !file.unlockedCaveLevelIDs.contains(id) {
+                file.unlockedCaveLevelIDs.append(id)
+                seeded = true
+            }
+            if file.lastSelectedCaveLevelID == nil {
+                file.lastSelectedCaveLevelID = caveTutorialLevelIDs.first
             }
             return LoadResult(
                 file: file,
                 diagnostic: nil,
                 disabledReason: nil,
-                allowsWrites: true
+                allowsWrites: true,
+                shouldPersistSeed: seeded
             )
         } catch {
             return quarantineCorrupt(
                 url: url,
                 firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs,
                 fileManager: fileManager
             )
         }
@@ -354,6 +544,7 @@ final class ProgressPersistence {
     private static func quarantineCorrupt(
         url: URL,
         firstLevelID: String,
+        caveTutorialLevelIDs: [String],
         fileManager: FileManager
     ) -> LoadResult {
         let backup = url.deletingLastPathComponent()
@@ -362,10 +553,14 @@ final class ProgressPersistence {
             )
         try? fileManager.moveItem(at: url, to: backup)
         return LoadResult(
-            file: .fresh(firstLevelID: firstLevelID),
+            file: .fresh(
+                firstLevelID: firstLevelID,
+                caveTutorialLevelIDs: caveTutorialLevelIDs
+            ),
             diagnostic: "Progress file was invalid and was set aside.",
             disabledReason: nil,
-            allowsWrites: true
+            allowsWrites: true,
+            shouldPersistSeed: false
         )
     }
 

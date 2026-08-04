@@ -27,7 +27,10 @@ struct MacGameApp: App {
             self.contentBootstrap = .ready(
                 catalog: catalog,
                 caveCatalog: caveCatalog,
-                progress: ProgressPersistence.makeDefault(firstLevelID: catalog.first.id)
+                progress: ProgressPersistence.makeDefault(
+                    firstLevelID: catalog.first.id,
+                    caveTutorialLevelIDs: caveCatalog.tutorialLevelIDs
+                )
             )
         } catch {
             let message = "Failed to load game content: \(error)"

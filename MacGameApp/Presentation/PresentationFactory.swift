@@ -53,7 +53,9 @@ enum PresentationFactory {
             resumeTitle: AppStrings.text(.uiPauseResume),
             restartTitle: AppStrings.text(.uiPauseRestart),
             settingsTitle: AppStrings.text(.uiPauseSettings),
-            levelSelectTitle: AppStrings.text(.uiLaunchBackToGames),
+            levelSelectTitle: AppStrings.text(
+                isCaveMode ? .uiPauseLevelSelect : .uiLaunchBackToGames
+            ),
             helpTitle: AppStrings.text(.uiPauseHelp)
         )
     }
@@ -218,17 +220,38 @@ enum PresentationFactory {
         )
 
         if input.isCaveMode {
+            var records: [OutcomeRecordLine] = []
+            if let bestScore = input.bestPushCount {
+                records.append(
+                    OutcomeRecordLine(
+                        title: AppStrings.text(.uiOutcomeBestScore),
+                        value: String(bestScore),
+                        isNewRecord: input.newBestPushes,
+                        newRecordTitle: AppStrings.text(.uiOutcomeNewRecordScore)
+                    )
+                )
+            }
+            if let bestTime = input.bestMoveCount {
+                records.append(
+                    OutcomeRecordLine(
+                        title: AppStrings.text(.uiOutcomeBestTime),
+                        value: String(bestTime),
+                        isNewRecord: input.newBestMoves,
+                        newRecordTitle: AppStrings.text(.uiOutcomeNewRecordTime)
+                    )
+                )
+            }
             return OutcomePresentation(
                 title: input.title,
                 metrics: metrics,
-                records: [],
+                records: records,
                 hint: input.hint,
                 primaryTitle: input.primaryTitle,
                 playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
                 playAgainEnabled: input.canRestart,
                 undoTitle: AppStrings.text(.uiOutcomeUndo),
                 undoEnabled: false,
-                levelSelectTitle: AppStrings.text(.uiLaunchBackToGames)
+                levelSelectTitle: AppStrings.text(.uiOutcomeLevelSelect)
             )
         }
 
