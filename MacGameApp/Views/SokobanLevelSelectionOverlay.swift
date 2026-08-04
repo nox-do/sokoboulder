@@ -17,14 +17,27 @@ struct SokobanLevelSelectionOverlay: View {
                     .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(theme.ui.panelForeground.swiftUIColor)
 
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(controller.levelSelectionRows) { row in
-                            levelButton(for: row)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(controller.levelSelectionRows) { row in
+                                levelButton(for: row)
+                                    .id(row.id)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    // `minHeight: 0` forces the scroll view to accept a bounded
+                    // height on macOS instead of expanding to its ideal content size.
+                    .frame(minHeight: 0, maxHeight: 360)
+                    .scrollIndicators(.visible)
+                    .onChange(of: controller.focusedLevelSelectionID) { _, focusedID in
+                        guard focusedID != Self.backID else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            proxy.scrollTo(focusedID, anchor: .center)
                         }
                     }
                 }
-                .frame(maxHeight: 300)
 
                 Button(AppStrings.text(.uiLevelSelectBack)) {
                     controller.setFocusedLevelSelectionID(Self.backID)
@@ -36,6 +49,7 @@ struct SokobanLevelSelectionOverlay: View {
                     isPrimary: true
                 )
                 .frame(maxWidth: .infinity)
+                .id(Self.backID)
             }
             .padding(32)
             .background(
@@ -43,6 +57,7 @@ struct SokobanLevelSelectionOverlay: View {
                 in: RoundedRectangle(cornerRadius: 16)
             )
             .frame(maxWidth: 420)
+            .frame(maxHeight: 520)
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)

@@ -431,6 +431,7 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Tutorials (`001`–`003`) immer freigeschaltet; danach Freischaltung per Abschluss
 - [x] `ProgressFileV1` Cave-Felder (Unlock/Completed/Bestwerte Score+Restzeit); Legacy-JSON bleibt lesbar
 - [x] Cave-Hub + Levelauswahl (Reuse Launch-/Level-Overlays via `shellCampaign`)
+- [x] Levelauswahl-Scroll: `minHeight: 0` + Panel-Maxhöhe, Indikatoren, Fokus folgt per `ScrollViewReader`
 - [x] Cheat `U` schaltet alle Level der aktiven Kampagne frei
 - [x] Outcome/Pause → Cave-Levelauswahl; Boot: frisch → Tutorial 1, sonst Hub
 - Mid-run Cave weiterhin nicht persistiert (Ready beim Wiederöffnen)
