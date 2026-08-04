@@ -103,6 +103,54 @@ struct Phase34ThemeTests {
         #expect(theme.rendering.maxIntegerScale == 0)
         #expect(theme.rendering.textures?.floor == "Textures/dungeon/floor.png")
         #expect(theme.rendering.textures?.crateOnGoal == "Textures/dungeon/crate-on-goal.png")
+        #expect(theme.rendering.textures?.cave == nil)
+    }
+
+    @Test("pixelNearest textures may include optional cave pack")
+    func pixelNearestCaveTextures() throws {
+        let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
+              "rendering": {
+                "profile": "pixelNearest",
+                "baseTilePoints": 32,
+                "textures": {
+                  "floor": "Textures/dungeon/floor.png",
+                  "wall": "Textures/dungeon/wall.png",
+                  "goal": "Textures/dungeon/goal.png",
+                  "player": "Textures/dungeon/player.png",
+                  "crate": "Textures/dungeon/crate.png",
+                  "crateOnGoal": "Textures/dungeon/crate-on-goal.png",
+                  "cave": {
+                    "dirt": "Textures/cave/dirt.png",
+                    "tunnel": "Textures/cave/tunnel.png",
+                    "wall": "Textures/cave/wall.png",
+                    "steelWall": "Textures/cave/steel-wall.png",
+                    "boulder": "Textures/cave/boulder.png",
+                    "diamond": "Textures/cave/diamond.png",
+                    "exitClosed": "Textures/cave/exit-closed.png",
+                    "exitOpen": "Textures/cave/exit-open.png",
+                    "player": "Textures/cave/player.png"
+                  }
+                }
+              }
+            """)
+        let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
+        let cave = try #require(theme.rendering.textures?.cave)
+        #expect(cave.dirt == "Textures/cave/dirt.png")
+        #expect(cave.diamond == "Textures/cave/diamond.png")
+        #expect(theme.rendering.textures?.allPaths.contains("Textures/cave/dirt.png") == true)
+    }
+
+    @Test("bundled dungeon theme ships cave texture pack")
+    func bundledDungeonHasCaveTextures() throws {
+        let catalog = try ThemeCatalogLoader.loadStrict(
+            from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        )
+        let dungeon = try #require(catalog.theme(id: VisualTheme.dungeonID))
+        let cave = try #require(dungeon.rendering.textures?.cave)
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        for path in cave.allPaths {
+            _ = try resources.data(at: path)
+        }
     }
 
     @Test("legacy pixelInteger profile alias decodes as pixelNearest")

@@ -289,6 +289,56 @@ Previously lived under `Audio/Jingles/sokoban-level-completed.wav`, then
 
 Display scale: continuous fit (same as vector) with `.nearest` texture filtering.
 
+## Cave board textures (`textures.cave` pack)
+
+Used when playing Boulder Dash / Höhle with a pixel theme. Referenced from
+`theme.dungeon` and `theme.kenney` as optional Schema V1 `rendering.textures.cave`.
+Tiles are authored at 64×64 with `.nearest` filtering (same continuous scale as Sokoban).
+
+### Dirt — Tileable 200×200 dirt texture (Jeff Ottinger / jottinger)
+
+- Source: <https://opengameart.org/content/tileable-200x200-dirt-texture>
+- Original file: `dirt_0.png` (200×200)
+- License: **CC-BY 3.0**
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-3.0.txt`
+- Downloaded: 2026-08-04
+- SHA-256 of the unchanged source file:
+  `c7619dadb2c994aa40dcb447385cc1f41e1f3513bf74f7b5fd0cebcaddcc9430`
+- Changes: scaled to `Textures/cave/dirt.png` (64×64).
+- Attribution: Jeff Ottinger.
+- Also used (darkened) as grain for `Textures/cave/tunnel.png`.
+
+### Wall / Player
+
+- Copies of `Textures/dungeon/wall.png` and `Textures/dungeon/player.png`
+  (see `theme.dungeon` wall / player notices above).
+- Local paths: `Textures/cave/wall.png`, `Textures/cave/player.png`.
+
+### Boulder / Steel wall
+
+- Derived from the dungeon wall tile (phaelax, **CC-BY-SA 3.0**).
+- `boulder.png`: circular rock mask + cool/gray shade + rim lighting.
+- `steel-wall.png`: desaturated cool recolor of the wall tile.
+- ShareAlike applies to these derived tiles.
+
+### Diamond — Gem Icons sapphire (Clint Bellanger)
+
+- Source: <https://opengameart.org/content/gem-icons>
+- Original file: `gems_db16.png`
+- License: **CC-BY-SA 3.0** (and GPL options on OGA; we use BY-SA)
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-SA-3.0.txt`
+- Downloaded: 2026-08-04
+- SHA-256 of the unchanged source file:
+  `d5a291e4efa30a6f0c06cafd4fbb4bcc47873ef2a0adcd113a439e9d0e8af84a`
+- Changes: cropped sapphire (32×32), nearest-scaled and centered on transparent
+  64×64 → `Textures/cave/diamond.png`.
+- Attribution: Clint Bellanger.
+
+### Exit open / closed
+
+- Composited from cave tunnel + dungeon goal glow (`glowCircle` / HellGate floor
+  composite — see goal notice). Local: `exit-open.png`, `exit-closed.png`.
+
 ## `theme.kenney` board textures
 
 - Pack: Sokoban (100+ tiles)

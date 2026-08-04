@@ -7,6 +7,23 @@ enum BoardRenderingProfile: String, Codable, Sendable {
     case pixelNearest
 }
 
+/// Optional Boulder-Dash / cave tile paths (Schema V1 additive under `textures.cave`).
+struct CaveTexturePaths: Equatable, Sendable {
+    var dirt: String
+    var tunnel: String
+    var wall: String
+    var steelWall: String
+    var boulder: String
+    var diamond: String
+    var exitClosed: String
+    var exitOpen: String
+    var player: String
+
+    var allPaths: [String] {
+        [dirt, tunnel, wall, steelWall, boulder, diamond, exitClosed, exitOpen, player]
+    }
+}
+
 /// Bundle-relative texture paths for ``BoardRenderingProfile/pixelNearest``.
 struct BoardTexturePaths: Equatable, Sendable {
     var floor: String
@@ -15,9 +32,15 @@ struct BoardTexturePaths: Equatable, Sendable {
     var player: String
     var crate: String
     var crateOnGoal: String
+    /// When present, cave mode uses these instead of procedural placeholders.
+    var cave: CaveTexturePaths?
 
     var allPaths: [String] {
-        [floor, wall, goal, player, crate, crateOnGoal]
+        var paths = [floor, wall, goal, player, crate, crateOnGoal]
+        if let cave {
+            paths.append(contentsOf: cave.allPaths)
+        }
+        return paths
     }
 }
 

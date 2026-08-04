@@ -37,6 +37,20 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
         let player: String
         let crate: String
         let crateOnGoal: String
+        /// Optional additive cave / Boulder-Dash tile set.
+        let cave: CaveTexturesDTO?
+    }
+
+    struct CaveTexturesDTO: Equatable, Codable, Sendable {
+        let dirt: String
+        let tunnel: String
+        let wall: String
+        let steelWall: String
+        let boulder: String
+        let diamond: String
+        let exitClosed: String
+        let exitOpen: String
+        let player: String
     }
 
     struct BoardDTO: Equatable, Codable, Sendable {
@@ -257,7 +271,38 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
             goal: dto.goal,
             player: dto.player,
             crate: dto.crate,
-            crateOnGoal: dto.crateOnGoal
+            crateOnGoal: dto.crateOnGoal,
+            cave: try dto.cave.map(makeCaveTexturePaths)
+        )
+    }
+
+    private static func makeCaveTexturePaths(_ dto: CaveTexturesDTO) throws -> CaveTexturePaths {
+        let fields: [(String, String)] = [
+            ("cave.dirt", dto.dirt),
+            ("cave.tunnel", dto.tunnel),
+            ("cave.wall", dto.wall),
+            ("cave.steelWall", dto.steelWall),
+            ("cave.boulder", dto.boulder),
+            ("cave.diamond", dto.diamond),
+            ("cave.exitClosed", dto.exitClosed),
+            ("cave.exitOpen", dto.exitOpen),
+            ("cave.player", dto.player),
+        ]
+        for (field, path) in fields {
+            guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ThemeDecodeError.emptyTexturePath(field: field)
+            }
+        }
+        return CaveTexturePaths(
+            dirt: dto.dirt,
+            tunnel: dto.tunnel,
+            wall: dto.wall,
+            steelWall: dto.steelWall,
+            boulder: dto.boulder,
+            diamond: dto.diamond,
+            exitClosed: dto.exitClosed,
+            exitOpen: dto.exitOpen,
+            player: dto.player
         )
     }
 }
@@ -297,12 +342,29 @@ enum StrictThemeJSON {
                     allowed: [
                         "floor", "wall", "goal",
                         "player", "crate", "crateOnGoal",
+                        "cave",
                     ],
                     required: [
                         "floor", "wall", "goal",
                         "player", "crate", "crateOnGoal",
                     ]
                 )
+                if textures.keys.contains("cave") {
+                    guard let cave = textures["cave"] as? [String: Any] else {
+                        throw ThemeDecodeError.notAnObject
+                    }
+                    try validateObjectKeys(
+                        cave,
+                        allowed: [
+                            "dirt", "tunnel", "wall", "steelWall",
+                            "boulder", "diamond", "exitClosed", "exitOpen", "player",
+                        ],
+                        required: [
+                            "dirt", "tunnel", "wall", "steelWall",
+                            "boulder", "diamond", "exitClosed", "exitOpen", "player",
+                        ]
+                    )
+                }
             }
         }
 

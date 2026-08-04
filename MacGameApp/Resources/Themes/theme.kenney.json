@@ -12,7 +12,18 @@
       "goal": "Textures/kenney/goal.png",
       "player": "Textures/kenney/player.png",
       "crate": "Textures/kenney/crate.png",
-      "crateOnGoal": "Textures/kenney/crate-on-goal.png"
+      "crateOnGoal": "Textures/kenney/crate-on-goal.png",
+      "cave": {
+        "dirt": "Textures/cave/dirt.png",
+        "tunnel": "Textures/cave/tunnel.png",
+        "wall": "Textures/cave/wall.png",
+        "steelWall": "Textures/cave/steel-wall.png",
+        "boulder": "Textures/cave/boulder.png",
+        "diamond": "Textures/cave/diamond.png",
+        "exitClosed": "Textures/cave/exit-closed.png",
+        "exitOpen": "Textures/cave/exit-open.png",
+        "player": "Textures/cave/player.png"
+      }
     }
   },
   "board": {

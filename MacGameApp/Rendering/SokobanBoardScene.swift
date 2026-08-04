@@ -25,8 +25,8 @@ final class SokobanBoardScene: SKScene {
     /// Effective reduce motion from settings / accessibility. Presentation only.
     var prefersReducedMotion = false
 
-    /// When true, draw cave-specific tiles/entities with distinct procedural look
-    /// instead of Sokoban pixel textures (crates/goals).
+    /// When true, draw cave tiles/entities (optional ``textures.cave`` pack when present;
+    /// otherwise procedural placeholders). Never reuses Sokoban crate/goal textures.
     var presentsCaveContent = false
 
     /// Called each frame with SpriteKit's display time; cave session maps this
@@ -161,6 +161,15 @@ final class SokobanBoardScene: SKScene {
 
     private var usesPixelTextures: Bool {
         theme.rendering.profile == .pixelNearest
+    }
+
+    private var caveTextures: CaveTexturePaths? {
+        guard presentsCaveContent, usesPixelTextures else { return nil }
+        return theme.rendering.textures?.cave
+    }
+
+    private var usesCavePixelTextures: Bool {
+        caveTextures != nil
     }
 
     private func syncGeometryProfile() {
@@ -517,6 +526,14 @@ final class SokobanBoardScene: SKScene {
 
     private func makeTerrainNode(_ terrain: RenderTerrain) -> SKSpriteNode {
         let cave = presentsCaveContent
+        if cave, usesCavePixelTextures, let texture = caveTerrainTexture(for: terrain) {
+            let node = SKSpriteNode(texture: texture, size: .zero)
+            node.name = "terrain.\(terrain)"
+            node.zPosition = 0
+            node.color = .white
+            node.colorBlendFactor = 0
+            return node
+        }
         if !cave, usesPixelTextures, let texture = terrainTexture(for: terrain) {
             let node = SKSpriteNode(texture: texture, size: .zero)
             node.name = "terrain.\(terrain)"
@@ -560,11 +577,11 @@ final class SokobanBoardScene: SKScene {
                 symbol = tokens.goalSymbol
             case .exitClosed:
                 fill = ThemeColor(red: 0.12, green: 0.16, blue: 0.22, alpha: 1)
-                stroke = ThemeColor(red: 0.45, green: 0.55, blue: 0.75, alpha: 1)
+                stroke = ThemeColor(red: 0.45, green: 0.75, blue: 1.0, alpha: 1)
                 symbol = "E"
             case .exitOpen:
-                fill = ThemeColor(red: 0.12, green: 0.55, blue: 0.32, alpha: 1)
-                stroke = ThemeColor(red: 0.75, green: 1.0, blue: 0.85, alpha: 1)
+                fill = ThemeColor(red: 0.10, green: 0.45, blue: 0.22, alpha: 1)
+                stroke = ThemeColor(red: 0.55, green: 1.0, blue: 0.65, alpha: 1)
                 symbol = "E"
             }
         } else {
@@ -625,7 +642,16 @@ final class SokobanBoardScene: SKScene {
     private func makeEntityNode(kind: EntityKind) -> SKSpriteNode {
         let cave = presentsCaveContent
 
-        // Cave player reuses the Sokoban player sprite when a pixel theme is active.
+        if cave, usesCavePixelTextures, let texture = caveEntityTexture(for: kind) {
+            let node = SKSpriteNode(texture: texture, size: .zero)
+            node.name = "entity.\(kind)"
+            node.zPosition = kind == .player ? 2 : 1
+            node.color = .white
+            node.colorBlendFactor = 0
+            return node
+        }
+
+        // Legacy fallback: cave player may reuse the Sokoban player sprite.
         if cave, kind == .player, usesPixelTextures, let texture = entityTexture(for: .player, onGoal: false) {
             let node = SKSpriteNode(texture: texture, size: .zero)
             node.name = "entity.\(kind)"
@@ -701,6 +727,20 @@ final class SokobanBoardScene: SKScene {
         }
     }
 
+    private func caveTerrainTexture(for terrain: RenderTerrain) -> SKTexture? {
+        guard let paths = caveTextures else { return nil }
+        switch terrain {
+        case .void: return nil
+        case .dirt: return cachedTexture(at: paths.dirt)
+        case .floor: return cachedTexture(at: paths.tunnel)
+        case .wall: return cachedTexture(at: paths.wall)
+        case .steelWall: return cachedTexture(at: paths.steelWall)
+        case .exitClosed: return cachedTexture(at: paths.exitClosed)
+        case .exitOpen: return cachedTexture(at: paths.exitOpen)
+        case .goal: return cachedTexture(at: paths.exitOpen)
+        }
+    }
+
     private func entityTexture(for kind: EntityKind, onGoal: Bool) -> SKTexture? {
         guard let paths = theme.rendering.textures else { return nil }
         switch kind {
@@ -710,6 +750,20 @@ final class SokobanBoardScene: SKScene {
             return cachedTexture(at: onGoal ? paths.crateOnGoal : paths.crate)
         case .diamond:
             return cachedTexture(at: paths.goal)
+        }
+    }
+
+    private func caveEntityTexture(for kind: EntityKind) -> SKTexture? {
+        guard let paths = caveTextures else { return nil }
+        switch kind {
+        case .player:
+            return cachedTexture(at: paths.player)
+        case .boulder:
+            return cachedTexture(at: paths.boulder)
+        case .diamond:
+            return cachedTexture(at: paths.diamond)
+        case .crate:
+            return nil
         }
     }
 
@@ -911,10 +965,16 @@ final class SokobanBoardScene: SKScene {
                 let node = terrainNodes[index]
                 node.removeAction(forKey: "goalPulse")
                 if cave {
-                    // Never re-apply Sokoban pixel floor/wall onto cave dirt/tunnels.
-                    node.texture = nil
-                    node.colorBlendFactor = 1
-                    node.color = fillColor(for: cell.terrain).skColor
+                    if usesCavePixelTextures, let texture = caveTerrainTexture(for: cell.terrain) {
+                        node.texture = texture
+                        node.color = .white
+                        node.colorBlendFactor = 0
+                    } else {
+                        // Procedural cave placeholders — never Sokoban floor/wall/crate tiles.
+                        node.texture = nil
+                        node.colorBlendFactor = 1
+                        node.color = fillColor(for: cell.terrain).skColor
+                    }
                 } else if usesPixelTextures {
                     node.color = .white
                     node.colorBlendFactor = 0
@@ -937,7 +997,7 @@ final class SokobanBoardScene: SKScene {
             case .wall: return ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
             case .steelWall: return ThemeColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)
             case .goal: return theme.board.terrain.goalFill
-            case .exitOpen: return ThemeColor(red: 0.12, green: 0.55, blue: 0.32, alpha: 1)
+            case .exitOpen: return ThemeColor(red: 0.10, green: 0.45, blue: 0.22, alpha: 1)
             case .exitClosed: return ThemeColor(red: 0.12, green: 0.16, blue: 0.22, alpha: 1)
             }
         }

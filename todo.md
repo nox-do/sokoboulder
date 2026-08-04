@@ -415,9 +415,18 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 
-- eigenes Cave-Theme / bessere Sprites
+- [x] Cave-Pixelpack (`Textures/cave/` + `textures.cave`) — Playtest offen
 - Kamera für größere Höhlen (aktuell alle Demo-Level ≤14×9)
 - Timing-/Replay-Feinschliff; Cue-Pegel/Varianten optional
+
+### Cave-Grafik-Recherche (OGA, 2026-08-03) — eingebunden 2026-08-04
+
+- [x] Dirt: [Tileable 200×200 dirt](https://opengameart.org/content/tileable-200x200-dirt-texture) (CC-BY 3.0)
+- [x] Wand/Spieler: Dungeon-Kopien; Boulder/Steel aus Wand abgeleitet (BY-SA)
+- [x] Diamant: Clint Bellanger Sapphire (CC-BY-SA 3.0)
+- [x] Tunnel/Exit aus Dirt + Goal-Glow; Pack unter `Textures/cave/`
+- [x] Schema V1 additiv `textures.cave`; Renderer nutzt Pack bei `presentsCaveContent`
+- [x] Exit-Farben: closed = cyan (lesbar), open = grün (2026-08-04)
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 
