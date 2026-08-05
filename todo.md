@@ -420,6 +420,7 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Kamera implementiert: `GridGeometry` Fit/Camera, `BoardCamera` Safe-Zone/Look-ahead/Smooth, `SokobanBoardScene` verdrahtet — Playtest mit großem Cave-Level offen
 - [x] Bugbot-Fixes: Snap hält Soft-Follow bis zum nächsten Spielerzug; Resize ohne Snapshot pannt nicht
 - [x] Cave-Demo `004`–`033` durch v3-Pack ersetzt (Tutorials `001`–`003` unverändert; größere Maps für Kamera-Playtest)
+- [x] `cave.demo.004` vergrößert/erschwert (24×19, 5 Diamanten, Zeit 1200): Mehrkammer-Maze für Kamera-Playtest; Gegner-Vorlage → Fallstein-Fallen
 - [x] `cave.demo.009` Startkessel repariert: ein Fels, freier Schub auf Wandkante, Diamant unter Schacht (war unlösbar durch OO-Patt)
 - [x] `cave.demo.010` Schacht-Puzzle: Fels fällt auf Ausgang, muss seitlich auf Wandkante geschoben werden
 - [x] `cave.demo.014`: linker Kammer-Fels auf Erde, links frei zum Wegschieben vom Ausgang
