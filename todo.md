@@ -473,9 +473,19 @@ Arcade-Leben (Regeln fest, **Implementierung später** — nicht im ersten Phase
 - Bis dahin: Tod bleibt wie jetzt (sofort `caveFailed`, unbegrenztes Retry)
 
 Als Nächstes:
-- [ ] 5.2b Amöbe — Entwurf: `docs/plans/5.2b-amoeba.md` (Determinismus vs. Classic-RNG klären)
+- [x] 5.2b Amöbe — seeded PRNG, Demo 036, Plan `docs/plans/5.2b-amoeba.md`
 - [ ] Sand (4.1) vor/nach 5.2?
 - Später: Startleben-Anzahl (Kandidat: 3) + Bonusleben nach Level
+
+#### 5.2b Amöbe — umgesetzt (2026-08-06)
+
+- [x] Occupant `A`, seeded `DeterministicRNG`, Lag-1 Ersticken/Übergröße
+- [x] Fliege-Kontakt-Explosion; Spielertod; explosionszerstörbar
+- [x] Golden-Tests + Demo `cave.demo.036` + Docs
+- [x] Bugfix: Slow-Timer BD2 (erst bei Wachstumschance); `amoebaMaxCells: 0` immer auto-resolven
+- [x] Demo 036: Amöbe nah an Lücke; Max 48 / Slow 400 (nicht vor dem Siegel zu Fels)
+- [ ] Pixel-Sprite Amöbe (Shape reicht vorerst)
+- [ ] Playtest Level 036
 
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 

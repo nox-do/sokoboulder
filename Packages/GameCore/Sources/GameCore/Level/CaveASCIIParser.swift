@@ -9,12 +9,13 @@
 /// - `*` diamond on floor
 /// - `F` firefly on floor (heading left)
 /// - `B` butterfly on floor (heading left)
+/// - `A` amoeba on floor
 /// - `M` magic wall
 /// - `P` player on floor
 /// - `E` closed exit
 public enum CaveASCIIParser {
     public static let knownGlyphs: Set<Character> = [
-        " ", ".", "#", "X", "O", "*", "F", "B", "M", "P", "E",
+        " ", ".", "#", "X", "O", "*", "F", "B", "A", "M", "P", "E",
     ]
 
     public static func parse(_ text: String) throws(CaveParseError) -> CaveASCIIMap {
@@ -118,7 +119,10 @@ public enum CaveLevelBuilder {
         timeLimitTicks: Int = 1_000,
         diamondValue: Int = 10,
         extraDiamondValue: Int = 15,
-        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks,
+        rngSeed: UInt32 = CaveLevelRulesV1.defaultRngSeed,
+        amoebaSlowGrowthTicks: Int = CaveLevelRulesV1.defaultAmoebaSlowGrowthTicks,
+        amoebaMaxCells: Int = 0
     ) throws -> CaveLevel {
         let map = try CaveASCIIParser.parse(text)
         return try level(
@@ -127,7 +131,10 @@ public enum CaveLevelBuilder {
             timeLimitTicks: timeLimitTicks,
             diamondValue: diamondValue,
             extraDiamondValue: extraDiamondValue,
-            magicWallMillingTicks: magicWallMillingTicks
+            magicWallMillingTicks: magicWallMillingTicks,
+            rngSeed: rngSeed,
+            amoebaSlowGrowthTicks: amoebaSlowGrowthTicks,
+            amoebaMaxCells: amoebaMaxCells
         )
     }
 
@@ -137,7 +144,10 @@ public enum CaveLevelBuilder {
         timeLimitTicks: Int = 1_000,
         diamondValue: Int = 10,
         extraDiamondValue: Int = 15,
-        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks,
+        rngSeed: UInt32 = CaveLevelRulesV1.defaultRngSeed,
+        amoebaSlowGrowthTicks: Int = CaveLevelRulesV1.defaultAmoebaSlowGrowthTicks,
+        amoebaMaxCells: Int = 0
     ) throws -> CaveLevel {
         var terrains: [CaveTerrain] = []
         terrains.reserveCapacity(map.width * map.height)
@@ -177,6 +187,9 @@ public enum CaveLevelBuilder {
                 case "B":
                     terrains.append(.floor)
                     occupants.append(CaveOccupantStart(position: position, kind: .butterfly))
+                case "A":
+                    terrains.append(.floor)
+                    occupants.append(CaveOccupantStart(position: position, kind: .amoeba))
                 case "P":
                     terrains.append(.floor)
                     if playerStart != nil {
@@ -211,7 +224,14 @@ public enum CaveLevelBuilder {
             timeLimitTicks: timeLimitTicks,
             diamondValue: diamondValue,
             extraDiamondValue: extraDiamondValue,
-            magicWallMillingTicks: magicWallMillingTicks
+            magicWallMillingTicks: magicWallMillingTicks,
+            rngSeed: rngSeed,
+            amoebaSlowGrowthTicks: amoebaSlowGrowthTicks,
+            amoebaMaxCells: CaveLevelRulesV1.resolvedAmoebaMaxCells(
+                requested: amoebaMaxCells,
+                width: map.width,
+                height: map.height
+            )
         )
     }
 }

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.036",
+  "game": "cave",
+  "titleID": "level.cave.demo.036.title",
+  "tutorialHintID": "hint.cave.amoeba",
+  "width": 13,
+  "height": 11,
+  "rows": [
+    "#############",
+    "#P..........#",
+    "#.....O.....#",
+    "#..#######..#",
+    "#..#     #..#",
+    "#..#     #..#",
+    "#..#  A  #..#",
+    "#..### ###..#",
+    "#...........#",
+    "#..........E#",
+    "#############"
+  ],
+  "rules": {
+    "requiredDiamonds": 1,
+    "timeLimitTicks": 1500,
+    "diamondValue": 10,
+    "extraDiamondValue": 15,
+    "rngSeed": 42,
+    "amoebaSlowGrowthTicks": 400,
+    "amoebaMaxCells": 48
+  }
+}

@@ -53,6 +53,7 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
         let player: String
         let firefly: String
         let butterfly: String
+        let amoeba: String?
     }
 
     struct BoardDTO: Equatable, Codable, Sendable {
@@ -297,6 +298,11 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
                 throw ThemeDecodeError.emptyTexturePath(field: field)
             }
         }
+        if let amoeba = dto.amoeba {
+            guard !amoeba.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ThemeDecodeError.emptyTexturePath(field: "cave.amoeba")
+            }
+        }
         return CaveTexturePaths(
             dirt: dto.dirt,
             tunnel: dto.tunnel,
@@ -308,7 +314,8 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
             exitOpen: dto.exitOpen,
             player: dto.player,
             firefly: dto.firefly,
-            butterfly: dto.butterfly
+            butterfly: dto.butterfly,
+            amoeba: dto.amoeba
         )
     }
 }
@@ -364,7 +371,7 @@ enum StrictThemeJSON {
                         allowed: [
                             "dirt", "tunnel", "wall", "steelWall",
                             "boulder", "diamond", "exitClosed", "exitOpen", "player",
-                            "firefly", "butterfly",
+                            "firefly", "butterfly", "amoeba",
                         ],
                         required: [
                             "dirt", "tunnel", "wall", "steelWall",

@@ -1,10 +1,15 @@
-/// Deterministic cave rule engine (Phase 3.7–5.2a: core, enemies, magic wall).
+/// Deterministic cave rule engine (Phase 3.7–5.2b: core, enemies, magic wall, amoeba).
 ///
-/// Tick semantics follow ADR 0005: player → gravity → enemies → explosion queue →
-/// exit / time / terminal checks. Intents are simultaneous from each phase snapshot.
+/// Tick semantics follow ADR 0005: player → gravity → enemies → amoeba →
+/// explosion drains after each phase → exit / time / terminal checks.
+/// Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
     public static let ruleVersion: Int = 1
     public static let fixedStepSeconds: Double = 0.10
+
+    /// BDCFF slow / fast amoeba random factors (`GetRandomNumber(0, factor) < 4`).
+    private static let amoebaSlowRandomFactor: UInt32 = 127
+    private static let amoebaFastRandomFactor: UInt32 = 15
 
     public init() {}
 
@@ -16,6 +21,7 @@ public struct CaveRules: Sendable {
         cells.reserveCapacity(level.width * level.height)
         var nextEntityID: UInt64 = 2
         var occupantByPosition: [GridPosition: CaveOccupant] = [:]
+        var amoebaCount = 0
 
         for start in level.occupantStarts {
             let id = EntityID(nextEntityID)
@@ -30,6 +36,9 @@ public struct CaveRules: Sendable {
                 occupant = .firefly(id, heading: start.heading)
             case .butterfly:
                 occupant = .butterfly(id, heading: start.heading)
+            case .amoeba:
+                occupant = .amoeba(id)
+                amoebaCount += 1
             }
             occupantByPosition[start.position] = occupant
         }
@@ -59,7 +68,13 @@ public struct CaveRules: Sendable {
             remainingTicks: level.timeLimitTicks,
             nextEntityID: nextEntityID,
             magicWallMillingTicks: level.magicWallMillingTicks,
-            magicWallStatus: .dormant
+            magicWallStatus: .dormant,
+            rng: DeterministicRNG(seed: level.rngSeed),
+            amoebaMaxCells: level.amoebaMaxCells,
+            amoebaSlowTicksRemaining: level.amoebaSlowGrowthTicks,
+            amoebaSlowGrowthStarted: false,
+            amoebaCellCountLastTick: amoebaCount,
+            amoebaSuffocatedLastTick: false
         )
         try state.validateEssentials()
         return state
@@ -105,6 +120,14 @@ public struct CaveRules: Sendable {
                 try working.validateEssentials()
                 return Transition(state: working, events: events, outcome: .terminal(working.status))
             }
+        }
+
+        applyAmoeba(to: &working, events: &events, explosions: &explosions)
+        drainExplosions(&explosions, in: &working, events: &events)
+        if working.status != .playing {
+            working.tick += 1
+            try working.validateEssentials()
+            return Transition(state: working, events: events, outcome: .terminal(working.status))
         }
 
         openExitsIfNeeded(in: &working, events: &events)
@@ -202,6 +225,9 @@ public struct CaveRules: Sendable {
                 return
             case .firefly, .butterfly:
                 triggerEnemyExplosion(occupant, at: to, in: &state, explosions: &explosions)
+                killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
+                return
+            case .amoeba:
                 killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
                 return
             }
@@ -470,6 +496,7 @@ public struct CaveRules: Sendable {
         let occupant: CaveOccupant
         let heading: Direction
         let destination: GridPosition?
+        let explodeInPlace: Bool
     }
 
     private func applyEnemies(
@@ -507,11 +534,22 @@ public struct CaveRules: Sendable {
     /// Classic Boulder Dash fly AI (BDCFF / C64): prefer-hand turn+move, else
     /// forward, else turn against preference and stay put for this beat.
     /// Open-space 2×2 orbits are intentional — no wall-seek.
+    /// Adjacent amoeba → explode in place (contact).
     private func enemyIntent(
         for occupant: CaveOccupant,
         at from: GridPosition,
         in state: CaveState
     ) -> EnemyIntent {
+        if isOrthogonallyAdjacentToAmoeba(from, in: state) {
+            return EnemyIntent(
+                from: from,
+                occupant: occupant,
+                heading: occupant.heading ?? .left,
+                destination: nil,
+                explodeInPlace: true
+            )
+        }
+
         let heading = occupant.heading ?? .left
         let preferLeft = {
             if case .firefly = occupant { return true }
@@ -526,7 +564,8 @@ public struct CaveRules: Sendable {
                 from: from,
                 occupant: occupant,
                 heading: preferred,
-                destination: preferredDestination
+                destination: preferredDestination,
+                explodeInPlace: false
             )
         }
 
@@ -536,7 +575,8 @@ public struct CaveRules: Sendable {
                 from: from,
                 occupant: occupant,
                 heading: heading,
-                destination: forwardDestination
+                destination: forwardDestination,
+                explodeInPlace: false
             )
         }
 
@@ -545,8 +585,20 @@ public struct CaveRules: Sendable {
             from: from,
             occupant: occupant,
             heading: against,
-            destination: nil
+            destination: nil,
+            explodeInPlace: false
         )
+    }
+
+    private func isOrthogonallyAdjacentToAmoeba(_ position: GridPosition, in state: CaveState) -> Bool {
+        for direction in Direction.allCases {
+            let neighbor = position.neighbor(in: direction)
+            guard state.grid.contains(neighbor) else { continue }
+            if state.grid[neighbor].occupant?.isAmoeba == true {
+                return true
+            }
+        }
+        return false
     }
 
     private func isEnemyEnterable(_ position: GridPosition, in state: CaveState) -> Bool {
@@ -565,6 +617,11 @@ public struct CaveRules: Sendable {
         // Source may already have been cleared by an earlier explosion this tick.
         guard let current = state.grid[intent.from].occupant,
               current.id == intent.occupant.id else {
+            return
+        }
+
+        if intent.explodeInPlace {
+            triggerEnemyExplosion(current, at: intent.from, in: &state, explosions: &explosions)
             return
         }
 
@@ -588,6 +645,155 @@ public struct CaveRules: Sendable {
         case .occupant, .blocked:
             // Destination filled since intent scan; keep heading update only.
             state.grid[intent.from].occupant = updated
+        }
+    }
+
+    // MARK: - Amoeba
+
+    private enum AmoebaIntent: Equatable {
+        case convertToBoulder(at: GridPosition, id: EntityID)
+        case convertToDiamond(at: GridPosition, id: EntityID)
+        case grow(from: GridPosition, to: GridPosition)
+    }
+
+    private func applyAmoeba(
+        to state: inout CaveState,
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
+    ) {
+        _ = explosions
+        let snapshot = state
+        var positions: [GridPosition] = []
+        var canGrowAny = false
+
+        for row in 0..<snapshot.grid.height {
+            for column in 0..<snapshot.grid.width {
+                let position = GridPosition(column: column, row: row)
+                guard snapshot.grid[position].occupant?.isAmoeba == true else { continue }
+                positions.append(position)
+                if amoebaCanGrow(from: position, in: snapshot) {
+                    canGrowAny = true
+                }
+            }
+        }
+
+        let count = positions.count
+        var intents: [AmoebaIntent] = []
+        var claimedDestinations: Set<GridPosition> = []
+
+        if count > 0 {
+            if snapshot.amoebaCellCountLastTick >= snapshot.amoebaMaxCells {
+                for position in positions {
+                    guard let id = snapshot.grid[position].occupant?.id else { continue }
+                    intents.append(.convertToBoulder(at: position, id: id))
+                }
+            } else if snapshot.amoebaSuffocatedLastTick {
+                for position in positions {
+                    guard let id = snapshot.grid[position].occupant?.id else { continue }
+                    intents.append(.convertToDiamond(at: position, id: id))
+                }
+            } else {
+                let factor = snapshot.amoebaSlowTicksRemaining > 0
+                    ? Self.amoebaSlowRandomFactor
+                    : Self.amoebaFastRandomFactor
+                for position in positions {
+                    guard amoebaRandomlyDecidesToGrow(factor: factor, rng: &state.rng) else {
+                        continue
+                    }
+                    let direction = randomGrowthDirection(rng: &state.rng)
+                    let destination = position.neighbor(in: direction)
+                    guard isAmoebaGrowthTarget(destination, in: snapshot) else { continue }
+                    guard !claimedDestinations.contains(destination) else { continue }
+                    claimedDestinations.insert(destination)
+                    intents.append(.grow(from: position, to: destination))
+                }
+            }
+        }
+
+        for intent in intents {
+            applyAmoebaIntent(intent, to: &state, events: &events)
+        }
+
+        // Lag-1 flags for the next tick (BDCFF).
+        var nextCount = 0
+        for row in 0..<state.grid.height {
+            for column in 0..<state.grid.width {
+                if state.grid[GridPosition(column: column, row: row)].occupant?.isAmoeba == true {
+                    nextCount += 1
+                }
+            }
+        }
+        state.amoebaCellCountLastTick = nextCount
+        // Suffocation uses this frame's growth *opportunity*, not whether growth succeeded.
+        state.amoebaSuffocatedLastTick = count > 0 && !canGrowAny
+
+        // BDCFF BD2: arm slow-growth clock on first growth opportunity; then tick down.
+        if canGrowAny {
+            state.amoebaSlowGrowthStarted = true
+        }
+        if state.amoebaSlowGrowthStarted, state.amoebaSlowTicksRemaining > 0 {
+            state.amoebaSlowTicksRemaining -= 1
+        }
+    }
+
+    private func amoebaCanGrow(from position: GridPosition, in state: CaveState) -> Bool {
+        for direction in Direction.allCases {
+            if isAmoebaGrowthTarget(position.neighbor(in: direction), in: state) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func isAmoebaGrowthTarget(_ position: GridPosition, in state: CaveState) -> Bool {
+        guard state.grid.contains(position) else { return false }
+        if case .alive(let playerPosition) = state.player, playerPosition == position {
+            return false
+        }
+        let cell = state.grid[position]
+        guard cell.occupant == nil else { return false }
+        switch cell.terrain {
+        case .floor, .dirt: return true
+        case .void, .wall, .steelWall, .magicWall, .exit: return false
+        }
+    }
+
+    private func amoebaRandomlyDecidesToGrow(factor: UInt32, rng: inout DeterministicRNG) -> Bool {
+        rng.nextInt(upperBound: factor) < 4
+    }
+
+    private func randomGrowthDirection(rng: inout DeterministicRNG) -> Direction {
+        let directions = Direction.allCases
+        let index = Int(rng.nextInt(upperBound: UInt32(directions.count - 1)))
+        return directions[index]
+    }
+
+    private func applyAmoebaIntent(
+        _ intent: AmoebaIntent,
+        to state: inout CaveState,
+        events: inout [GameEvent]
+    ) {
+        switch intent {
+        case .convertToBoulder(at: let position, id: let id):
+            guard state.grid[position].occupant?.id == id else { return }
+            let newID = EntityID(state.nextEntityID)
+            state.nextEntityID += 1
+            state.grid[position].occupant = .boulder(newID, motion: .resting)
+        case .convertToDiamond(at: let position, id: let id):
+            guard state.grid[position].occupant?.id == id else { return }
+            let newID = EntityID(state.nextEntityID)
+            state.nextEntityID += 1
+            state.grid[position].occupant = .diamond(newID, motion: .resting)
+        case .grow(from: let from, to: let to):
+            guard state.grid[from].occupant?.isAmoeba == true else { return }
+            guard isAmoebaGrowthTarget(to, in: state) else { return }
+            if case .dirt = state.grid[to].terrain {
+                state.grid[to] = CaveCell(terrain: .floor, occupant: nil)
+            }
+            let id = EntityID(state.nextEntityID)
+            state.nextEntityID += 1
+            state.grid[to].occupant = .amoeba(id)
+            events.append(.entityMoved(EntityRef(id: id, kind: .amoeba), from: from, to: to))
         }
     }
 

@@ -17,6 +17,16 @@ public struct CaveState: Equatable, Sendable {
     public internal(set) var nextEntityID: UInt64
     public let magicWallMillingTicks: Int
     public internal(set) var magicWallStatus: MagicWallStatus
+    public internal(set) var rng: DeterministicRNG
+    public let amoebaMaxCells: Int
+    /// Ticks remaining in slow-growth mode once the clock has started; `0` = fast.
+    public internal(set) var amoebaSlowTicksRemaining: Int
+    /// BDCFF BD2: slow-growth clock starts on the first tick with a growth opportunity.
+    public internal(set) var amoebaSlowGrowthStarted: Bool
+    /// Amoeba cell count from the previous tick (BDCFF lag-1 oversize check).
+    public internal(set) var amoebaCellCountLastTick: Int
+    /// Whether the amoeba population had no growth opportunity last tick.
+    public internal(set) var amoebaSuffocatedLastTick: Bool
 
     init(
         grid: Grid<CaveCell>,
@@ -32,7 +42,13 @@ public struct CaveState: Equatable, Sendable {
         remainingTicks: Int,
         nextEntityID: UInt64,
         magicWallMillingTicks: Int,
-        magicWallStatus: MagicWallStatus
+        magicWallStatus: MagicWallStatus,
+        rng: DeterministicRNG,
+        amoebaMaxCells: Int,
+        amoebaSlowTicksRemaining: Int,
+        amoebaSlowGrowthStarted: Bool,
+        amoebaCellCountLastTick: Int,
+        amoebaSuffocatedLastTick: Bool
     ) {
         self.grid = grid
         self.player = player
@@ -48,6 +64,12 @@ public struct CaveState: Equatable, Sendable {
         self.nextEntityID = nextEntityID
         self.magicWallMillingTicks = magicWallMillingTicks
         self.magicWallStatus = magicWallStatus
+        self.rng = rng
+        self.amoebaMaxCells = amoebaMaxCells
+        self.amoebaSlowTicksRemaining = amoebaSlowTicksRemaining
+        self.amoebaSlowGrowthStarted = amoebaSlowGrowthStarted
+        self.amoebaCellCountLastTick = amoebaCellCountLastTick
+        self.amoebaSuffocatedLastTick = amoebaSuffocatedLastTick
     }
 
     public var playerRef: EntityRef {
@@ -64,6 +86,9 @@ public struct CaveState: Equatable, Sendable {
         }
         guard requiredDiamonds >= 0, diamondValue >= 0, extraDiamondValue >= 0 else {
             throw .invariantViolated("Level rule values must be non-negative")
+        }
+        guard amoebaMaxCells > 0, amoebaSlowTicksRemaining >= 0 else {
+            throw .invariantViolated("Amoeba rule values must be positive / non-negative")
         }
         guard grid.width > 0, grid.height > 0 else {
             throw .invariantViolated("Grid must be non-empty")

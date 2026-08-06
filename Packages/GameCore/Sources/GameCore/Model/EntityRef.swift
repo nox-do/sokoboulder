@@ -20,4 +20,5 @@ public enum EntityKind: Equatable, Sendable {
     case diamond
     case firefly
     case butterfly
+    case amoeba
 }

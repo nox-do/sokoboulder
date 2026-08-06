@@ -67,6 +67,9 @@ enum StrictCaveLevelJSON {
             "diamondValue",
             "extraDiamondValue",
             "magicWallMillingTicks",
+            "rngSeed",
+            "amoebaSlowGrowthTicks",
+            "amoebaMaxCells",
         ]
         let requiredRules: Set<String> = [
             "requiredDiamonds",

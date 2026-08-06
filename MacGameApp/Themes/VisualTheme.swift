@@ -20,12 +20,18 @@ struct CaveTexturePaths: Equatable, Sendable {
     var player: String
     var firefly: String
     var butterfly: String
+    /// Optional; shape fallback when absent.
+    var amoeba: String?
 
     var allPaths: [String] {
-        [
+        var paths = [
             dirt, tunnel, wall, steelWall, boulder, diamond,
             exitClosed, exitOpen, player, firefly, butterfly,
         ]
+        if let amoeba {
+            paths.append(amoeba)
+        }
+        return paths
     }
 }
 

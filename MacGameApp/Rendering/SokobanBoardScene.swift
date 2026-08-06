@@ -953,6 +953,10 @@ final class SokobanBoardScene: SKScene {
             fill = ThemeColor(red: 0.85, green: 0.35, blue: 0.75, alpha: 1)
             stroke = ThemeColor(red: 0.35, green: 0.1, blue: 0.3, alpha: 1)
             symbol = "✦"
+        case .amoeba:
+            fill = ThemeColor(red: 0.25, green: 0.75, blue: 0.35, alpha: 1)
+            stroke = ThemeColor(red: 0.08, green: 0.35, blue: 0.12, alpha: 1)
+            symbol = "◉"
         }
 
         let node = SKSpriteNode(color: fill.skColor, size: .zero)
@@ -1012,7 +1016,7 @@ final class SokobanBoardScene: SKScene {
             return cachedTexture(at: onGoal ? paths.crateOnGoal : paths.crate)
         case .diamond:
             return cachedTexture(at: paths.goal)
-        case .firefly, .butterfly:
+        case .firefly, .butterfly, .amoeba:
             return nil
         }
     }
@@ -1030,6 +1034,9 @@ final class SokobanBoardScene: SKScene {
             return cachedTexture(at: paths.firefly)
         case .butterfly:
             return cachedTexture(at: paths.butterfly)
+        case .amoeba:
+            guard let path = paths.amoeba else { return nil }
+            return cachedTexture(at: path)
         case .crate:
             return nil
         }

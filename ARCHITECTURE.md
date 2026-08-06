@@ -315,8 +315,7 @@ public enum CaveOccupant: Equatable, Sendable {
     // Phase 5.1:
     case firefly(EntityID, heading: Direction)
     case butterfly(EntityID, heading: Direction)
-    // Phase 5.2:
-    // case amoeba(EntityID)
+    case amoeba(EntityID)
 }
 ```
 
@@ -624,7 +623,14 @@ zwei Zellen nach unten (nie „in“ der Wand) mit neuer EntityID; bei blockiert
 darunter oder Expired → Objekt vernichten. Kein Abrollen von Magic Wall.
 Timer tickt am Tickende. Glyph `M`, Regel `magicWallMillingTicks` (Default 200).
 
-Amöbe folgt in Phase 5.2b; Regeln in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
+**Amöbe (Phase 5.2b):** Occupant `amoeba(EntityID)`, Glyph `A`. Wächst mit
+seeded PRNG (`DeterministicRNG` in `CaveState`, Levelregel `rngSeed`) in
+orthogonal angrenzendes `floor`/`dirt` (BDCFF-Wahrscheinlichkeiten slow/fast).
+Lag-1: eingeschlossen → Diamanten; `amoebaCellCountLastTick ≥ amoebaMaxCells` →
+Felsen. Slow-Growth-Timer (BD2) startet erst bei erster Wachstumsmöglichkeit.
+Fliegen explodieren bei Orthogonal-Kontakt; Spielerkontakt → Tod.
+Explosionen fressen Amöbe. Phase nach Gegnern; Regeln `amoebaSlowGrowthTicks`,
+`amoebaMaxCells` (0 = ~22,7 % der Cave, min. 20).
 
 ## 8. Zeitmodell und Game Loop
 
@@ -975,8 +981,8 @@ lesbar sind:
 ASCII ist ein Importformat, nicht zwingend das dauerhafte Versandformat.
 Für Höhlen-Golden-Tests (Phase 3.7+) gilt dieselbe Idee mit eigener Legende,
 z. B. ` ` leer, `.` Erde, `#` Ziegel, `X` Stahl, `O` Felsen, `*` Diamant,
-`P` Spieler, `E` Ausgang, `F` Firefly, `B` Butterfly, `M` Magische Wand;
-später `A` für Amöbe. Kanonisches Versandformat bleibt versioniertes JSON.
+`P` Spieler, `E` Ausgang, `F` Firefly, `B` Butterfly, `M` Magische Wand,
+`A` Amöbe. Kanonisches Versandformat bleibt versioniertes JSON.
 
 ### 12.2 Kanonisches Format
 
@@ -1603,11 +1609,12 @@ Phase 5.1 (umgesetzt):
 
 Phase 5.2a (umgesetzt): Magische Wand (`M`, globaler Milling-Timer).
 
-Phase 5.2b / App-Polishing (offen):
+Phase 5.2b (umgesetzt): Amöbe (`A`, seeded Wachstum, Ersticken/Übergröße).
 
-- Amöben (Wachstum, Ersticken → Diamanten, Überwuchern → Felsen).
+App-Polishing (offen):
+
 - Leben, Levelreihenfolge und Bonuswertung in der App-Schicht.
-- Pixel-Sprites / Explosion-Audio; Animation- und Schwierigkeits-Polishing.
+- Pixel-Sprites Amöbe / Explosion-Audio; Animation- und Schwierigkeits-Polishing.
 - Audiopolishing nach den Vorgaben aus [AUDIO.md](AUDIO.md).
 
 Abnahme:

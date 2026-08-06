@@ -17,6 +17,10 @@ public struct CaveLevel: Equatable, Sendable {
     public let diamondValue: Int
     public let extraDiamondValue: Int
     public let magicWallMillingTicks: Int
+    public let rngSeed: UInt32
+    public let amoebaSlowGrowthTicks: Int
+    /// Resolved max amoeba cell count before conversion to boulders.
+    public let amoebaMaxCells: Int
 
     public init(
         width: Int,
@@ -28,7 +32,10 @@ public struct CaveLevel: Equatable, Sendable {
         timeLimitTicks: Int,
         diamondValue: Int = 10,
         extraDiamondValue: Int = 15,
-        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks,
+        rngSeed: UInt32 = CaveLevelRulesV1.defaultRngSeed,
+        amoebaSlowGrowthTicks: Int = CaveLevelRulesV1.defaultAmoebaSlowGrowthTicks,
+        amoebaMaxCells: Int = 0
     ) {
         self.width = width
         self.height = height
@@ -40,6 +47,14 @@ public struct CaveLevel: Equatable, Sendable {
         self.diamondValue = diamondValue
         self.extraDiamondValue = extraDiamondValue
         self.magicWallMillingTicks = magicWallMillingTicks
+        self.rngSeed = rngSeed
+        self.amoebaSlowGrowthTicks = amoebaSlowGrowthTicks
+        // `0` (and omitted) means auto from cave size — never store a zero limit.
+        self.amoebaMaxCells = CaveLevelRulesV1.resolvedAmoebaMaxCells(
+            requested: amoebaMaxCells,
+            width: width,
+            height: height
+        )
     }
 }
 
@@ -65,6 +80,7 @@ public enum CaveOccupantKind: Equatable, Sendable {
     case diamond
     case firefly
     case butterfly
+    case amoeba
 }
 
 /// Explosion effect produced by enemies (ADR 0005).

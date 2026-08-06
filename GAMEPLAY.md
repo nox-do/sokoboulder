@@ -153,7 +153,7 @@ Empfohlene Reihenfolge (entspricht dem Implementierungsaufbau Phase 4 → 5):
 7. Zeitlimit,
 8. erster Gegner (Firefly),
 9. Butterfly, Explosion und Kettenreaktion,
-10. optional später: Amöbe, magische Wand, Snap-Aktion.
+10. Magische Wand, Amöbe; optional später: Snap-Aktion.
 
 Kein Tutorial-Level führt zwei potenziell tödliche neue Mechaniken gleichzeitig
 ein.
@@ -263,7 +263,7 @@ Tickrate) schließt Phase 3.7 im ADR `Cave Tick Semantics`.
 
 Jedes Level („Cave“) besitzt feste Breite und Höhe, Startposition, benötigte
 Diamanten, Zeitlimit, Punktwerte sowie Ausgang und Objektverteilung. Optionale
-Levelparameter (Amöbe, magische Wand) folgen in Phase 5.
+Levelparameter für Amöbe und Magische Wand sind umgesetzt (Phase 5.2).
 
 Der Spieler muss:
 
@@ -429,9 +429,13 @@ Explosionen sind Kernoperationen auf einem 3×3-Bereich:
 - Kettenreaktionen über eine Explosions-Queue (Drain nach jeder Tick-Phase),
   nicht rekursiv in-place.
 
-**Amöbe:** wächst kontrolliert (nicht jede Zelle jeden Tick) in orthogonal
-angrenzendes `empty`/`dirt`; eingeschlossen → Diamanten; Übergröße/Dauer →
-Felsen. Parameter sind Levelregeln.
+**Amöbe:** Occupant; wächst per seeded PRNG (replay-stabil) in orthogonal
+angrenzendes `empty`/`dirt` (nicht jede Zelle jeden Tick; slow≈3 % → fast≈25 %
+nach `amoebaSlowGrowthTicks`). Slow-Timer startet erst bei der **ersten
+Wachstumsmöglichkeit** (BDCFF BD2). Eingeschlossen (kein Wachstum möglich, Lag-1) →
+Diamanten; Übergröße (`amoebaMaxCells`, Lag-1) → Felsen. Fliegen explodieren bei
+Kontakt; Spielerkontakt → Tod; Explosionen zerstören Amöbe. Levelregeln:
+`rngSeed`, `amoebaSlowGrowthTicks`, `amoebaMaxCells` (0 = Auto ~22,7 %).
 
 **Magische Wand:** global `dormant → active (Timer) → expired` (BDCFF). Nur
 **fallende** Felsen/Diamanten reagieren; ruhend oben drauf passiert nichts.
@@ -644,6 +648,8 @@ Fortschrittswährungen sind kein Ziel der ersten Version.
 - Neue Gefahren werden zunächst einzeln und mit ausreichend Reaktionsraum gezeigt.
 - Zufällige oder nicht telegraphierte Tode werden vermieden; Physik und Gegner
   bleiben deterministisch (kein Zufall bei Rollen oder Gegnerentscheidungen).
+  Ausnahme: Amöben-Wachstum nutzt einen **seeded** PRNG im Zustand (gleiche
+  Inputs → gleicher Replay-Digest).
 - Zeitlimits werden nach Playtests gesetzt, nicht nur rechnerisch geschätzt.
 - Kameraausschnitt und Levelgeometrie dürfen notwendige Information nicht
   verstecken.

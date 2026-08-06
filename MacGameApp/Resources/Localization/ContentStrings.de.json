@@ -133,6 +133,8 @@
   "level.cave.demo.033.title": "Höhle 33",
   "level.cave.demo.034.title": "Insekten",
   "level.cave.demo.035.title": "Magische Wand",
+  "level.cave.demo.036.title": "Amöbe",
   "hint.cave.enemies": "Gelb = Glühwürmchen (links), blau = Schmetterling (rechts). Explosion des Schmetterlings hinterlässt Diamanten. Abstand halten oder Fels fallen lassen.",
-  "hint.cave.magicWall": "Fallender Fels auf die Magische Wand wird zum Diamanten darunter (und umgekehrt). Timer begrenzt die Wirkung — danach verschluckt die Wand Objekte."
+  "hint.cave.magicWall": "Fallender Fels auf die Magische Wand wird zum Diamanten darunter (und umgekehrt). Timer begrenzt die Wirkung — danach verschluckt die Wand Objekte.",
+  "hint.cave.amoeba": "Amöbe sitzt über der Lücke — mit dem Fels von oben zudrücken, bevor sie ausbricht. Eingeschlossen → Diamanten. Erst draußen und zu groß → Felsen."
 }

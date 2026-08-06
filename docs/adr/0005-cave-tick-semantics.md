@@ -30,9 +30,9 @@ Zwei klassische Ansätze:
 5. **Freilegen→Fall:** Im Tick ohne Unterstützung wird `falling` gesetzt; die
    Zellenbewegung folgt im **nächsten** Tick (1-Tick-Lag). Golden #1/#4.
 6. **Explosionen:** Queue; Typen `destructive` und `diamondGenerating`.
-   Drain **nach jeder Tick-Phase** (Spieler / Gravity / Gegner), nicht erst am
+   Drain **nach jeder Tick-Phase** (Spieler / Gravity / Gegner / Amöbe), nicht erst am
    Tickende; Early-Exit bei terminalem Status. Überlappende Zellen: FIFO,
-   letzter Schreiber gewinnt. Stahl und Ausgang (MVP) unzerstörbar.
+   letzter Schreiber gewinnt. Stahl, Ausgang (MVP) und Magische Wand unzerstörbar.
    Gegner-Intents nur auf geraden Ticks (`tick % 2 == 0`).
 7. **Zellkonflikte:** objektbezogen in Golden-Tests; Fallback:
    Explosion > Fall > Spieler > Gegner > Amöbe.
@@ -42,6 +42,7 @@ Zwei klassische Ansätze:
 11. **Eingabe Phase 4:** nur `move` und `wait`. Kein Snap, keine
     Schiebeverzögerung (erst nach Playtest + Freigabe).
 12. **Digest/Replay:** globale `simulationTick` + Absichten; keine Epochen.
+    Seeded RNG-State (Amöbe) ist Teil des Digests.
 
 Weltmodell bleibt ARCHITECTURE §6.2 — kein flaches `Tile`-Enum mit Spieler in
 der Zelle.
@@ -59,7 +60,7 @@ der Zelle.
 - Phase 3.7 liefert Golden-Konfliktraster und Digest gegen diese Semantik.
 - Phase 4 implementiert `CaveRules.tick` genau einmal nach diesem ADR.
 - Phase 5.1 (Gegner/Explosionen) folgt denselben Intent-/Queue-Verträgen;
-  Amöbe/Magic Wall folgen in 5.2.
+  Phase 5.2a Magische Wand und 5.2b Amöbe (seeded PRNG) sind umgesetzt.
 - Historische Emulation bleibt bewusst außerhalb des Produktpfads.
 
 ## Verankerung

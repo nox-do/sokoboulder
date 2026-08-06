@@ -33,6 +33,8 @@ public enum CaveStateDigest {
             String(state.remainingTicks),
             String(state.nextEntityID),
             magicWallToken(state.magicWallStatus),
+            "rng:\(state.rng.state)",
+            "amoeba:\(state.amoebaCellCountLastTick),\(state.amoebaSuffocatedLastTick ? 1 : 0),\(state.amoebaSlowTicksRemaining),\(state.amoebaSlowGrowthStarted ? 1 : 0),\(state.amoebaMaxCells)",
             playerToken(state.player, id: state.playerID),
         ]
 
@@ -117,6 +119,7 @@ public enum CaveStateDigest {
         case .diamond: "diamond"
         case .firefly: "firefly"
         case .butterfly: "butterfly"
+        case .amoeba: "amoeba"
         }
     }
 
@@ -142,6 +145,9 @@ public enum CaveStateDigest {
         }
         if let heading = occupant.heading {
             return headingToken(heading)
+        }
+        if case .amoeba = occupant {
+            return "none"
         }
         return "none"
     }

@@ -770,19 +770,227 @@ struct CaveGoldenTests {
         }
     }
 
+    // MARK: - Amoeba (5.2b)
+
+    @Test("enclosed amoeba becomes diamonds after lag-1 tick")
+    func enclosedAmoebaBecomesDiamonds() throws {
+        var state = try start(
+            """
+            #####
+            #AAA#
+            #APA#
+            #AEA#
+            #####
+            """,
+            requiredDiamonds: 0,
+            amoebaSlowGrowthTicks: 0,
+            amoebaMaxCells: 50
+        )
+        // Tick 0: discover no growth opportunity → set suffocated flag.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.amoebaSuffocatedLastTick)
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant?.isAmoeba == true)
+        // Tick 1: convert.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant?.entityKind == .diamond)
+        #expect(state.grid[GridPosition(column: 1, row: 1)].occupant?.entityKind == .diamond)
+    }
+
+    @Test("oversized amoeba becomes boulders after lag-1 tick")
+    func oversizedAmoebaBecomesBoulders() throws {
+        var state = try start(
+            """
+            #####
+            #A A#
+            # P #
+            # E #
+            #####
+            """,
+            requiredDiamonds: 0,
+            amoebaMaxCells: 1
+        )
+        // Start count is 2 ≥ max 1 → convert on first amoeba phase.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.grid[GridPosition(column: 1, row: 1)].occupant?.entityKind == .boulder)
+        #expect(state.grid[GridPosition(column: 3, row: 1)].occupant?.entityKind == .boulder)
+    }
+
+    @Test("amoeba grows into dirt with seeded RNG")
+    func amoebaGrowsIntoDirt() throws {
+        var state = try start(
+            """
+            #####
+            #A..#
+            #P  #
+            #E  #
+            #####
+            """,
+            requiredDiamonds: 0,
+            rngSeed: 7,
+            amoebaSlowGrowthTicks: 0,
+            amoebaMaxCells: 50
+        )
+        var grew = false
+        for _ in 0..<80 {
+            state = try rules.tick(input: .wait, state: state).state
+            var count = 0
+            for row in 0..<state.grid.height {
+                for column in 0..<state.grid.width {
+                    if state.grid[GridPosition(column: column, row: row)].occupant?.isAmoeba == true {
+                        count += 1
+                    }
+                }
+            }
+            if count > 1 {
+                grew = true
+                break
+            }
+        }
+        #expect(grew)
+    }
+
+    @Test("player walking into amoeba dies")
+    func playerDiesOnAmoebaContact() throws {
+        let state = try start(
+            """
+            #####
+            #PA #
+            #E  #
+            #####
+            """,
+            requiredDiamonds: 0
+        )
+        let result = try rules.tick(input: .move(.right), state: state)
+        #expect(result.outcome == .terminal(.failed))
+        #expect(result.state.grid[GridPosition(column: 2, row: 1)].occupant?.isAmoeba == true)
+    }
+
+    @Test("firefly adjacent to amoeba explodes")
+    func fireflyExplodesOnAmoebaContact() throws {
+        var state = try start(
+            """
+            ######
+            #FA  #
+            #    #
+            #P   #
+            #E   #
+            ######
+            """,
+            requiredDiamonds: 0
+        )
+        // Even tick 0: enemy phase sees adjacency → explode.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.status == .playing)
+        #expect(state.grid[GridPosition(column: 1, row: 1)].occupant == nil)
+        // Amoeba at (2,1) is inside the 3×3 blast and should be destroyed.
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+    }
+
+    @Test("identical amoeba waits yield stable digest")
+    func amoebaDigestStable() throws {
+        func run() throws -> String {
+            var state = try start(
+                """
+                #####
+                #A..#
+                #P  #
+                #E  #
+                #####
+                """,
+                requiredDiamonds: 0,
+                rngSeed: 99,
+                amoebaSlowGrowthTicks: 0,
+                amoebaMaxCells: 50
+            )
+            for _ in 0..<20 {
+                state = try rules.tick(input: .wait, state: state).state
+            }
+            return CaveStateDigest.sha256Hex(state)
+        }
+        #expect(try run() == run())
+    }
+
+    @Test("slow-growth clock starts only when growth is possible (BD2)")
+    func amoebaSlowGrowthClockStartsOnOpportunity() throws {
+        // Enclosed: no growth opportunity → clock must not arm or tick down.
+        var enclosed = try start(
+            """
+            #####
+            #AAA#
+            #APA#
+            #AEA#
+            #####
+            """,
+            requiredDiamonds: 0,
+            amoebaSlowGrowthTicks: 50,
+            amoebaMaxCells: 50
+        )
+        #expect(!enclosed.amoebaSlowGrowthStarted)
+        #expect(enclosed.amoebaSlowTicksRemaining == 50)
+        enclosed = try rules.tick(input: .wait, state: enclosed).state
+        #expect(!enclosed.amoebaSlowGrowthStarted)
+        #expect(enclosed.amoebaSlowTicksRemaining == 50)
+
+        // Open dirt: first opportunity arms and decrements once.
+        var open = try start(
+            """
+            #####
+            #A..#
+            #P  #
+            #E  #
+            #####
+            """,
+            requiredDiamonds: 0,
+            amoebaSlowGrowthTicks: 50,
+            amoebaMaxCells: 50
+        )
+        open = try rules.tick(input: .wait, state: open).state
+        #expect(open.amoebaSlowGrowthStarted)
+        #expect(open.amoebaSlowTicksRemaining == 49)
+    }
+
+    @Test("CaveLevel amoebaMaxCells 0 auto-resolves from cave size")
+    func amoebaMaxCellsZeroAutoResolves() throws {
+        let level = try CaveLevelBuilder.level(
+            fromASCII: """
+            #####
+            #P A#
+            #E  #
+            #####
+            """,
+            requiredDiamonds: 0,
+            amoebaMaxCells: 0
+        )
+        let expected = CaveLevelRulesV1.resolvedAmoebaMaxCells(
+            requested: 0,
+            width: level.width,
+            height: level.height
+        )
+        #expect(level.amoebaMaxCells == expected)
+        #expect(level.amoebaMaxCells > 0)
+        let state = try rules.start(level: level)
+        #expect(state.amoebaMaxCells == expected)
+    }
+
     // MARK: - Helpers
 
     private func start(
         _ ascii: String,
         requiredDiamonds: Int? = nil,
         timeLimitTicks: Int = 1_000,
-        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks,
+        rngSeed: UInt32 = CaveLevelRulesV1.defaultRngSeed,
+        amoebaSlowGrowthTicks: Int = CaveLevelRulesV1.defaultAmoebaSlowGrowthTicks,
+        amoebaMaxCells: Int = 0
     ) throws -> CaveState {
         let level = try CaveLevelBuilder.level(
             fromASCII: ascii,
             requiredDiamonds: requiredDiamonds,
             timeLimitTicks: timeLimitTicks,
-            magicWallMillingTicks: magicWallMillingTicks
+            magicWallMillingTicks: magicWallMillingTicks,
+            rngSeed: rngSeed,
+            amoebaSlowGrowthTicks: amoebaSlowGrowthTicks,
+            amoebaMaxCells: amoebaMaxCells
         )
         return try rules.start(level: level)
     }

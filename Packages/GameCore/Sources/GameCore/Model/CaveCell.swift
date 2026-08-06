@@ -58,29 +58,31 @@ public enum CaveOccupant: Equatable, Sendable {
     case diamond(EntityID, motion: FallingState)
     case firefly(EntityID, heading: Direction)
     case butterfly(EntityID, heading: Direction)
+    case amoeba(EntityID)
 
     public var id: EntityID {
         switch self {
         case .boulder(let id, _),
              .diamond(let id, _),
              .firefly(let id, _),
-             .butterfly(let id, _):
+             .butterfly(let id, _),
+             .amoeba(let id):
             id
         }
     }
 
-    /// Gravity motion when this occupant falls/rolls; `nil` for enemies.
+    /// Gravity motion when this occupant falls/rolls; `nil` for enemies/amoeba.
     public var motion: FallingState? {
         switch self {
         case .boulder(_, let motion), .diamond(_, let motion): motion
-        case .firefly, .butterfly: nil
+        case .firefly, .butterfly, .amoeba: nil
         }
     }
 
     public var heading: Direction? {
         switch self {
         case .firefly(_, let heading), .butterfly(_, let heading): heading
-        case .boulder, .diamond: nil
+        case .boulder, .diamond, .amoeba: nil
         }
     }
 
@@ -90,6 +92,7 @@ public enum CaveOccupant: Equatable, Sendable {
         case .diamond: .diamond
         case .firefly: .firefly
         case .butterfly: .butterfly
+        case .amoeba: .amoeba
         }
     }
 
@@ -100,14 +103,19 @@ public enum CaveOccupant: Equatable, Sendable {
     public var isEnemy: Bool {
         switch self {
         case .firefly, .butterfly: true
-        case .boulder, .diamond: false
+        case .boulder, .diamond, .amoeba: false
         }
+    }
+
+    public var isAmoeba: Bool {
+        if case .amoeba = self { return true }
+        return false
     }
 
     public var isGravityAffected: Bool {
         switch self {
         case .boulder, .diamond: true
-        case .firefly, .butterfly: false
+        case .firefly, .butterfly, .amoeba: false
         }
     }
 
@@ -115,7 +123,7 @@ public enum CaveOccupant: Equatable, Sendable {
         switch self {
         case .firefly: .destructive
         case .butterfly: .diamondGenerating
-        case .boulder, .diamond: nil
+        case .boulder, .diamond, .amoeba: nil
         }
     }
 
@@ -123,8 +131,8 @@ public enum CaveOccupant: Equatable, Sendable {
         switch self {
         case .boulder(let id, _): .boulder(id, motion: motion)
         case .diamond(let id, _): .diamond(id, motion: motion)
-        case .firefly, .butterfly:
-            preconditionFailure("Enemies have no falling motion")
+        case .firefly, .butterfly, .amoeba:
+            preconditionFailure("Enemies/amoeba have no falling motion")
         }
     }
 
@@ -134,8 +142,8 @@ public enum CaveOccupant: Equatable, Sendable {
         switch self {
         case .boulder: .diamond(id, motion: .falling)
         case .diamond: .boulder(id, motion: .falling)
-        case .firefly, .butterfly:
-            preconditionFailure("Enemies cannot pass a magic wall")
+        case .firefly, .butterfly, .amoeba:
+            preconditionFailure("Enemies/amoeba cannot pass a magic wall")
         }
     }
 
@@ -143,16 +151,16 @@ public enum CaveOccupant: Equatable, Sendable {
         switch self {
         case .firefly(let id, _): .firefly(id, heading: heading)
         case .butterfly(let id, _): .butterfly(id, heading: heading)
-        case .boulder, .diamond:
-            preconditionFailure("Gravity occupants have no heading")
+        case .boulder, .diamond, .amoeba:
+            preconditionFailure("Gravity occupants/amoeba have no heading")
         }
     }
 
-    /// Rocks and diamonds are round; enemies are not.
+    /// Rocks and diamonds are round; enemies and amoeba are not.
     public var isRoundSupport: Bool {
         switch self {
         case .boulder, .diamond: true
-        case .firefly, .butterfly: false
+        case .firefly, .butterfly, .amoeba: false
         }
     }
 }
