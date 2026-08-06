@@ -358,14 +358,15 @@ Tiles are authored at 64×64 with `.nearest` filtering (same continuous scale as
 ### Explosion animation — Bomb Explosion (qubodup / shimobayashi)
 
 - Source: <https://opengameart.org/content/bomb-explosion-animation>
-- Original file: `explosion.png` (888×1554 sheet)
+- Original file: `explosion.png` (`explosion_2.png` on OGA CDN; 512×256 sheet, 8×4 cells at 64×64)
 - License: **CC-BY 3.0**
 - Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-3.0.txt`
-- Downloaded: 2026-08-05
+- Downloaded: 2026-08-06 (re-sliced; prior local cut used a different sheet size)
 - SHA-256 of the unchanged source PNG:
-  `5b2de380d1291e1c1dabf1a15112ed97df2fed03acd70155ccbdd011559e40fb`
-- Changes: sliced 4×7 cells at 222×222, near-empty cells dropped, nearest-scaled
-  to 96×96 → `Textures/cave/explosion/frame_XX.png` (played centered on blast).
+  `23844ad8d80350e3c72cfb9aabfdd5f82597026a806da87e2aa1c316570020ef`
+- Changes: nonempty cells in row-major order, nearest-scaled to 96×96, slight
+  yellow lift on orange cores / warm sparks → `Textures/cave/explosion/frame_XX.png`
+  (played centered on blast; no runtime colorBlend tint).
 - Attribution: shimobayashi (base blood effect) + qubodup (explosion recolor).
 
 ## `theme.kenney` board textures

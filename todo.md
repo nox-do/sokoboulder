@@ -451,7 +451,7 @@ Leben/Bonus/Polishing (App-Schicht). Sand (4.1) getrennt.
 - [x] Gegner: klassische BD-Fly-AI (Prefer-Turn; Gegen-Prefer = Pause; 2×2-Orbit ok)
 - [x] Bugfix: Seek/Pivot entfernt (Tür-Oszillation in 034)
 - [x] Demo 034: Firefly an Deckenecke, damit Patrouille statt Orbit
-- [x] Explosion: hellgelbes Tint auf OGA-Frames (Sheet war braun)
+- [x] Explosion: Frames neu vom aktuellen OGA-Sheet (512×256, gelb/orange); Runtime-Multiply-Tint entfernt
 - [ ] Explosion-Audio-Cue (Tod-Sound reicht vorerst)
 - [ ] Playtest Level 034
 

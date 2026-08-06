@@ -368,10 +368,9 @@ final class SokobanBoardScene: SKScene {
             )
         } else {
             node = SKSpriteNode(texture: textures[0], size: size)
-            // Source sheet is muddy brown (blood→explosion recolor). Force a bright
-            // firefly blast tint; never inherit entity/player blend state.
-            node.color = SKColor(calibratedRed: 1.0, green: 0.95, blue: 0.35, alpha: 1)
-            node.colorBlendFactor = 0.72
+            // Frames are already yellow-orange from the OGA sheet; do not multiply-tint
+            // (colorBlendFactor darkens the core and reads as muddy brown).
+            node.colorBlendFactor = 0
         }
         node.name = "explosionAnim"
         node.blendMode = .alpha
@@ -387,15 +386,9 @@ final class SokobanBoardScene: SKScene {
 
         let frameTime = 0.045
         let animate = SKAction.animate(with: textures, timePerFrame: frameTime, resize: false, restore: false)
-        // Re-assert tint each frame — animate(with:) can reset blend on some OS versions.
-        let holdTint = SKAction.customAction(withDuration: frameTime * Double(textures.count)) { node, _ in
-            guard let sprite = node as? SKSpriteNode else { return }
-            sprite.color = SKColor(calibratedRed: 1.0, green: 0.95, blue: 0.35, alpha: 1)
-            sprite.colorBlendFactor = 0.72
-        }
         node.run(
             .sequence([
-                .group([animate, holdTint]),
+                animate,
                 .fadeOut(withDuration: 0.05),
                 .removeFromParent(),
             ])
