@@ -130,5 +130,7 @@
   "level.cave.demo.030.title": "Höhle 30",
   "level.cave.demo.031.title": "Höhle 31",
   "level.cave.demo.032.title": "Höhle 32",
-  "level.cave.demo.033.title": "Höhle 33"
+  "level.cave.demo.033.title": "Höhle 33",
+  "level.cave.demo.034.title": "Glühwürmchen",
+  "hint.cave.enemies": "Gelbe Glühwürmchen suchen zuerst eine Wand, dann folgen sie links. Kammer mit Öffnung rechts — Abstand halten oder Fels fallen lassen."
 }

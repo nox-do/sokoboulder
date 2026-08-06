@@ -300,6 +300,308 @@ struct CaveGoldenTests {
         #expect(CaveStateDigest.canonicalString(stateA) == CaveStateDigest.canonicalString(stateB))
     }
 
+    // MARK: - Phase 5.1 enemies + explosions
+
+    @Test("firefly turns left and moves when prefer side is open")
+    func fireflyPrefersLeftTurn() throws {
+        var state = try start("""
+            #####
+            #   #
+            # F #
+            #  P#
+            #E  #
+            #####
+            """)
+        // Default heading left → prefer left is down.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        guard case .firefly(_, let heading) = state.grid[GridPosition(column: 2, row: 3)].occupant else {
+            Issue.record("expected firefly to turn left (down)")
+            return
+        }
+        #expect(heading == .down)
+    }
+
+    @Test("firefly orbits 2x2 in open space (classic BD)")
+    func fireflyOrbitsOpenSpace() throws {
+        var state = try start("""
+            ######
+            #    #
+            #  F #
+            #    #
+            #P  E#
+            ######
+            """)
+        // F at (3,2) heading left → (3,3)↓ → (4,3)→ → (4,2)↑ → (3,2)← …
+        var seen: [GridPosition] = []
+        for _ in 0..<8 {
+            state = try rules.tick(input: .wait, state: state).state
+            for row in 0..<state.grid.height {
+                for column in 0..<state.grid.width {
+                    let p = GridPosition(column: column, row: row)
+                    if case .firefly = state.grid[p].occupant {
+                        if seen.last != p { seen.append(p) }
+                    }
+                }
+            }
+        }
+        let orbit: Set<GridPosition> = [
+            GridPosition(column: 3, row: 2),
+            GridPosition(column: 3, row: 3),
+            GridPosition(column: 4, row: 3),
+            GridPosition(column: 4, row: 2),
+        ]
+        #expect(Set(seen).isSubset(of: orbit))
+        #expect(orbit.isSubset(of: Set(seen)))
+    }
+
+    @Test("firefly turns against preference then advances along corridor")
+    func fireflyTurnsThenAdvancesAlongCorridor() throws {
+        var state = try start("""
+            #####
+            #F  #
+            #. P#
+            #E  #
+            #####
+            """)
+        // Prefer left (down) = dirt; forward (left) = wall → turn right (up), stay.
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .firefly(_, let heading1) = state.grid[GridPosition(column: 1, row: 1)].occupant else {
+            Issue.record("expected firefly still at start after against-prefer turn")
+            return
+        }
+        #expect(heading1 == .up)
+        state = try rules.tick(input: .wait, state: state).state // odd idle
+        // Heading up; prefer left + forward blocked → turn right, stay.
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .firefly(_, let heading2) = state.grid[GridPosition(column: 1, row: 1)].occupant else {
+            Issue.record("expected second against-prefer turn")
+            return
+        }
+        #expect(heading2 == .right)
+        state = try rules.tick(input: .wait, state: state).state // odd idle
+        // Heading right; prefer up blocked; forward open → move.
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .firefly(_, let heading3) = state.grid[GridPosition(column: 2, row: 1)].occupant else {
+            Issue.record("expected firefly to advance along corridor")
+            return
+        }
+        #expect(heading3 == .right)
+    }
+
+    @Test("butterfly prefers right turn and moves when open")
+    func butterflyPrefersRightTurn() throws {
+        var state = try start("""
+            #####
+            #   #
+            # B #
+            #  P#
+            #E  #
+            #####
+            """)
+        // Heading left → prefer right is up.
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        guard case .butterfly(_, let heading) = state.grid[GridPosition(column: 2, row: 1)].occupant else {
+            Issue.record("expected butterfly to turn right (up)")
+            return
+        }
+        #expect(heading == .up)
+    }
+
+    @Test("butterfly turns against preference without moving")
+    func butterflyTurnsAgainstPreferenceInPlace() throws {
+        var state = try start("""
+            #####
+            ##  #
+            #B  #
+            #  P#
+            #E  #
+            #####
+            """)
+        // Heading left; prefer right (up) = wall; forward (left) = wall → turn left (down), stay.
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .butterfly(_, let heading) = state.grid[GridPosition(column: 1, row: 2)].occupant else {
+            Issue.record("expected butterfly to stay and face down")
+            return
+        }
+        #expect(heading == .down)
+        #expect(state.grid[GridPosition(column: 1, row: 3)].occupant == nil)
+    }
+
+    @Test("firefly turns into a side tunnel while wall-following")
+    func fireflyEntersSideTunnel() throws {
+        var state = try start("""
+            ########
+            #     F#
+            ##### ##
+            #P   #E#
+            ########
+            """)
+        // Corridor westbound: at the shaft under col 5, prefer-left turns south.
+        var enteredShaft = false
+        for _ in 0..<48 {
+            state = try rules.tick(input: .wait, state: state).state
+            if case .firefly = state.grid[GridPosition(column: 5, row: 2)].occupant {
+                enteredShaft = true
+                break
+            }
+            if case .firefly = state.grid[GridPosition(column: 5, row: 3)].occupant {
+                enteredShaft = true
+                break
+            }
+        }
+        #expect(enteredShaft)
+    }
+
+    @Test("firefly follows one-tile corridor after prefer turns")
+    func fireflyFollowsCorridor() throws {
+        var state = try start("""
+            ########
+            #F     #
+            ########
+            #P    E#
+            ########
+            """)
+        // Two against-prefer turns (left+forward blocked), then march right.
+        for _ in 0..<5 {
+            state = try rules.tick(input: .wait, state: state).state
+        }
+        guard case .firefly(_, let heading) = state.grid[GridPosition(column: 2, row: 1)].occupant else {
+            Issue.record("expected firefly one step along corridor")
+            return
+        }
+        #expect(heading == .right)
+        state = try rules.tick(input: .wait, state: state).state // odd idle
+        state = try rules.tick(input: .wait, state: state).state // even: next step
+        guard case .firefly = state.grid[GridPosition(column: 3, row: 1)].occupant else {
+            Issue.record("expected firefly second step along corridor")
+            return
+        }
+    }
+
+    @Test("firefly does not oscillate at convex doorway")
+    func fireflyLeavesDoorwayWithoutOscillation() throws {
+        var state = try start("""
+            ########
+            #      #
+            #    F##
+            #      #
+            #P    E#
+            ########
+            """)
+        // F at (5,2) under ceiling, beside right wall — prefer left (down) into
+        // doorway row, then prefer left (right) out; must not hop forever.
+        var positions: [GridPosition] = []
+        for _ in 0..<16 {
+            state = try rules.tick(input: .wait, state: state).state
+            for row in 0..<state.grid.height {
+                for column in 0..<state.grid.width {
+                    let p = GridPosition(column: column, row: row)
+                    if case .firefly = state.grid[p].occupant {
+                        positions.append(p)
+                    }
+                }
+            }
+        }
+        let unique = Set(positions)
+        #expect(unique.count >= 3)
+        #expect(!unique.isSubset(of: [
+            GridPosition(column: 5, row: 2),
+            GridPosition(column: 5, row: 3),
+        ]))
+    }
+
+    @Test("player walking into firefly explodes and dies")
+    func playerWalksIntoFirefly() throws {
+        let state = try start("""
+            ####
+            #PF#
+            #E #
+            ####
+            """)
+        let kill = try rules.tick(input: .move(.right), state: state)
+        #expect(kill.outcome == .terminal(.failed))
+        #expect(kill.state.player == .dead(at: GridPosition(column: 2, row: 1)))
+        #expect(kill.events.contains(where: {
+            if case .explosion(let center, _) = $0 {
+                return center == GridPosition(column: 2, row: 1)
+            }
+            return false
+        }))
+        #expect(kill.state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+    }
+
+    @Test("falling boulder triggers firefly explosion; steel survives")
+    func boulderExplodesFireflySteelSurvives() throws {
+        var state = try start("""
+            #####
+            #XOX#
+            #XFX#
+            #XXX#
+            #P E#
+            #####
+            """)
+        state = try rules.tick(input: .wait, state: state).state // begin falling
+        let boom = try rules.tick(input: .wait, state: state)
+        state = boom.state
+        #expect(boom.events.contains(where: {
+            if case .explosion = $0 { return true }
+            return false
+        }))
+        #expect(boom.events.contains(where: {
+            if case .entityMoved(let ref, _, let to) = $0 {
+                return ref.kind == .boulder && to == GridPosition(column: 2, row: 2)
+            }
+            return false
+        }))
+        #expect(state.grid[GridPosition(column: 1, row: 1)].terrain == .steelWall)
+        #expect(state.grid[GridPosition(column: 3, row: 1)].terrain == .steelWall)
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+        #expect(state.status == .playing)
+    }
+
+    @Test("butterfly explosion spawns diamonds")
+    func butterflyExplosionSpawnsDiamonds() throws {
+        let state = try start("""
+            ####
+            #PB#
+            #E #
+            ####
+            """, requiredDiamonds: 0)
+        let boom = try rules.tick(input: .move(.right), state: state)
+        #expect(boom.outcome == .terminal(.failed))
+        var diamondCount = 0
+        for row in 0..<boom.state.grid.height {
+            for column in 0..<boom.state.grid.width {
+                if case .diamond = boom.state.grid[GridPosition(column: column, row: row)].occupant {
+                    diamondCount += 1
+                }
+            }
+        }
+        #expect(diamondCount >= 1)
+    }
+
+    @Test("adjacent fireflies chain-explode")
+    func fireflyChainExplosion() throws {
+        let state = try start("""
+            #####
+            #PFF#
+            #E  #
+            #####
+            """)
+        let boom = try rules.tick(input: .move(.right), state: state)
+        #expect(boom.outcome == .terminal(.failed))
+        let explosionCount = boom.events.filter {
+            if case .explosion = $0 { return true }
+            return false
+        }.count
+        #expect(explosionCount >= 2)
+        #expect(boom.state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+        #expect(boom.state.grid[GridPosition(column: 3, row: 1)].occupant == nil)
+    }
+
     // MARK: - Helpers
 
     private func start(

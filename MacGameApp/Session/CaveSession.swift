@@ -269,7 +269,9 @@ final class CaveSession {
         let base = revision
         revision += 1
         let snap = RenderSnapshot.project(state)
-        let renderEvents = delivery == .hardResync ? [] : events
+        // Cave always hard-resyncs tiles, but still forwards events so the scene
+        // can play one-shot VFX (explosions). Audio uses the same event list.
+        let renderEvents = events
         let audioEvents = audioDelivery == .perform ? events : []
         return SessionEmission(
             render: RenderUpdate(

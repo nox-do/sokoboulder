@@ -7,11 +7,13 @@
 /// - `X` steel wall
 /// - `O` boulder on floor
 /// - `*` diamond on floor
+/// - `F` firefly on floor (heading left)
+/// - `B` butterfly on floor (heading left)
 /// - `P` player on floor
 /// - `E` closed exit
 public enum CaveASCIIParser {
     public static let knownGlyphs: Set<Character> = [
-        " ", ".", "#", "X", "O", "*", "P", "E",
+        " ", ".", "#", "X", "O", "*", "F", "B", "P", "E",
     ]
 
     public static func parse(_ text: String) throws(CaveParseError) -> CaveASCIIMap {
@@ -163,6 +165,12 @@ public enum CaveLevelBuilder {
                     terrains.append(.floor)
                     occupants.append(CaveOccupantStart(position: position, kind: .diamond))
                     diamondCount += 1
+                case "F":
+                    terrains.append(.floor)
+                    occupants.append(CaveOccupantStart(position: position, kind: .firefly))
+                case "B":
+                    terrains.append(.floor)
+                    occupants.append(CaveOccupantStart(position: position, kind: .butterfly))
                 case "P":
                     terrains.append(.floor)
                     if playerStart != nil {

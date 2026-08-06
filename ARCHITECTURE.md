@@ -304,7 +304,7 @@ public enum CaveTerrain: Equatable, Sendable {
     case void
     case floor
     case wall
-    case steelWall // im Code; bis Phase 5 explosionsgleich zu `wall`
+    case steelWall // unzerstörbar (Explosionen); Phase 5.1
     case dirt
     case exit(ExitState)
 }
@@ -312,9 +312,10 @@ public enum CaveTerrain: Equatable, Sendable {
 public enum CaveOccupant: Equatable, Sendable {
     case boulder(EntityID, motion: FallingState)
     case diamond(EntityID, motion: FallingState)
-    // Phase 5 (noch nicht im Code):
-    // case firefly(EntityID, heading: Direction)
-    // case butterfly(EntityID, heading: Direction)
+    // Phase 5.1:
+    case firefly(EntityID, heading: Direction)
+    case butterfly(EntityID, heading: Direction)
+    // Phase 5.2:
     // case amoeba(EntityID)
 }
 ```
@@ -420,9 +421,10 @@ Undo-Funktionen deterministisch. Die initiale Vergabe erfolgt in kanonischer
 Rasterreihenfolge.
 
 `EntityRef` enthält mindestens diese Laufzeit-ID und eine darstellungsrelevante
-Objektart. `CellChange` beschreibt bei Flächenwirkungen alte und neue
-Renderinhalte einer Position. Damit enthalten Ereignisse genug Information für
-eine eindeutige Animation, ohne das vollständige Domänenmodell offenzulegen.
+Objektart. `CellChange` trägt bei Flächenwirkungen derzeit die betroffene
+`GridPosition`; alte/neue Renderinhalte sind optionaler Ausbau, sobald
+Explosion-Partikel oder Audio mehr brauchen als Snapshot-Diff. Ereignisse
+bleiben Hinweise — der Snapshot ist autoritativ.
 
 Alle in öffentlichen `Equatable`- oder `Sendable`-Typen gespeicherten Hilfstypen,
 darunter `EntityID`, `ExitState` und `FallingState`, deklarieren dieselben
@@ -538,17 +540,27 @@ sind, empfiehlt ADR 0005 **simultane Intents / Double Buffer** als
 Produktdefault; In-place mit `processedGeneration` bleibt nur optionaler
 späterer Kompatibilitätsmodus und wird nicht parallel abstrahiert.
 
-Ein Tick besteht konzeptionell aus:
+Ein Tick besteht aus (ADR 0005, Phase 5.1):
 
 1. höchstens eine gepufferte Spielerabsicht anwenden,
-2. bewegliche Zellen in definierter Reihenfolge aktualisieren
-   (Intents berechnen),
-3. Gravitation und seitliches Abrollen berechnen,
-4. Gegner nach ihren lokalen Regeln bewegen,
-5. Explosionen und resultierende Zellen über eine Queue anwenden,
-6. Sammelzähler, Ausgang und Punktestand aktualisieren,
-7. Zeit reduzieren,
-8. Sieg- und Todeszustand bestimmen.
+2. **Explosions-Queue leeren** (falls Spielerkontakt Gegner zündete),
+3. bei terminalem Status: Tick zählen und abbrechen (Tod vor weiterer Physik),
+4. Gravitation und seitliches Abrollen (simultane Intents),
+5. **Explosions-Queue leeren** (Falltreffer auf Gegner),
+6. bei terminalem Status: abbrechen,
+7. Gegner bewegen (simultane Intents) — **nur auf geraden Ticks**
+   (`tick % 2 == 0`), also mit halber Simulationsrate; Spieler und Gravity
+   bleiben voll bei 10 Hz,
+8. **Explosions-Queue leeren** (nach Gegnerphase, wenn sie lief),
+9. bei terminalem Status: abbrechen,
+10. Ausgang öffnen / Levelabschluss prüfen,
+11. Zeit reduzieren,
+12. Sieg- und Todeszustand bestimmen.
+
+Explosionen werden also **pro Phase** drain’t, nicht erst am Tickende. So bleibt
+ADR-Punkt „Tod vor Exit“ und „keine Gravity/Gegner nach Tod“ konstruktiv
+erfüllt. Neu erzeugte Diamanten aus Butterfly-Explosionen handeln erst ab dem
+**nächsten** Tick (Update-once).
 
 Spielerische Objektregeln (Schieben, Rollen, ruhend vs. fallend, Gegner,
 Explosionstypen) stehen in [GAMEPLAY.md](GAMEPLAY.md) §6. Die gewählte Semantik
@@ -575,21 +587,36 @@ gefährlich ist oder ob ein fallender Fels einschlägt.
 
 ### 7.6 Gegner und Explosionen
 
-Gegner werden in Phase 5 implementiert. Ihre Bewegungsentscheidung verwendet nur
-Raster, aktuelle Richtung und lokale Nachbarschaft (Firefly: Linkswand;
-Butterfly: Rechtswand). Kontakt Spieler↔Gegner ist symmetrisch; historische
+Phase 5.1 implementiert Glühwürmchen und Schmetterlinge nach der klassischen
+Boulder-Dash-Fly-AI (BDCFF/C64), nur mit Raster, Heading und Nachbarschaft:
+
+- **Firefly:** Prefer-links → drehen+bewegen; sonst vorwärts; sonst gegen Prefer
+  drehen und **diese Aktion nicht bewegen**.
+- **Butterfly:** Prefer-rechts (sonst analog).
+
+Nur Leerraum oder die Spielerzelle sind betretbar. Offener Raum ergibt den
+bekannten 2×2-Orbit — bewusst, kein Wand-Seek. Scan der Intent-Berechnung
+oben→unten, links→rechts; Zielkonflikt: früher Intent gewinnt, Verlierer bleibt
+(Position und Heading unverändert). Gegner handeln nur jeden zweiten Tick
+(`tick % 2 == 0`). Kontakt Spieler↔Gegner ist symmetrisch; historische
 Scan-Asymmetrien sind kein Produktziel.
+
+Fallender Fels/Diamant auf Gegner: Impakt belegt die Gegnerzelle, danach zündet
+die Explosion und zerstört den 3×3-Bereich (inkl. Impakt-Objekt).
 
 Explosionen sind keine SpriteKit-Partikel mit Spielwirkung, sondern Kernoperationen:
 
-- betroffene 3×3-Zellen bestimmen,
-- zerstörbare Inhalte entfernen bzw. Butterfly-Explosion in Diamanten wandeln,
-- Folgeexplosionen über eine Queue erzeugen,
-- fachliche Ereignisse für nachgelagerte Präsentationsdienste ausgeben.
+- betroffene 3×3-Zellen bestimmen (Offsets Zeile/Spalte −1…1),
+- `steelWall`, `exit` (MVP), `void` und OOB unverändert lassen,
+- sonst Terrain → `floor`, Occupant entfernen; bei `diamondGenerating` ruhenden
+  Diamanten setzen (Kettenzelle ausgenommen — füllt die Folgeexplosion),
+- Folgeexplosionen über eine Queue enqueuen (FIFO; Überlapp = letzter Schreiber),
+- fachliche `.explosion`-Ereignisse ausgeben.
 
-Stahlwand ist unzerstörbar. Partikel illustrieren anschließend nur das bereits
-berechnete Ergebnis. Amöbe und magische Wand sind Phase-5-Levelparameter; ihre
-Wachstums-/Umwandlungsregeln stehen in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
+Auslöser: Spieler betritt Gegner, Gegner betritt Spieler, fallender
+Fels/Diamant trifft Gegner. Stahlwand ist unzerstörbar. Partikel illustrieren
+anschließend nur das bereits berechnete Ergebnis. Amöbe und magische Wand sind
+Phase 5.2; ihre Regeln stehen in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
 
 ## 8. Zeitmodell und Game Loop
 
@@ -940,8 +967,8 @@ lesbar sind:
 ASCII ist ein Importformat, nicht zwingend das dauerhafte Versandformat.
 Für Höhlen-Golden-Tests (Phase 3.7+) gilt dieselbe Idee mit eigener Legende,
 z. B. ` ` leer, `.` Erde, `#` Ziegel, `X` Stahl, `O` Felsen, `*` Diamant,
-`P` Spieler, `E` Ausgang, später `F`/`B`/`A`/`M` für Gegner, Amöbe und
-magische Wand. Kanonisches Versandformat bleibt versioniertes JSON.
+`P` Spieler, `E` Ausgang, `F` Firefly, `B` Butterfly; später `A`/`M` für Amöbe
+und magische Wand. Kanonisches Versandformat bleibt versioniertes JSON.
 
 ### 12.2 Kanonisches Format
 
@@ -1559,12 +1586,19 @@ Abnahme:
 
 ### Phase 5: Erweiterte Höhlenregeln
 
+Phase 5.1 (umgesetzt):
+
 - Glühwürmchen (Linkswand) und Schmetterlinge (Rechtswand).
 - Explosionen (zerstörend / diamantenerzeugend) und Kettenreaktionen.
+- Stahl unzerstörbar; Ausgang im MVP unzerstörbar.
+- Glyphs `F`/`B`, Digest mit Heading, Shape-Render-Fallback.
+
+Phase 5.2 / App-Polishing (offen):
+
 - Amöben (Wachstum, Ersticken → Diamanten, Überwuchern → Felsen).
 - Magische Wand (dormant / active / expired).
 - Leben, Levelreihenfolge und Bonuswertung in der App-Schicht.
-- Polishing von Animation und Schwierigkeit.
+- Pixel-Sprites / Explosion-Audio; Animation- und Schwierigkeits-Polishing.
 - Audiopolishing nach den Vorgaben aus [AUDIO.md](AUDIO.md).
 
 Abnahme:

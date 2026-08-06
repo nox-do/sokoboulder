@@ -340,7 +340,85 @@ final class SokobanBoardScene: SKScene {
         // Hard-resync never replays historical celebration effects and must match
         // the target snapshot exactly (no leftover goal highlights / frame).
         clearCelebrationPresentation(using: update.snapshot)
+        // One-shot VFX after the snap (cave always hard-resyncs).
+        playHardResyncEffects(from: update.events)
         markSettled(update.targetRevision)
+    }
+
+    /// Transient effects that survive a hard tile snap (explosions).
+    private func playHardResyncEffects(from events: [GameEvent]) {
+        for event in events {
+            if case .explosion(let center, _) = event {
+                playExplosionAnimation(at: center)
+            }
+        }
+    }
+
+    private func playExplosionAnimation(at center: GridPosition) {
+        let textures = Self.explosionTextures()
+        let size = CGSize(
+            width: max(1, geometry.tileSize * 3.1),
+            height: max(1, geometry.tileSize * 3.1)
+        )
+        let node: SKSpriteNode
+        if textures.isEmpty {
+            node = SKSpriteNode(
+                color: SKColor(calibratedRed: 1, green: 0.92, blue: 0.35, alpha: 1),
+                size: size
+            )
+        } else {
+            node = SKSpriteNode(texture: textures[0], size: size)
+            // Source sheet is muddy brown (blood→explosion recolor). Force a bright
+            // firefly blast tint; never inherit entity/player blend state.
+            node.color = SKColor(calibratedRed: 1.0, green: 0.95, blue: 0.35, alpha: 1)
+            node.colorBlendFactor = 0.72
+        }
+        node.name = "explosionAnim"
+        node.blendMode = .alpha
+        node.position = geometry.center(for: center)
+        node.zPosition = 5
+        effectLayer.addChild(node)
+
+        if prefersReducedMotion || textures.count <= 1 {
+            let hold = prefersReducedMotion ? 0.05 : 0.12
+            node.run(.sequence([.wait(forDuration: hold), .fadeOut(withDuration: 0.08), .removeFromParent()]))
+            return
+        }
+
+        let frameTime = 0.045
+        let animate = SKAction.animate(with: textures, timePerFrame: frameTime, resize: false, restore: false)
+        // Re-assert tint each frame — animate(with:) can reset blend on some OS versions.
+        let holdTint = SKAction.customAction(withDuration: frameTime * Double(textures.count)) { node, _ in
+            guard let sprite = node as? SKSpriteNode else { return }
+            sprite.color = SKColor(calibratedRed: 1.0, green: 0.95, blue: 0.35, alpha: 1)
+            sprite.colorBlendFactor = 0.72
+        }
+        node.run(
+            .sequence([
+                .group([animate, holdTint]),
+                .fadeOut(withDuration: 0.05),
+                .removeFromParent(),
+            ])
+        )
+    }
+
+    private static var cachedExplosionTextures: [SKTexture]?
+
+    private static func explosionTextures() -> [SKTexture] {
+        if let cachedExplosionTextures { return cachedExplosionTextures }
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanBoardScene.self))
+        var textures: [SKTexture] = []
+        for index in 0..<32 {
+            let path = String(format: "Textures/cave/explosion/frame_%02d.png", index)
+            guard let url = try? resources.url(at: path),
+                  let image = NSImage(contentsOf: url)
+            else { break }
+            let texture = SKTexture(image: image)
+            texture.filteringMode = .nearest
+            textures.append(texture)
+        }
+        cachedExplosionTextures = textures
+        return textures
     }
 
     private func cancelAnimationsAndPending() {
@@ -353,8 +431,11 @@ final class SokobanBoardScene: SKScene {
         for node in entityNodes.values {
             node.removeAllActions()
         }
-        effectLayer.removeAllActions()
-        effectLayer.removeAllChildren()
+        // Keep in-flight explosion sprites across cave hard-resync ticks.
+        for child in effectLayer.children where child.name != "explosionAnim" {
+            child.removeAllActions()
+            child.removeFromParent()
+        }
         frameNode.removeAllActions()
     }
 
@@ -363,7 +444,7 @@ final class SokobanBoardScene: SKScene {
     private func rebuild(from snapshot: RenderSnapshot) {
         terrainLayer.removeAllChildren()
         entityLayer.removeAllChildren()
-        effectLayer.removeAllChildren()
+        // effectLayer keeps explosionAnim nodes across hard-resync ticks.
         terrainNodes.removeAll(keepingCapacity: true)
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
@@ -628,6 +709,8 @@ final class SokobanBoardScene: SKScene {
             case .levelCompleted:
                 scheduleCompletionCelebration(using: snapshot, group: group)
                 scheduled = true
+            case .explosion(let center, _):
+                playExplosionAnimation(at: center)
             default:
                 break
             }
@@ -818,6 +901,14 @@ final class SokobanBoardScene: SKScene {
             fill = ThemeColor(red: 0.15, green: 0.85, blue: 0.95, alpha: 1)
             stroke = ThemeColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1)
             symbol = "◆"
+        case .firefly:
+            fill = ThemeColor(red: 0.95, green: 0.85, blue: 0.15, alpha: 1)
+            stroke = ThemeColor(red: 0.45, green: 0.35, blue: 0.05, alpha: 1)
+            symbol = "※"
+        case .butterfly:
+            fill = ThemeColor(red: 0.85, green: 0.35, blue: 0.75, alpha: 1)
+            stroke = ThemeColor(red: 0.35, green: 0.1, blue: 0.3, alpha: 1)
+            symbol = "✦"
         }
 
         let node = SKSpriteNode(color: fill.skColor, size: .zero)
@@ -876,6 +967,8 @@ final class SokobanBoardScene: SKScene {
             return cachedTexture(at: onGoal ? paths.crateOnGoal : paths.crate)
         case .diamond:
             return cachedTexture(at: paths.goal)
+        case .firefly, .butterfly:
+            return nil
         }
     }
 
@@ -888,6 +981,10 @@ final class SokobanBoardScene: SKScene {
             return cachedTexture(at: paths.boulder)
         case .diamond:
             return cachedTexture(at: paths.diamond)
+        case .firefly:
+            return cachedTexture(at: paths.firefly)
+        case .butterfly:
+            return cachedTexture(at: paths.butterfly)
         case .crate:
             return nil
         }

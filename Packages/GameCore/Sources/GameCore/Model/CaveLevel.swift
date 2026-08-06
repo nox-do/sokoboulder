@@ -43,14 +43,29 @@ public struct CaveLevel: Equatable, Sendable {
 public struct CaveOccupantStart: Equatable, Sendable {
     public let position: GridPosition
     public let kind: CaveOccupantKind
+    /// Initial facing for enemies; ignored for boulder/diamond.
+    public let heading: Direction
 
-    public init(position: GridPosition, kind: CaveOccupantKind) {
+    public init(
+        position: GridPosition,
+        kind: CaveOccupantKind,
+        heading: Direction = .left
+    ) {
         self.position = position
         self.kind = kind
+        self.heading = heading
     }
 }
 
 public enum CaveOccupantKind: Equatable, Sendable {
     case boulder
     case diamond
+    case firefly
+    case butterfly
+}
+
+/// Explosion effect produced by enemies (ADR 0005).
+public enum CaveExplosionKind: Equatable, Sendable {
+    case destructive
+    case diamondGenerating
 }

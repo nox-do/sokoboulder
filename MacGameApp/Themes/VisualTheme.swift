@@ -18,9 +18,14 @@ struct CaveTexturePaths: Equatable, Sendable {
     var exitClosed: String
     var exitOpen: String
     var player: String
+    var firefly: String
+    var butterfly: String
 
     var allPaths: [String] {
-        [dirt, tunnel, wall, steelWall, boulder, diamond, exitClosed, exitOpen, player]
+        [
+            dirt, tunnel, wall, steelWall, boulder, diamond,
+            exitClosed, exitOpen, player, firefly, butterfly,
+        ]
     }
 }
 

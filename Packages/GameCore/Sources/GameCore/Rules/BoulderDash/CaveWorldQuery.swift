@@ -34,13 +34,16 @@ enum CaveWorldQuery {
     }
 
     /// Resting objects treat the living player as solid support; falling ones may enter.
+    /// Enemies are never support: rocks begin falling onto them and explode on impact.
     static func canFallInto(in state: CaveState, at position: GridPosition, motion: FallingState) -> Bool {
         switch presence(in: state, at: position) {
         case .empty:
             return true
         case .player:
             return motion == .falling
-        case .occupant, .blocked:
+        case .occupant(let occupant):
+            return occupant.isEnemy
+        case .blocked:
             return false
         }
     }

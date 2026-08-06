@@ -47,16 +47,31 @@ public enum CaveTerrain: Equatable, Sendable {
 public enum CaveOccupant: Equatable, Sendable {
     case boulder(EntityID, motion: FallingState)
     case diamond(EntityID, motion: FallingState)
+    case firefly(EntityID, heading: Direction)
+    case butterfly(EntityID, heading: Direction)
 
     public var id: EntityID {
         switch self {
-        case .boulder(let id, _), .diamond(let id, _): id
+        case .boulder(let id, _),
+             .diamond(let id, _),
+             .firefly(let id, _),
+             .butterfly(let id, _):
+            id
         }
     }
 
-    public var motion: FallingState {
+    /// Gravity motion when this occupant falls/rolls; `nil` for enemies.
+    public var motion: FallingState? {
         switch self {
         case .boulder(_, let motion), .diamond(_, let motion): motion
+        case .firefly, .butterfly: nil
+        }
+    }
+
+    public var heading: Direction? {
+        switch self {
+        case .firefly(_, let heading), .butterfly(_, let heading): heading
+        case .boulder, .diamond: nil
         }
     }
 
@@ -64,6 +79,8 @@ public enum CaveOccupant: Equatable, Sendable {
         switch self {
         case .boulder: .boulder
         case .diamond: .diamond
+        case .firefly: .firefly
+        case .butterfly: .butterfly
         }
     }
 
@@ -71,15 +88,52 @@ public enum CaveOccupant: Equatable, Sendable {
         EntityRef(id: id, kind: entityKind)
     }
 
+    public var isEnemy: Bool {
+        switch self {
+        case .firefly, .butterfly: true
+        case .boulder, .diamond: false
+        }
+    }
+
+    public var isGravityAffected: Bool {
+        switch self {
+        case .boulder, .diamond: true
+        case .firefly, .butterfly: false
+        }
+    }
+
+    public var explosionKind: CaveExplosionKind? {
+        switch self {
+        case .firefly: .destructive
+        case .butterfly: .diamondGenerating
+        case .boulder, .diamond: nil
+        }
+    }
+
     public func withMotion(_ motion: FallingState) -> CaveOccupant {
         switch self {
         case .boulder(let id, _): .boulder(id, motion: motion)
         case .diamond(let id, _): .diamond(id, motion: motion)
+        case .firefly, .butterfly:
+            preconditionFailure("Enemies have no falling motion")
         }
     }
 
+    public func withHeading(_ heading: Direction) -> CaveOccupant {
+        switch self {
+        case .firefly(let id, _): .firefly(id, heading: heading)
+        case .butterfly(let id, _): .butterfly(id, heading: heading)
+        case .boulder, .diamond:
+            preconditionFailure("Gravity occupants have no heading")
+        }
+    }
+
+    /// Rocks and diamonds are round; enemies are not.
     public var isRoundSupport: Bool {
-        true
+        switch self {
+        case .boulder, .diamond: true
+        case .firefly, .butterfly: false
+        }
     }
 }
 

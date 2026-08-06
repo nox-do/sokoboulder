@@ -18,4 +18,6 @@ public enum EntityKind: Equatable, Sendable {
     case crate
     case boulder
     case diamond
+    case firefly
+    case butterfly
 }

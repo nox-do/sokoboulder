@@ -128,7 +128,9 @@ struct Phase34ThemeTests {
                     "diamond": "Textures/cave/diamond.png",
                     "exitClosed": "Textures/cave/exit-closed.png",
                     "exitOpen": "Textures/cave/exit-open.png",
-                    "player": "Textures/cave/player.png"
+                    "player": "Textures/cave/player.png",
+                    "firefly": "Textures/cave/firefly.png",
+                    "butterfly": "Textures/cave/butterfly.png"
                   }
                 }
               }

@@ -339,6 +339,35 @@ Tiles are authored at 64×64 with `.nearest` filtering (same continuous scale as
 - Composited from cave tunnel + dungeon goal glow (`glowCircle` / HellGate floor
   composite — see goal notice). Local: `exit-open.png`, `exit-closed.png`.
 
+### Firefly / Butterfly — Butterfly sprite (Jordan Irwin / AntumDeluge)
+
+- Source: <https://opengameart.org/content/butterfly>
+- Original archive: `butterfly-1.0.zip` → `PNG/16x32/butterfly.png` (48×128 sheet)
+- License: **CC-BY 3.0** / **OGA-BY 3.0** (we use CC-BY 3.0)
+- Local licenses:
+  `MacGameApp/Resources/Textures/Licenses/CC-BY-3.0.txt`,
+  `MacGameApp/Resources/Textures/Licenses/OGA-BY-3.0-butterfly-antumdeluge.txt`
+- Downloaded: 2026-08-05
+- SHA-256 of the unchanged source PNG:
+  `a5e47291780342d351f6805fa8a9490cb103c75c311da7ba773782d013e6d094`
+- Changes: extracted one 16×32 frame, nearest-scaled ×2, centered on transparent
+  64×64; wing colors remapped — yellow/gold → `Textures/cave/firefly.png`,
+  blue/periwinkle → `Textures/cave/butterfly.png`.
+- Attribution: Jordan Irwin (AntumDeluge).
+
+### Explosion animation — Bomb Explosion (qubodup / shimobayashi)
+
+- Source: <https://opengameart.org/content/bomb-explosion-animation>
+- Original file: `explosion.png` (888×1554 sheet)
+- License: **CC-BY 3.0**
+- Local license: `MacGameApp/Resources/Textures/Licenses/CC-BY-3.0.txt`
+- Downloaded: 2026-08-05
+- SHA-256 of the unchanged source PNG:
+  `5b2de380d1291e1c1dabf1a15112ed97df2fed03acd70155ccbdd011559e40fb`
+- Changes: sliced 4×7 cells at 222×222, near-empty cells dropped, nearest-scaled
+  to 96×96 → `Textures/cave/explosion/frame_XX.png` (played centered on blast).
+- Attribution: shimobayashi (base blood effect) + qubodup (explosion recolor).
+
 ## `theme.kenney` board textures
 
 - Pack: Sokoban (100+ tiles)

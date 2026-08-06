@@ -407,11 +407,14 @@ Phase 4 **nicht** enthalten. Erst nach Playtest und expliziter Freigabe.
 
 ### 6.8 Gegner, Explosionen, Amöbe, magische Wand (Phase 5)
 
-Gegner verfolgen nicht; sie folgen lokalen Wandregeln und betreten nur Leerraum:
+Gegner verfolgen nicht; sie folgen der klassischen Boulder-Dash-Fly-Regel und
+betreten nur Leerraum (oder die Spielerzelle → Kontakt/Explosion):
 
-- **Firefly:** bevorzugt links (links frei → drehen+bewegen; sonst vorne; sonst
-  rechts drehen).
+- **Firefly:** links frei → drehen+bewegen; sonst vorne gehen; sonst rechts
+  drehen und **stehen bleiben** (ein Gegner-Beat Pause).
 - **Butterfly:** spiegelverkehrt rechts bevorzugt.
+- **Offener Raum:** absichtlicher 2×2-Orbit (kein Wand-Seek). Level legen
+  Gegner an Wände/Korridore, wenn Patrouille statt Kreisen gewünscht ist.
 
 Kontakt Spieler↔Gegner ist in unserer Engine **symmetrisch** tödlich/explosiv
 (Spieler neben Gegner oder Gegner neben Spieler). Historische Scan-Asymmetrien
@@ -422,8 +425,9 @@ Explosionen sind Kernoperationen auf einem 3×3-Bereich:
 - Firefly → zerstörend, danach typisch leer,
 - Butterfly → diamantenerzeugend (bis zu neun Diamanten),
 - Stahlwand unzerstörbar; Ziegel, Erde, Felsen, Diamanten, Gegner, Amöbe u. a.
-  zerstörbar; Ausgang je nach Levelregel,
-- Kettenreaktionen über eine Explosions-Queue, nicht rekursiv in-place.
+  zerstörbar; Ausgang im MVP unzerstörbar (später levelregelbar),
+- Kettenreaktionen über eine Explosions-Queue (Drain nach jeder Tick-Phase),
+  nicht rekursiv in-place.
 
 **Amöbe:** wächst kontrolliert (nicht jede Zelle jeden Tick) in orthogonal
 angrenzendes `empty`/`dirt`; eingeschlossen → Diamanten; Übergröße/Dauer →

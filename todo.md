@@ -413,6 +413,62 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [ ] Optional: Step-Varianten / manuelles Pegel-Playtest
 - [ ] Optional: echte DE-Titel für `004`–`033` (aktuell Platzhalter)
 
+### Cave-Sand (Planung 2026-08-05) — Regeln fest, Implementierung offen
+
+Plan: `docs/plans/4.1-cave-sand.md` (Rev. Buddeln statt Coexistence)
+
+MVP fest:
+- Occupant `:`, Fall + Diagonal-Rutsch (Sand-auf-Sand lawiniert)
+- Buddeln entfernt Sand (keine Coexistence); Spieler blockiert Sand immer (kein Kill)
+- Sand kein Round Support; Fels liegt bis Sand weg, dann Nachfall
+- Nicht schiebbar; Dirt unverändert
+
+- [x] Produktregeln im Plan nachgezogen (2026-08-05)
+- [ ] Freigabe Implementierung
+- [ ] GAMEPLAY §6 + Objektmatrix
+- [ ] GameCore Rules + Golden-Tests
+- [ ] Render Dirt ≠ Sand (Abnahme)
+- [ ] Lehr-Levels (Fall / Rutsch≠Roll / Buddeln+Fels-auf-Sand)
+- Später optional: Slowdown, Schaufel, Ersticken
+
+### Phase 5 — Erweiterte Höhlenregeln (Entscheidungen 2026-08-05)
+
+Plan 5.1: `docs/plans/5.1-enemies-explosions.md`
+
+Scope laut ARCHITECTURE: Gegner, Explosionen/Ketten, Amöbe, Magische Wand,
+Leben/Bonus/Polishing (App-Schicht). Sand (4.1) getrennt.
+
+#### 5.1 Gegner + Explosionen — umgesetzt (2026-08-05)
+
+- [x] Firefly (Linkswand) / Butterfly (Rechtswand)
+- [x] Explosionen destructive / diamondGenerating + Ketten-Queue
+- [x] Stahlwand unzerstörbar; Ausgang MVP unzerstörbar
+- [x] Glyphs `F`/`B`, Digest mit Heading, Render-Shapes
+- [x] Golden-Tests + Demo-Level `cave.demo.034`
+- [x] Docs nachgezogen (ARCHITECTURE §6.2/7.4–7.6, ADR 0005, Plan 5.1)
+- [x] Bugfix: Fall-Impakt belegt Gegnerzelle vor Explosion (`entityMoved` konsistent)
+- [x] Pixel-Sprites Firefly/Butterfly (AntumDeluge, gelb/blau Tint, 64×64)
+- [x] Gegner: klassische BD-Fly-AI (Prefer-Turn; Gegen-Prefer = Pause; 2×2-Orbit ok)
+- [x] Bugfix: Seek/Pivot entfernt (Tür-Oszillation in 034)
+- [x] Demo 034: Firefly an Deckenecke, damit Patrouille statt Orbit
+- [x] Explosion: hellgelbes Tint auf OGA-Frames (Sheet war braun)
+- [ ] Explosion-Audio-Cue (Tod-Sound reicht vorerst)
+- [ ] Playtest Level 034
+
+Arcade-Leben (Regeln fest, **Implementierung später** — nicht im ersten Phase-5-Slice):
+- Kein Minecraft-HP; klassischer Arcade-Druck (Leben-Pool)
+- Leben nur in der **aktuellen Cave-Session** (nicht kampagnenweit persistiert)
+- Tod mit Restleben → Leben −1 → Ready/Neustart desselben Levels
+- Leben = 0 → Game Over; Outcome/Navigation **wie bisheriger Steintod**
+  (`caveFailed` → „Noch einmal“ / Levelauswahl / Spielauswahl)
+- Leben in App-/Fortschrittsschicht, nicht in `CaveRules`
+- Bis dahin: Tod bleibt wie jetzt (sofort `caveFailed`, unbegrenztes Retry)
+
+Als Nächstes:
+- [ ] 5.2 Amöbe + Magische Wand
+- [ ] Sand (4.1) vor/nach 5.2?
+- Später: Startleben-Anzahl (Kandidat: 3) + Bonusleben nach Level
+
 ### Phase 4 — Boulder-Dash-Grundspiel (nächster Block)
 
 - [x] Cave-Pixelpack (`Textures/cave/` + `textures.cave`) — Playtest offen
@@ -446,6 +502,8 @@ Plan: `docs/plans/3.9-game-selection-and-cave-foundation.md`
 - [x] Tunnel/Exit aus Dirt + Goal-Glow; Pack unter `Textures/cave/`
 - [x] Schema V1 additiv `textures.cave`; Renderer nutzt Pack bei `presentsCaveContent`
 - [x] Exit-Farben: closed = cyan (lesbar), open = grün (2026-08-04)
+- [x] Firefly/Butterfly: [AntumDeluge Butterfly](https://opengameart.org/content/butterfly)
+  (CC-BY/OGA-BY 3.0), gelb bzw. blau getint, 64×64 (2026-08-05)
 
 ### 3.8 Pixel-Art-Themes – Dungeon (Default) + Kenney, Playtest offen
 

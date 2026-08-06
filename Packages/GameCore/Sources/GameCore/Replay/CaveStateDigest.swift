@@ -15,8 +15,9 @@ import Foundation
 /// <nextEntityID>
 /// <player...>
 /// <terrain row-major glyphs>
-/// <occupantID,kind,motion,column,row>  // ascending by id
+/// <occupantID,kind,motionOrHeading,column,row>  // ascending by id
 /// ```
+/// Gravity occupants use motion (`resting`/`falling`); enemies use heading.
 public enum CaveStateDigest {
     public static func sha256Hex(_ state: CaveState) -> String {
         sha256Hex(utf8: canonicalString(state))
@@ -52,7 +53,7 @@ public enum CaveStateDigest {
                     (
                         occupant.id.rawValue,
                         kindToken(occupant),
-                        motionToken(occupant.motion),
+                        occupantStateToken(occupant),
                         column,
                         row
                     )
@@ -104,6 +105,8 @@ public enum CaveStateDigest {
         switch occupant {
         case .boulder: "boulder"
         case .diamond: "diamond"
+        case .firefly: "firefly"
+        case .butterfly: "butterfly"
         }
     }
 
@@ -112,5 +115,24 @@ public enum CaveStateDigest {
         case .resting: "resting"
         case .falling: "falling"
         }
+    }
+
+    private static func headingToken(_ heading: Direction) -> String {
+        switch heading {
+        case .up: "up"
+        case .down: "down"
+        case .left: "left"
+        case .right: "right"
+        }
+    }
+
+    private static func occupantStateToken(_ occupant: CaveOccupant) -> String {
+        if let motion = occupant.motion {
+            return motionToken(motion)
+        }
+        if let heading = occupant.heading {
+            return headingToken(heading)
+        }
+        return "none"
     }
 }

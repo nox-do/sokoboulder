@@ -67,12 +67,16 @@ struct CaveContentCatalog: Equatable, Sendable {
         levels[0]
     }
 
-    /// Levels with a tutorial hint — always unlocked in campaign progress.
+    /// Leading contiguous levels with a tutorial hint — always unlocked in campaign
+    /// progress. Later levels may still carry a hint for the level intro without
+    /// counting as tutorials (e.g. enemy teach level).
     var tutorialLevelIDs: [String] {
-        levels.compactMap { descriptor in
-            guard let hintID = descriptor.tutorialHintID, !hintID.isEmpty else { return nil }
-            return descriptor.id
+        var ids: [String] = []
+        for descriptor in levels {
+            guard let hintID = descriptor.tutorialHintID, !hintID.isEmpty else { break }
+            ids.append(descriptor.id)
         }
+        return ids
     }
 
     func descriptor(id: String) -> CaveLevelDescriptor? {

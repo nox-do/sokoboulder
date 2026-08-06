@@ -10,15 +10,17 @@ struct CaveDemoCatalogTests {
         let catalog = try BundleContentLoader.loadCaveCatalog(
             from: Foundation.Bundle(for: SokobanPlayController.self)
         )
-        #expect(catalog.levels.count == 33)
+        #expect(catalog.levels.count == 34)
         #expect(catalog.first.id == "cave.demo.001")
         #expect(catalog.descriptor(after: "cave.demo.001")?.id == "cave.demo.002")
         #expect(catalog.descriptor(after: "cave.demo.003")?.id == "cave.demo.004")
-        #expect(catalog.descriptor(after: "cave.demo.033") == nil)
+        #expect(catalog.descriptor(after: "cave.demo.034") == nil)
         #expect(catalog.title(for: catalog.first) == "Der erste Diamant")
         #expect(catalog.title(for: catalog.levels[3]) == "Höhle 4")
+        #expect(catalog.title(for: catalog.levels[33]) == "Glühwürmchen")
         #expect(!catalog.tutorialHint(for: catalog.first).isEmpty)
         #expect(catalog.tutorialHint(for: catalog.levels[3]).isEmpty)
+        #expect(!catalog.tutorialHint(for: catalog.levels[33]).isEmpty)
         #expect(catalog.tutorialLevelIDs == [
             "cave.demo.001",
             "cave.demo.002",

@@ -51,6 +51,8 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
         let exitClosed: String
         let exitOpen: String
         let player: String
+        let firefly: String
+        let butterfly: String
     }
 
     struct BoardDTO: Equatable, Codable, Sendable {
@@ -287,6 +289,8 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
             ("cave.exitClosed", dto.exitClosed),
             ("cave.exitOpen", dto.exitOpen),
             ("cave.player", dto.player),
+            ("cave.firefly", dto.firefly),
+            ("cave.butterfly", dto.butterfly),
         ]
         for (field, path) in fields {
             guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -302,7 +306,9 @@ struct ThemeFileV1: Equatable, Codable, Sendable {
             diamond: dto.diamond,
             exitClosed: dto.exitClosed,
             exitOpen: dto.exitOpen,
-            player: dto.player
+            player: dto.player,
+            firefly: dto.firefly,
+            butterfly: dto.butterfly
         )
     }
 }
@@ -358,10 +364,12 @@ enum StrictThemeJSON {
                         allowed: [
                             "dirt", "tunnel", "wall", "steelWall",
                             "boulder", "diamond", "exitClosed", "exitOpen", "player",
+                            "firefly", "butterfly",
                         ],
                         required: [
                             "dirt", "tunnel", "wall", "steelWall",
                             "boulder", "diamond", "exitClosed", "exitOpen", "player",
+                            "firefly", "butterfly",
                         ]
                     )
                 }

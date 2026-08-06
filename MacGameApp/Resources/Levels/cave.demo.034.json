@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.034",
+  "game": "cave",
+  "titleID": "level.cave.demo.034.title",
+  "tutorialHintID": "hint.cave.enemies",
+  "width": 14,
+  "height": 11,
+  "rows": [
+    "##############",
+    "#P..........*#",
+    "#............#",
+    "#..#######...#",
+    "#..#    F#...#",
+    "#..#         #",
+    "#..#     #...#",
+    "#..#######...#",
+    "#............#",
+    "#...........E#",
+    "##############"
+  ],
+  "rules": {
+    "requiredDiamonds": 1,
+    "timeLimitTicks": 1200,
+    "diamondValue": 10,
+    "extraDiamondValue": 15
+  }
+}

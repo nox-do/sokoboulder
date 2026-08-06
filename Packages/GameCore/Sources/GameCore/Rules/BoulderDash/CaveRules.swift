@@ -1,7 +1,7 @@
-/// Deterministic cave rule engine (Phase 3.7 spike / Phase 4 core).
+/// Deterministic cave rule engine (Phase 3.7 spike / Phase 4 core / Phase 5.1 enemies).
 ///
-/// Tick semantics follow ADR 0005: player phase, then simultaneous gravity
-/// intents from the post-player snapshot, then exit / time / terminal checks.
+/// Tick semantics follow ADR 0005: player → gravity → enemies → explosion queue →
+/// exit / time / terminal checks. Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
     public static let ruleVersion: Int = 1
     public static let fixedStepSeconds: Double = 0.10
@@ -26,6 +26,10 @@ public struct CaveRules: Sendable {
                 occupant = .boulder(id, motion: .resting)
             case .diamond:
                 occupant = .diamond(id, motion: .resting)
+            case .firefly:
+                occupant = .firefly(id, heading: start.heading)
+            case .butterfly:
+                occupant = .butterfly(id, heading: start.heading)
             }
             occupantByPosition[start.position] = occupant
         }
@@ -71,19 +75,34 @@ public struct CaveRules: Sendable {
 
         var working = state
         var events: [GameEvent] = []
+        var explosions: [PendingExplosion] = []
 
-        applyPlayer(input: input ?? .wait, to: &working, events: &events)
+        applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
+        drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
             working.tick += 1
             try working.validateEssentials()
             return Transition(state: working, events: events, outcome: .terminal(working.status))
         }
 
-        applyGravity(to: &working, events: &events)
+        applyGravity(to: &working, events: &events, explosions: &explosions)
+        drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
             working.tick += 1
             try working.validateEssentials()
             return Transition(state: working, events: events, outcome: .terminal(working.status))
+        }
+
+        // Half-rate enemies: act on even ticks (0, 2, 4, …) so classic fly
+        // AI stays readable at 10 Hz without changing gravity/player cadence.
+        if working.tick % 2 == 0 {
+            applyEnemies(to: &working, events: &events, explosions: &explosions)
+            drainExplosions(&explosions, in: &working, events: &events)
+            if working.status != .playing {
+                working.tick += 1
+                try working.validateEssentials()
+                return Transition(state: working, events: events, outcome: .terminal(working.status))
+            }
         }
 
         openExitsIfNeeded(in: &working, events: &events)
@@ -123,7 +142,8 @@ public struct CaveRules: Sendable {
     private func applyPlayer(
         input: CaveInput,
         to state: inout CaveState,
-        events: inout [GameEvent]
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
     ) {
         guard case .alive(let from) = state.player else { return }
         guard case .move(let direction) = input else { return }
@@ -176,6 +196,10 @@ public struct CaveRules: Sendable {
                 }
                 collectDiamond(id: id, at: to, in: &state, events: &events)
                 movePlayer(from: from, to: to, digging: false, in: &state, events: &events)
+                return
+            case .firefly, .butterfly:
+                triggerEnemyExplosion(occupant, at: to, in: &state, explosions: &explosions)
+                killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
                 return
             }
         case .empty:
@@ -241,7 +265,11 @@ public struct CaveRules: Sendable {
         let kind: Kind
     }
 
-    private func applyGravity(to state: inout CaveState, events: inout [GameEvent]) {
+    private func applyGravity(
+        to state: inout CaveState,
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
+    ) {
         var intents: [GravityIntent] = []
         var claimedDestinations: Set<GridPosition> = []
 
@@ -267,7 +295,7 @@ public struct CaveRules: Sendable {
         }
 
         for intent in intents {
-            applyGravityIntent(intent, to: &state, events: &events)
+            applyGravityIntent(intent, to: &state, events: &events, explosions: &explosions)
             if state.status != .playing { return }
         }
     }
@@ -277,11 +305,13 @@ public struct CaveRules: Sendable {
         at from: GridPosition,
         in state: CaveState
     ) -> GravityIntent? {
+        guard occupant.isGravityAffected, let motion = occupant.motion else { return nil }
+
         let below = from.neighbor(in: .down)
         let belowPresence = CaveWorldQuery.presence(in: state, at: below)
 
-        if CaveWorldQuery.canFallInto(in: state, at: below, motion: occupant.motion) {
-            switch occupant.motion {
+        if CaveWorldQuery.canFallInto(in: state, at: below, motion: motion) {
+            switch motion {
             case .resting:
                 return GravityIntent(from: from, occupant: occupant, kind: .beginFalling)
             case .falling:
@@ -318,7 +348,7 @@ public struct CaveRules: Sendable {
             }
         }
 
-        if occupant.motion == .falling {
+        if motion == .falling {
             return GravityIntent(from: from, occupant: occupant, kind: .land)
         }
         return nil
@@ -327,7 +357,8 @@ public struct CaveRules: Sendable {
     private func applyGravityIntent(
         _ intent: GravityIntent,
         to state: inout CaveState,
-        events: inout [GameEvent]
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
     ) {
         let ref = intent.occupant.entityRef
         switch intent.kind {
@@ -337,7 +368,6 @@ public struct CaveRules: Sendable {
         case .land:
             state.grid[intent.from].occupant = intent.occupant.withMotion(.resting)
             events.append(.objectLanded(ref, at: intent.from))
-            // Landing on player is handled when moving onto the cell, not here.
         case .move(let to, let motion):
             let presence = CaveWorldQuery.presence(in: state, at: to)
             state.grid[intent.from].occupant = nil
@@ -350,11 +380,238 @@ public struct CaveRules: Sendable {
                 state.grid[to].occupant = moved
                 events.append(.entityMoved(ref, from: intent.from, to: to))
                 killPlayer(at: to, causingOccupant: moved, in: &state, events: &events)
-            case .occupant, .blocked:
-                // Should not happen after conflict resolution; restore source.
+            case .occupant(let target):
+                if target.isEnemy {
+                    // Impact: rock/diamond occupies the cell; the queued explosion
+                    // then destroys the 3×3 (including this occupant).
+                    state.grid[to].occupant = moved
+                    events.append(.entityMoved(ref, from: intent.from, to: to))
+                    triggerEnemyExplosion(target, at: to, in: &state, explosions: &explosions)
+                } else {
+                    // Should not happen after conflict resolution; restore source.
+                    state.grid[intent.from].occupant = intent.occupant
+                }
+            case .blocked:
                 state.grid[intent.from].occupant = intent.occupant
             }
         }
+    }
+
+    // MARK: - Enemies
+
+    private struct EnemyIntent: Equatable {
+        let from: GridPosition
+        let occupant: CaveOccupant
+        let heading: Direction
+        let destination: GridPosition?
+    }
+
+    private func applyEnemies(
+        to state: inout CaveState,
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
+    ) {
+        let snapshot = state
+        var intents: [EnemyIntent] = []
+        var claimedDestinations: Set<GridPosition> = []
+
+        for row in 0..<snapshot.grid.height {
+            for column in 0..<snapshot.grid.width {
+                let from = GridPosition(column: column, row: row)
+                guard let occupant = snapshot.grid[from].occupant, occupant.isEnemy else {
+                    continue
+                }
+                let intent = enemyIntent(for: occupant, at: from, in: snapshot)
+                if let destination = intent.destination {
+                    if claimedDestinations.contains(destination) {
+                        continue
+                    }
+                    claimedDestinations.insert(destination)
+                }
+                intents.append(intent)
+            }
+        }
+
+        for intent in intents {
+            applyEnemyIntent(intent, to: &state, events: &events, explosions: &explosions)
+            if state.status != .playing { return }
+        }
+    }
+
+    /// Classic Boulder Dash fly AI (BDCFF / C64): prefer-hand turn+move, else
+    /// forward, else turn against preference and stay put for this beat.
+    /// Open-space 2×2 orbits are intentional — no wall-seek.
+    private func enemyIntent(
+        for occupant: CaveOccupant,
+        at from: GridPosition,
+        in state: CaveState
+    ) -> EnemyIntent {
+        let heading = occupant.heading ?? .left
+        let preferLeft = {
+            if case .firefly = occupant { return true }
+            return false
+        }()
+        let preferred = preferLeft ? heading.turnedLeft : heading.turnedRight
+        let against = preferLeft ? heading.turnedRight : heading.turnedLeft
+
+        let preferredDestination = from.neighbor(in: preferred)
+        if isEnemyEnterable(preferredDestination, in: state) {
+            return EnemyIntent(
+                from: from,
+                occupant: occupant,
+                heading: preferred,
+                destination: preferredDestination
+            )
+        }
+
+        let forwardDestination = from.neighbor(in: heading)
+        if isEnemyEnterable(forwardDestination, in: state) {
+            return EnemyIntent(
+                from: from,
+                occupant: occupant,
+                heading: heading,
+                destination: forwardDestination
+            )
+        }
+
+        // Against-preference turn costs a beat (no move) — classic BD timing.
+        return EnemyIntent(
+            from: from,
+            occupant: occupant,
+            heading: against,
+            destination: nil
+        )
+    }
+
+    private func isEnemyEnterable(_ position: GridPosition, in state: CaveState) -> Bool {
+        switch CaveWorldQuery.presence(in: state, at: position) {
+        case .empty, .player: true
+        case .occupant, .blocked: false
+        }
+    }
+
+    private func applyEnemyIntent(
+        _ intent: EnemyIntent,
+        to state: inout CaveState,
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
+    ) {
+        // Source may already have been cleared by an earlier explosion this tick.
+        guard let current = state.grid[intent.from].occupant,
+              current.id == intent.occupant.id else {
+            return
+        }
+
+        let updated = current.withHeading(intent.heading)
+        guard let destination = intent.destination else {
+            state.grid[intent.from].occupant = updated
+            return
+        }
+
+        switch CaveWorldQuery.presence(in: state, at: destination) {
+        case .empty:
+            state.grid[intent.from].occupant = nil
+            state.grid[destination].occupant = updated
+            events.append(.entityMoved(updated.entityRef, from: intent.from, to: destination))
+        case .player:
+            state.grid[intent.from].occupant = nil
+            state.grid[destination].occupant = updated
+            events.append(.entityMoved(updated.entityRef, from: intent.from, to: destination))
+            triggerEnemyExplosion(updated, at: destination, in: &state, explosions: &explosions)
+            killPlayer(at: destination, causingOccupant: updated, in: &state, events: &events)
+        case .occupant, .blocked:
+            // Destination filled since intent scan; keep heading update only.
+            state.grid[intent.from].occupant = updated
+        }
+    }
+
+    // MARK: - Explosions
+
+    private struct PendingExplosion: Equatable {
+        let center: GridPosition
+        let kind: CaveExplosionKind
+    }
+
+    private func triggerEnemyExplosion(
+        _ enemy: CaveOccupant,
+        at position: GridPosition,
+        in state: inout CaveState,
+        explosions: inout [PendingExplosion]
+    ) {
+        guard let kind = enemy.explosionKind else { return }
+        if let current = state.grid[position].occupant, current.id == enemy.id {
+            state.grid[position].occupant = nil
+        }
+        explosions.append(PendingExplosion(center: position, kind: kind))
+    }
+
+    private func drainExplosions(
+        _ queue: inout [PendingExplosion],
+        in state: inout CaveState,
+        events: inout [GameEvent]
+    ) {
+        var index = 0
+        while index < queue.count {
+            let pending = queue[index]
+            index += 1
+            applyExplosion(pending, in: &state, events: &events, queue: &queue)
+        }
+        queue.removeAll(keepingCapacity: true)
+    }
+
+    private func applyExplosion(
+        _ explosion: PendingExplosion,
+        in state: inout CaveState,
+        events: inout [GameEvent],
+        queue: inout [PendingExplosion]
+    ) {
+        var changes: [CellChange] = []
+
+        for rowOffset in -1...1 {
+            for columnOffset in -1...1 {
+                let position = GridPosition(
+                    column: explosion.center.column + columnOffset,
+                    row: explosion.center.row + rowOffset
+                )
+                guard state.grid.contains(position) else { continue }
+
+                if case .alive(let playerPosition) = state.player, playerPosition == position {
+                    killPlayer(at: position, causingOccupant: nil, in: &state, events: &events)
+                }
+
+                let cell = state.grid[position]
+                switch cell.terrain {
+                case .steelWall, .void, .exit:
+                    continue
+                case .wall, .dirt, .floor:
+                    break
+                }
+
+                var chained = false
+                if let occupant = cell.occupant {
+                    if let kind = occupant.explosionKind {
+                        state.grid[position].occupant = nil
+                        queue.append(PendingExplosion(center: position, kind: kind))
+                        chained = true
+                    } else {
+                        state.grid[position].occupant = nil
+                    }
+                }
+
+                state.grid[position] = CaveCell(terrain: .floor, occupant: nil)
+
+                // Chained enemy cells are filled by their own explosion, not this one.
+                if !chained, explosion.kind == .diamondGenerating {
+                    let id = EntityID(state.nextEntityID)
+                    state.nextEntityID += 1
+                    state.grid[position].occupant = .diamond(id, motion: .resting)
+                }
+
+                changes.append(CellChange(position: position))
+            }
+        }
+
+        events.append(.explosion(center: explosion.center, changes: changes))
     }
 
     // MARK: - Exit / death helpers
@@ -380,6 +637,7 @@ public struct CaveRules: Sendable {
         events: inout [GameEvent]
     ) {
         _ = causingOccupant
+        guard case .alive = state.player else { return }
         state.player = .dead(at: position)
         state.status = .failed
         events.append(.playerDied(at: position))

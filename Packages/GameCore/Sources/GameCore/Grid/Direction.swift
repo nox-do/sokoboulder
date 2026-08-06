@@ -33,4 +33,24 @@ public enum Direction: Hashable, CaseIterable, Codable, Sendable {
         case .right: .left
         }
     }
+
+    /// Counter-clockwise turn (Firefly left-wall preference).
+    public var turnedLeft: Direction {
+        switch self {
+        case .up: .left
+        case .left: .down
+        case .down: .right
+        case .right: .up
+        }
+    }
+
+    /// Clockwise turn (Butterfly right-wall preference).
+    public var turnedRight: Direction {
+        switch self {
+        case .up: .right
+        case .right: .down
+        case .down: .left
+        case .left: .up
+        }
+    }
 }
