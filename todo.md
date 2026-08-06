@@ -473,7 +473,7 @@ Arcade-Leben (Regeln fest, **Implementierung später** — nicht im ersten Phase
 - Bis dahin: Tod bleibt wie jetzt (sofort `caveFailed`, unbegrenztes Retry)
 
 Als Nächstes:
-- [ ] 5.2b Amöbe
+- [ ] 5.2b Amöbe — Entwurf: `docs/plans/5.2b-amoeba.md` (Determinismus vs. Classic-RNG klären)
 - [ ] Sand (4.1) vor/nach 5.2?
 - Später: Startleben-Anzahl (Kandidat: 3) + Bonusleben nach Level
 
