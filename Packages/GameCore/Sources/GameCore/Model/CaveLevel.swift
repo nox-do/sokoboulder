@@ -16,6 +16,7 @@ public struct CaveLevel: Equatable, Sendable {
     public let timeLimitTicks: Int
     public let diamondValue: Int
     public let extraDiamondValue: Int
+    public let magicWallMillingTicks: Int
 
     public init(
         width: Int,
@@ -26,7 +27,8 @@ public struct CaveLevel: Equatable, Sendable {
         requiredDiamonds: Int,
         timeLimitTicks: Int,
         diamondValue: Int = 10,
-        extraDiamondValue: Int = 15
+        extraDiamondValue: Int = 15,
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
     ) {
         self.width = width
         self.height = height
@@ -37,6 +39,7 @@ public struct CaveLevel: Equatable, Sendable {
         self.timeLimitTicks = timeLimitTicks
         self.diamondValue = diamondValue
         self.extraDiamondValue = extraDiamondValue
+        self.magicWallMillingTicks = magicWallMillingTicks
     }
 }
 

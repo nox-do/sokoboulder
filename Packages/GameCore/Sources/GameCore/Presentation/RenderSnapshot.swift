@@ -7,6 +7,8 @@ public enum RenderTerrain: Equatable, Sendable {
     case floor
     case wall
     case steelWall
+    case magicWall
+    case magicWallActive
     case dirt
     case goal
     case exitClosed
@@ -162,7 +164,9 @@ extension RenderSnapshot {
             for column in 0..<width {
                 let position = GridPosition(column: column, row: row)
                 let cell = state.grid[position]
-                cells.append(RenderCell(terrain: RenderTerrain(cell.terrain)))
+                cells.append(
+                    RenderCell(terrain: RenderTerrain(cell.terrain, magicWall: state.magicWallStatus))
+                )
                 if let occupant = cell.occupant {
                     entities.append(
                         RenderEntity(ref: occupant.entityRef, position: position)
@@ -202,12 +206,18 @@ extension RenderTerrain {
         }
     }
 
-    fileprivate init(_ terrain: CaveTerrain) {
+    fileprivate init(_ terrain: CaveTerrain, magicWall status: MagicWallStatus) {
         switch terrain {
         case .void: self = .void
         case .floor: self = .floor
         case .wall: self = .wall
         case .steelWall: self = .steelWall
+        case .magicWall:
+            if case .active = status {
+                self = .magicWallActive
+            } else {
+                self = .magicWall
+            }
         case .dirt: self = .dirt
         case .exit(.closed): self = .exitClosed
         case .exit(.open): self = .exitOpen

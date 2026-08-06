@@ -25,7 +25,7 @@ public struct CaveCell: Equatable, Sendable {
     public var isPlayerWalkableTerrain: Bool {
         switch terrain {
         case .floor, .dirt, .exit(.open): true
-        case .void, .wall, .steelWall, .exit(.closed): false
+        case .void, .wall, .steelWall, .magicWall, .exit(.closed): false
         }
     }
 
@@ -35,11 +35,20 @@ public struct CaveCell: Equatable, Sendable {
     }
 }
 
+/// Global magic-wall machine for the cave (BDCFF: not per-cell).
+public enum MagicWallStatus: Equatable, Sendable {
+    case dormant
+    case active(remainingTicks: Int)
+    case expired
+}
+
 public enum CaveTerrain: Equatable, Sendable {
     case void
     case floor
     case wall
     case steelWall
+    /// Looks like brick; conversion uses ``CaveState/magicWallStatus``.
+    case magicWall
     case dirt
     case exit(ExitState)
 }
@@ -116,6 +125,17 @@ public enum CaveOccupant: Equatable, Sendable {
         case .diamond(let id, _): .diamond(id, motion: motion)
         case .firefly, .butterfly:
             preconditionFailure("Enemies have no falling motion")
+        }
+    }
+
+    /// Boulder ↔ diamond through an active magic wall; caller supplies a fresh id
+    /// so presentation never reuses a stale kind on the same node.
+    public func morphedThroughMagicWall(id: EntityID) -> CaveOccupant {
+        switch self {
+        case .boulder: .diamond(id, motion: .falling)
+        case .diamond: .boulder(id, motion: .falling)
+        case .firefly, .butterfly:
+            preconditionFailure("Enemies cannot pass a magic wall")
         }
     }
 

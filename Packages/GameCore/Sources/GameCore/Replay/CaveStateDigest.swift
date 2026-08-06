@@ -32,6 +32,7 @@ public enum CaveStateDigest {
             "\(state.collectedDiamonds)/\(state.requiredDiamonds)",
             String(state.remainingTicks),
             String(state.nextEntityID),
+            magicWallToken(state.magicWallStatus),
             playerToken(state.player, id: state.playerID),
         ]
 
@@ -96,8 +97,17 @@ public enum CaveStateDigest {
         case .dirt: "."
         case .wall: "#"
         case .steelWall: "X"
+        case .magicWall: "M"
         case .exit(.closed): "E"
         case .exit(.open): "e"
+        }
+    }
+
+    private static func magicWallToken(_ status: MagicWallStatus) -> String {
+        switch status {
+        case .dormant: "magic:dormant"
+        case .active(let remaining): "magic:active,\(remaining)"
+        case .expired: "magic:expired"
         }
     }
 

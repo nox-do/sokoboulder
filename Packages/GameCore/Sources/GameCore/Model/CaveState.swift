@@ -15,6 +15,8 @@ public struct CaveState: Equatable, Sendable {
     public let extraDiamondValue: Int
     public internal(set) var remainingTicks: Int
     public internal(set) var nextEntityID: UInt64
+    public let magicWallMillingTicks: Int
+    public internal(set) var magicWallStatus: MagicWallStatus
 
     init(
         grid: Grid<CaveCell>,
@@ -28,7 +30,9 @@ public struct CaveState: Equatable, Sendable {
         diamondValue: Int,
         extraDiamondValue: Int,
         remainingTicks: Int,
-        nextEntityID: UInt64
+        nextEntityID: UInt64,
+        magicWallMillingTicks: Int,
+        magicWallStatus: MagicWallStatus
     ) {
         self.grid = grid
         self.player = player
@@ -42,6 +46,8 @@ public struct CaveState: Equatable, Sendable {
         self.extraDiamondValue = extraDiamondValue
         self.remainingTicks = remainingTicks
         self.nextEntityID = nextEntityID
+        self.magicWallMillingTicks = magicWallMillingTicks
+        self.magicWallStatus = magicWallStatus
     }
 
     public var playerRef: EntityRef {

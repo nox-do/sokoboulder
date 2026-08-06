@@ -450,10 +450,18 @@ Leben/Bonus/Polishing (App-Schicht). Sand (4.1) getrennt.
 - [x] Pixel-Sprites Firefly/Butterfly (AntumDeluge, gelb/blau Tint, 64×64)
 - [x] Gegner: klassische BD-Fly-AI (Prefer-Turn; Gegen-Prefer = Pause; 2×2-Orbit ok)
 - [x] Bugfix: Seek/Pivot entfernt (Tür-Oszillation in 034)
-- [x] Demo 034: Firefly an Deckenecke, damit Patrouille statt Orbit
+- [x] Demo 034: Firefly an Deckenecke + Butterfly unten links in der Kammer
 - [x] Explosion: Frames neu vom aktuellen OGA-Sheet (512×256, gelb/orange); Runtime-Multiply-Tint entfernt
 - [ ] Explosion-Audio-Cue (Tod-Sound reicht vorerst)
 - [ ] Playtest Level 034
+
+#### 5.2a Magische Wand — umgesetzt (2026-08-06)
+
+- [x] Terrain `M` + globaler Status dormant/active/expired
+- [x] Fall-Morph Fels↔Diamant (2-Zellen-Sprung); Expired/blockiert/Spieler darunter → vernichten
+- [x] Unzerstörbar bei Explosion; Default milling 200 Ticks
+- [x] Golden-Tests + Demo `cave.demo.035`
+- [x] Plan: `docs/plans/5.2-magic-wall.md`
 
 Arcade-Leben (Regeln fest, **Implementierung später** — nicht im ersten Phase-5-Slice):
 - Kein Minecraft-HP; klassischer Arcade-Druck (Leben-Pool)
@@ -465,7 +473,7 @@ Arcade-Leben (Regeln fest, **Implementierung später** — nicht im ersten Phase
 - Bis dahin: Tod bleibt wie jetzt (sofort `caveFailed`, unbegrenztes Retry)
 
 Als Nächstes:
-- [ ] 5.2 Amöbe + Magische Wand
+- [ ] 5.2b Amöbe
 - [ ] Sand (4.1) vor/nach 5.2?
 - Später: Startleben-Anzahl (Kandidat: 3) + Bonusleben nach Level
 

@@ -7,17 +7,23 @@ public struct CaveLevelRulesV1: Equatable, Sendable {
     public var timeLimitTicks: Int
     public var diamondValue: Int
     public var extraDiamondValue: Int
+    /// Milling duration once any magic wall activates. Default ~20s at 10 Hz.
+    public var magicWallMillingTicks: Int
+
+    public static let defaultMagicWallMillingTicks = 200
 
     public init(
         requiredDiamonds: Int,
         timeLimitTicks: Int,
         diamondValue: Int = 10,
-        extraDiamondValue: Int = 15
+        extraDiamondValue: Int = 15,
+        magicWallMillingTicks: Int = Self.defaultMagicWallMillingTicks
     ) {
         self.requiredDiamonds = requiredDiamonds
         self.timeLimitTicks = timeLimitTicks
         self.diamondValue = diamondValue
         self.extraDiamondValue = extraDiamondValue
+        self.magicWallMillingTicks = magicWallMillingTicks
     }
 
     /// Compact canonical JSON for content hashing (sorted keys).
@@ -25,6 +31,7 @@ public struct CaveLevelRulesV1: Equatable, Sendable {
         "{"
             + "\"diamondValue\":\(diamondValue),"
             + "\"extraDiamondValue\":\(extraDiamondValue),"
+            + "\"magicWallMillingTicks\":\(magicWallMillingTicks),"
             + "\"requiredDiamonds\":\(requiredDiamonds),"
             + "\"timeLimitTicks\":\(timeLimitTicks)"
             + "}"
@@ -37,6 +44,7 @@ extension CaveLevelRulesV1: Codable {
         case timeLimitTicks
         case diamondValue
         case extraDiamondValue
+        case magicWallMillingTicks
     }
 
     private struct AnyKey: CodingKey {
@@ -61,6 +69,7 @@ extension CaveLevelRulesV1: Codable {
             CodingKeys.timeLimitTicks.rawValue,
             CodingKeys.diamondValue.rawValue,
             CodingKeys.extraDiamondValue.rawValue,
+            CodingKeys.magicWallMillingTicks.rawValue,
         ]
         let unknown = probe.allKeys.map(\.stringValue).filter { !allowed.contains($0) }.sorted()
         guard unknown.isEmpty else {
@@ -78,6 +87,9 @@ extension CaveLevelRulesV1: Codable {
         timeLimitTicks = try container.decode(Int.self, forKey: .timeLimitTicks)
         diamondValue = try container.decodeIfPresent(Int.self, forKey: .diamondValue) ?? 10
         extraDiamondValue = try container.decodeIfPresent(Int.self, forKey: .extraDiamondValue) ?? 15
+        magicWallMillingTicks =
+            try container.decodeIfPresent(Int.self, forKey: .magicWallMillingTicks)
+            ?? Self.defaultMagicWallMillingTicks
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -86,5 +98,6 @@ extension CaveLevelRulesV1: Codable {
         try container.encode(timeLimitTicks, forKey: .timeLimitTicks)
         try container.encode(diamondValue, forKey: .diamondValue)
         try container.encode(extraDiamondValue, forKey: .extraDiamondValue)
+        try container.encode(magicWallMillingTicks, forKey: .magicWallMillingTicks)
     }
 }

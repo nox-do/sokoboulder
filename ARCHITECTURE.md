@@ -614,9 +614,17 @@ Explosionen sind keine SpriteKit-Partikel mit Spielwirkung, sondern Kernoperatio
 - fachliche `.explosion`-Ereignisse ausgeben.
 
 Auslöser: Spieler betritt Gegner, Gegner betritt Spieler, fallender
-Fels/Diamant trifft Gegner. Stahlwand ist unzerstörbar. Partikel illustrieren
-anschließend nur das bereits berechnete Ergebnis. Amöbe und magische Wand sind
-Phase 5.2; ihre Regeln stehen in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
+Fels/Diamant trifft Gegner. Stahlwand und Magische Wand sind unzerstörbar.
+Partikel illustrieren anschließend nur das bereits berechnete Ergebnis.
+
+**Magische Wand (Phase 5.2a):** Terrain `magicWall`, globaler Status
+`dormant` / `active(remainingTicks)` / `expired` in `CaveState`. Fallender
+Fels/Diamant trifft die Wand → ggf. aktivieren; bei Active Morph + Teleport
+zwei Zellen nach unten (nie „in“ der Wand) mit neuer EntityID; bei blockiertem Ziel, Spieler
+darunter oder Expired → Objekt vernichten. Kein Abrollen von Magic Wall.
+Timer tickt am Tickende. Glyph `M`, Regel `magicWallMillingTicks` (Default 200).
+
+Amöbe folgt in Phase 5.2b; Regeln in [GAMEPLAY.md](GAMEPLAY.md) §6.8.
 
 ## 8. Zeitmodell und Game Loop
 
@@ -967,8 +975,8 @@ lesbar sind:
 ASCII ist ein Importformat, nicht zwingend das dauerhafte Versandformat.
 Für Höhlen-Golden-Tests (Phase 3.7+) gilt dieselbe Idee mit eigener Legende,
 z. B. ` ` leer, `.` Erde, `#` Ziegel, `X` Stahl, `O` Felsen, `*` Diamant,
-`P` Spieler, `E` Ausgang, `F` Firefly, `B` Butterfly; später `A`/`M` für Amöbe
-und magische Wand. Kanonisches Versandformat bleibt versioniertes JSON.
+`P` Spieler, `E` Ausgang, `F` Firefly, `B` Butterfly, `M` Magische Wand;
+später `A` für Amöbe. Kanonisches Versandformat bleibt versioniertes JSON.
 
 ### 12.2 Kanonisches Format
 
@@ -1593,10 +1601,11 @@ Phase 5.1 (umgesetzt):
 - Stahl unzerstörbar; Ausgang im MVP unzerstörbar.
 - Glyphs `F`/`B`, Digest mit Heading, Shape-Render-Fallback.
 
-Phase 5.2 / App-Polishing (offen):
+Phase 5.2a (umgesetzt): Magische Wand (`M`, globaler Milling-Timer).
+
+Phase 5.2b / App-Polishing (offen):
 
 - Amöben (Wachstum, Ersticken → Diamanten, Überwuchern → Felsen).
-- Magische Wand (dormant / active / expired).
 - Leben, Levelreihenfolge und Bonuswertung in der App-Schicht.
 - Pixel-Sprites / Explosion-Audio; Animation- und Schwierigkeits-Polishing.
 - Audiopolishing nach den Vorgaben aus [AUDIO.md](AUDIO.md).

@@ -602,17 +602,187 @@ struct CaveGoldenTests {
         #expect(boom.state.grid[GridPosition(column: 3, row: 1)].occupant == nil)
     }
 
+    // MARK: - Phase 5.2a magic wall
+
+    @Test("resting boulder on magic wall does not activate")
+    func restingOnMagicWallDoesNothing() throws {
+        var state = try start("""
+            #####
+            # O #
+            # M #
+            #P E#
+            #####
+            """, requiredDiamonds: 0)
+        #expect(state.magicWallStatus == .dormant)
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.magicWallStatus == .dormant)
+        guard case .boulder(_, .resting) = state.grid[GridPosition(column: 2, row: 1)].occupant else {
+            Issue.record("boulder should stay resting on magic wall")
+            return
+        }
+    }
+
+    @Test("falling boulder through dormant magic wall becomes diamond")
+    func fallingBoulderMorphsToDiamond() throws {
+        var state = try start("""
+            #####
+            # O #
+            #   #
+            # M #
+            #   #
+            #P E#
+            #####
+            """, requiredDiamonds: 0, magicWallMillingTicks: 50)
+        // Begin fall, then hit wall.
+        state = try rules.tick(input: .wait, state: state).state // beginFalling
+        state = try rules.tick(input: .wait, state: state).state // move to (2,2)
+        state = try rules.tick(input: .wait, state: state).state // magic hit
+        guard case .active = state.magicWallStatus else {
+            Issue.record("expected magic wall active")
+            return
+        }
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        guard case .diamond(_, .falling) = state.grid[GridPosition(column: 2, row: 4)].occupant else {
+            Issue.record("expected falling diamond below magic wall")
+            return
+        }
+    }
+
+    @Test("falling diamond through active magic wall becomes boulder")
+    func fallingDiamondMorphsToBoulder() throws {
+        var state = try start("""
+            #####
+            # * #
+            #   #
+            # M #
+            #   #
+            #P E#
+            #####
+            """, requiredDiamonds: 0, magicWallMillingTicks: 50)
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .boulder(_, .falling) = state.grid[GridPosition(column: 2, row: 4)].occupant else {
+            Issue.record("expected falling boulder below magic wall")
+            return
+        }
+    }
+
+    @Test("blocked exit under magic wall consumes object but activates")
+    func blockedMagicExitConsumes() throws {
+        var state = try start("""
+            #####
+            # O #
+            #   #
+            # M #
+            # # #
+            #P E#
+            #####
+            """, requiredDiamonds: 0)
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        guard case .active = state.magicWallStatus else {
+            Issue.record("expected activation even when exit blocked")
+            return
+        }
+        #expect(state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        #expect(state.grid[GridPosition(column: 2, row: 4)].occupant == nil)
+    }
+
+    @Test("player under magic wall consumes object without death")
+    func playerUnderMagicWallSurvives() throws {
+        var state = try start("""
+            #####
+            # O #
+            #   #
+            # M #
+            # P #
+            #E  #
+            #####
+            """, requiredDiamonds: 0)
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.status == .playing)
+        guard case .alive(let pos) = state.player else {
+            Issue.record("player should live")
+            return
+        }
+        #expect(pos == GridPosition(column: 2, row: 4))
+        #expect(state.grid[pos].occupant == nil)
+        guard case .active = state.magicWallStatus else {
+            Issue.record("wall should activate")
+            return
+        }
+    }
+
+    @Test("expired magic wall consumes without morph")
+    func expiredMagicWallConsumes() throws {
+        var state = try start("""
+            #####
+            # O #
+            #   #
+            # M #
+            #   #
+            #P E#
+            #####
+            """, requiredDiamonds: 0, magicWallMillingTicks: 1)
+        for _ in 0..<8 {
+            state = try rules.tick(input: .wait, state: state).state
+            if case .expired = state.magicWallStatus { break }
+        }
+        guard case .expired = state.magicWallStatus else {
+            Issue.record("expected expired after short milling")
+            return
+        }
+        // Clear debris and drop a new falling boulder onto the expired wall.
+        for row in 1...4 {
+            state.grid[GridPosition(column: 2, row: row)].occupant = nil
+        }
+        state.grid[GridPosition(column: 2, row: 2)].occupant = .boulder(EntityID(50), motion: .falling)
+        state.nextEntityID = max(state.nextEntityID, 51)
+        state = try rules.tick(input: .wait, state: state).state
+        #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
+        #expect(state.grid[GridPosition(column: 2, row: 4)].occupant == nil)
+        guard case .expired = state.magicWallStatus else {
+            Issue.record("should stay expired")
+            return
+        }
+    }
+
+    @Test("magic wall survives explosion")
+    func magicWallSurvivesExplosion() throws {
+        let state = try start("""
+            #####
+            #PFM#
+            #E  #
+            #####
+            """, requiredDiamonds: 0)
+        let boom = try rules.tick(input: .move(.right), state: state)
+        #expect(boom.outcome == .terminal(.failed))
+        if case .magicWall = boom.state.grid[GridPosition(column: 3, row: 1)].terrain {
+            // ok
+        } else {
+            Issue.record("magic wall must be indestructible")
+        }
+    }
+
     // MARK: - Helpers
 
     private func start(
         _ ascii: String,
         requiredDiamonds: Int? = nil,
-        timeLimitTicks: Int = 1_000
+        timeLimitTicks: Int = 1_000,
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
     ) throws -> CaveState {
         let level = try CaveLevelBuilder.level(
             fromASCII: ascii,
             requiredDiamonds: requiredDiamonds,
-            timeLimitTicks: timeLimitTicks
+            timeLimitTicks: timeLimitTicks,
+            magicWallMillingTicks: magicWallMillingTicks
         )
         return try rules.start(level: level)
     }

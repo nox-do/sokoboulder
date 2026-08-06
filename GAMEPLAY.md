@@ -433,8 +433,12 @@ Explosionen sind Kernoperationen auf einem 3×3-Bereich:
 angrenzendes `empty`/`dirt`; eingeschlossen → Diamanten; Übergröße/Dauer →
 Felsen. Parameter sind Levelregeln.
 
-**Magische Wand:** dormant → active (Timer) → expired; wandelt fallende Felsen
-in Diamanten und umgekehrt, wenn die Zelle darunter frei ist.
+**Magische Wand:** global `dormant → active (Timer) → expired` (BDCFF). Nur
+**fallende** Felsen/Diamanten reagieren; ruhend oben drauf passiert nichts.
+Active: Morph Fels↔Diamant und Sprung zwei Zellen nach unten, wenn frei;
+sonst Objekt weg. Expired: Objekt weg ohne Morph. Spieler unter der Wand:
+Objekt weg, Spieler lebt. Wand ist explosions-**unzerstörbar**. Milling-Ticks
+per Levelregel (`magicWallMillingTicks`, Default 200).
 
 ### 6.9 Zeit, Punkte und Tod
 
@@ -486,7 +490,7 @@ beginnt die Höhle im Ready-State neu.
 | Amöbe | nein | nein | nein | nein | nein | ja |
 | Geschl. Ausgang | nein | nein | nein | nein | nein | konfigurierbar |
 | Offener Ausgang | ja (beendet) | nein | nein | nein | nein | konfigurierbar |
-| Magische Wand | nein | nein | nein | nein | nein | meist nein |
+| Magische Wand | nein | nein | nein | nein | nein | nein |
 
 ## 7. Präsentation terminaler Zustände
 

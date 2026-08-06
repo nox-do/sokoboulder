@@ -81,7 +81,8 @@ public enum CaveLevelJSONCodec {
         guard file.rules.requiredDiamonds >= 0,
             file.rules.timeLimitTicks >= 0,
             file.rules.diamondValue >= 0,
-            file.rules.extraDiamondValue >= 0
+            file.rules.extraDiamondValue >= 0,
+            file.rules.magicWallMillingTicks >= 0
         else {
             throw CaveLevelJSONError.invalidRules(detail: "Rule values must be non-negative")
         }
@@ -124,7 +125,8 @@ public enum CaveLevelJSONCodec {
                 requiredDiamonds: file.rules.requiredDiamonds,
                 timeLimitTicks: file.rules.timeLimitTicks,
                 diamondValue: file.rules.diamondValue,
-                extraDiamondValue: file.rules.extraDiamondValue
+                extraDiamondValue: file.rules.extraDiamondValue,
+                magicWallMillingTicks: file.rules.magicWallMillingTicks
             )
         } catch let error as CaveParseError {
             throw CaveLevelJSONError.parse(error)

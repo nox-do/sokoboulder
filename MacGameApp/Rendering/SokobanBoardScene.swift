@@ -487,6 +487,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func relayoutExistingNodes(using snapshot: RenderSnapshot) {
+        reconcileEntityNodes(with: snapshot)
         var index = 0
         for row in 0..<snapshot.height {
             for column in 0..<snapshot.width {
@@ -521,6 +522,7 @@ final class SokobanBoardScene: SKScene {
     }
 
     private func snapEntities(to snapshot: RenderSnapshot) {
+        reconcileEntityNodes(with: snapshot)
         for entity in snapshot.entities {
             guard let node = entityNodes[entity.ref.id] else { continue }
             node.position = geometry.center(for: entity.position)
@@ -529,6 +531,41 @@ final class SokobanBoardScene: SKScene {
         playerNode?.position = geometry.center(for: snapshot.player.position)
         playerNode?.setScale(1)
         updateGoalStateMarkers(using: snapshot)
+    }
+
+    /// Drops vanished IDs and rebuilds nodes whose ``EntityKind`` changed (e.g. magic-wall morph).
+    private func reconcileEntityNodes(with snapshot: RenderSnapshot) {
+        let live = Dictionary(uniqueKeysWithValues: snapshot.entities.map { ($0.ref.id, $0) })
+        for id in Array(entityNodes.keys) {
+            guard live[id] != nil else {
+                entityNodes[id]?.removeFromParent()
+                entityNodes[id] = nil
+                continue
+            }
+        }
+        for entity in snapshot.entities {
+            let expectedName = "entity.\(entity.ref.kind)"
+            if let existing = entityNodes[entity.ref.id] {
+                if existing.name == expectedName { continue }
+                let position = existing.position
+                existing.removeFromParent()
+                let fresh = makeEntityNode(kind: entity.ref.kind)
+                fresh.position = position
+                fresh.size = entitySize()
+                updateStroke(for: fresh, tileSize: geometry.tileSize)
+                resizeSemanticMarkers(in: fresh, tileSize: geometry.tileSize)
+                entityLayer.addChild(fresh)
+                entityNodes[entity.ref.id] = fresh
+            } else {
+                let fresh = makeEntityNode(kind: entity.ref.kind)
+                fresh.position = geometry.center(for: entity.position)
+                fresh.size = entitySize()
+                updateStroke(for: fresh, tileSize: geometry.tileSize)
+                resizeSemanticMarkers(in: fresh, tileSize: geometry.tileSize)
+                entityLayer.addChild(fresh)
+                entityNodes[entity.ref.id] = fresh
+            }
+        }
     }
 
     // MARK: - Camera
@@ -645,6 +682,8 @@ final class SokobanBoardScene: SKScene {
             : Self.moveAnimationDuration
         let group = DispatchGroup()
         var scheduled = false
+
+        reconcileEntityNodes(with: snapshot)
 
         for entity in snapshot.entities {
             guard let node = entityNodes[entity.ref.id] else { continue }
@@ -773,6 +812,14 @@ final class SokobanBoardScene: SKScene {
                 fill = ThemeColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)
                 stroke = ThemeColor(red: 0.25, green: 0.28, blue: 0.32, alpha: 1)
                 symbol = nil
+            case .magicWall:
+                fill = ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
+                stroke = ThemeColor(red: 0.15, green: 0.12, blue: 0.10, alpha: 1)
+                symbol = "M"
+            case .magicWallActive:
+                fill = ThemeColor(red: 0.55, green: 0.25, blue: 0.85, alpha: 1)
+                stroke = ThemeColor(red: 0.95, green: 0.85, blue: 0.2, alpha: 1)
+                symbol = "✧"
             case .goal:
                 fill = tokens.goalFill
                 stroke = tokens.goalStroke
@@ -796,10 +843,14 @@ final class SokobanBoardScene: SKScene {
                 fill = tokens.floorFill
                 stroke = tokens.floorStroke
                 symbol = nil
-            case .wall, .steelWall:
+            case .wall, .steelWall, .magicWall:
                 fill = tokens.wallFill
                 stroke = tokens.wallStroke
                 symbol = tokens.wallSymbol
+            case .magicWallActive:
+                fill = ThemeColor(red: 0.55, green: 0.25, blue: 0.85, alpha: 1)
+                stroke = ThemeColor(red: 0.95, green: 0.85, blue: 0.2, alpha: 1)
+                symbol = "✧"
             case .dirt:
                 fill = tokens.floorFill
                 stroke = tokens.wallStroke
@@ -932,7 +983,7 @@ final class SokobanBoardScene: SKScene {
         switch terrain {
         case .void: return nil
         case .floor, .dirt: return cachedTexture(at: paths.floor)
-        case .wall, .steelWall, .exitClosed: return cachedTexture(at: paths.wall)
+        case .wall, .steelWall, .magicWall, .magicWallActive, .exitClosed: return cachedTexture(at: paths.wall)
         case .goal, .exitOpen: return cachedTexture(at: paths.goal)
         }
     }
@@ -943,7 +994,8 @@ final class SokobanBoardScene: SKScene {
         case .void: return nil
         case .dirt: return cachedTexture(at: paths.dirt)
         case .floor: return cachedTexture(at: paths.tunnel)
-        case .wall: return cachedTexture(at: paths.wall)
+        case .wall, .magicWall: return cachedTexture(at: paths.wall)
+        case .magicWallActive: return cachedTexture(at: paths.wall)
         case .steelWall: return cachedTexture(at: paths.steelWall)
         case .exitClosed: return cachedTexture(at: paths.exitClosed)
         case .exitOpen: return cachedTexture(at: paths.exitOpen)
@@ -1183,8 +1235,13 @@ final class SokobanBoardScene: SKScene {
                 if cave {
                     if usesCavePixelTextures, let texture = caveTerrainTexture(for: cell.terrain) {
                         node.texture = texture
-                        node.color = .white
-                        node.colorBlendFactor = 0
+                        if cell.terrain == .magicWallActive {
+                            node.color = SKColor(calibratedRed: 0.75, green: 0.35, blue: 1.0, alpha: 1)
+                            node.colorBlendFactor = 0.55
+                        } else {
+                            node.color = .white
+                            node.colorBlendFactor = 0
+                        }
                     } else {
                         // Procedural cave placeholders — never Sokoban floor/wall/crate tiles.
                         node.texture = nil
@@ -1212,6 +1269,8 @@ final class SokobanBoardScene: SKScene {
             case .dirt: return ThemeColor(red: 0.72, green: 0.55, blue: 0.28, alpha: 1)
             case .wall: return ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
             case .steelWall: return ThemeColor(red: 0.55, green: 0.58, blue: 0.62, alpha: 1)
+            case .magicWall: return ThemeColor(red: 0.35, green: 0.32, blue: 0.28, alpha: 1)
+            case .magicWallActive: return ThemeColor(red: 0.55, green: 0.25, blue: 0.85, alpha: 1)
             case .goal: return theme.board.terrain.goalFill
             case .exitOpen: return ThemeColor(red: 0.10, green: 0.45, blue: 0.22, alpha: 1)
             case .exitClosed: return ThemeColor(red: 0.12, green: 0.16, blue: 0.22, alpha: 1)
@@ -1220,7 +1279,8 @@ final class SokobanBoardScene: SKScene {
         switch terrain {
         case .void: return theme.board.terrain.voidFill
         case .floor, .dirt: return theme.board.terrain.floorFill
-        case .wall, .steelWall, .exitClosed: return theme.board.terrain.wallFill
+        case .wall, .steelWall, .magicWall, .exitClosed: return theme.board.terrain.wallFill
+        case .magicWallActive: return ThemeColor(red: 0.55, green: 0.25, blue: 0.85, alpha: 1)
         case .goal, .exitOpen: return theme.board.terrain.goalFill
         }
     }

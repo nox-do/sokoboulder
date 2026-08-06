@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "cave.demo.035",
+  "game": "cave",
+  "titleID": "level.cave.demo.035.title",
+  "tutorialHintID": "hint.cave.magicWall",
+  "width": 11,
+  "height": 9,
+  "rows": [
+    "###########",
+    "#P........#",
+    "#....O....#",
+    "#.........#",
+    "#....M....#",
+    "#.........#",
+    "#.........#",
+    "#........E#",
+    "###########"
+  ],
+  "rules": {
+    "requiredDiamonds": 1,
+    "timeLimitTicks": 900,
+    "diamondValue": 10,
+    "extraDiamondValue": 15,
+    "magicWallMillingTicks": 200
+  }
+}

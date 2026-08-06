@@ -66,6 +66,7 @@ enum StrictCaveLevelJSON {
             "timeLimitTicks",
             "diamondValue",
             "extraDiamondValue",
+            "magicWallMillingTicks",
         ]
         let requiredRules: Set<String> = [
             "requiredDiamonds",

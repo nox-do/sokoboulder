@@ -1,4 +1,4 @@
-/// Deterministic cave rule engine (Phase 3.7 spike / Phase 4 core / Phase 5.1 enemies).
+/// Deterministic cave rule engine (Phase 3.7–5.2a: core, enemies, magic wall).
 ///
 /// Tick semantics follow ADR 0005: player → gravity → enemies → explosion queue →
 /// exit / time / terminal checks. Intents are simultaneous from each phase snapshot.
@@ -57,7 +57,9 @@ public struct CaveRules: Sendable {
             diamondValue: level.diamondValue,
             extraDiamondValue: level.extraDiamondValue,
             remainingTicks: level.timeLimitTicks,
-            nextEntityID: nextEntityID
+            nextEntityID: nextEntityID,
+            magicWallMillingTicks: level.magicWallMillingTicks,
+            magicWallStatus: .dormant
         )
         try state.validateEssentials()
         return state
@@ -131,6 +133,7 @@ public struct CaveRules: Sendable {
             return Transition(state: working, events: events, outcome: .terminal(.failed))
         }
         working.remainingTicks -= 1
+        tickMagicWallTimer(in: &working)
 
         working.tick += 1
         try working.validateEssentials()
@@ -211,7 +214,7 @@ public struct CaveRules: Sendable {
             movePlayer(from: from, to: to, digging: true, in: &state, events: &events)
         case .floor, .exit(.open):
             movePlayer(from: from, to: to, digging: false, in: &state, events: &events)
-        case .exit(.closed), .wall, .steelWall, .void:
+        case .exit(.closed), .wall, .steelWall, .magicWall, .void:
             events.append(.movementBlocked(at: to))
         }
     }
@@ -258,6 +261,8 @@ public struct CaveRules: Sendable {
             case beginFalling
             case move(to: GridPosition, motion: FallingState)
             case land
+            /// Hit magic wall: clear source; optionally emerge morphed below.
+            case magicWallHit(exit: GridPosition?)
         }
 
         let from: GridPosition
@@ -280,15 +285,31 @@ public struct CaveRules: Sendable {
                 guard let intent = gravityIntent(for: occupant, at: from, in: state) else {
                     continue
                 }
-                if case .move(let to, _) = intent.kind {
-                    if claimedDestinations.contains(to) {
-                        // Conflict: earlier (top-left) intent wins; this one lands or waits.
-                        if occupant.motion == .falling {
+                let claim: GridPosition?
+                switch intent.kind {
+                case .move(let to, _):
+                    claim = to
+                case .magicWallHit(let exit):
+                    claim = exit
+                case .beginFalling, .land:
+                    claim = nil
+                }
+                if let destination = claim {
+                    if claimedDestinations.contains(destination) {
+                        if case .magicWallHit = intent.kind {
+                            intents.append(
+                                GravityIntent(
+                                    from: from,
+                                    occupant: occupant,
+                                    kind: .magicWallHit(exit: nil)
+                                )
+                            )
+                        } else if occupant.motion == .falling {
                             intents.append(GravityIntent(from: from, occupant: occupant, kind: .land))
                         }
                         continue
                     }
-                    claimedDestinations.insert(to)
+                    claimedDestinations.insert(destination)
                 }
                 intents.append(intent)
             }
@@ -308,6 +329,29 @@ public struct CaveRules: Sendable {
         guard occupant.isGravityAffected, let motion = occupant.motion else { return nil }
 
         let below = from.neighbor(in: .down)
+        if state.grid.contains(below), case .magicWall = state.grid[below].terrain {
+            guard motion == .falling else { return nil }
+            let exit = below.neighbor(in: .down)
+            let canExit: Bool = {
+                guard state.grid.contains(exit) else { return false }
+                if case .alive(let playerPosition) = state.player, playerPosition == exit {
+                    return false
+                }
+                return CaveWorldQuery.presence(in: state, at: exit) == .empty
+            }()
+            let willMorph: Bool = {
+                switch state.magicWallStatus {
+                case .dormant, .active: return canExit
+                case .expired: return false
+                }
+            }()
+            return GravityIntent(
+                from: from,
+                occupant: occupant,
+                kind: .magicWallHit(exit: willMorph ? exit : nil)
+            )
+        }
+
         let belowPresence = CaveWorldQuery.presence(in: state, at: below)
 
         if CaveWorldQuery.canFallInto(in: state, at: below, motion: motion) {
@@ -323,7 +367,7 @@ public struct CaveRules: Sendable {
             }
         }
 
-        // Roll on round support when below is blocked by occupant (not player/empty).
+        // Magic wall is not rounded — no roll-off from it.
         if CaveWorldQuery.isRoundSupport(belowPresence) {
             let left = from.neighbor(in: .left)
             let leftDown = left.neighbor(in: .down)
@@ -368,6 +412,22 @@ public struct CaveRules: Sendable {
         case .land:
             state.grid[intent.from].occupant = intent.occupant.withMotion(.resting)
             events.append(.objectLanded(ref, at: intent.from))
+        case .magicWallHit(let exit):
+            if case .dormant = state.magicWallStatus {
+                state.magicWallStatus = .active(remainingTicks: state.magicWallMillingTicks)
+            }
+            state.grid[intent.from].occupant = nil
+            guard let exit,
+                  case .active = state.magicWallStatus,
+                  CaveWorldQuery.presence(in: state, at: exit) == .empty
+            else {
+                return
+            }
+            let id = EntityID(state.nextEntityID)
+            state.nextEntityID += 1
+            let morphed = intent.occupant.morphedThroughMagicWall(id: id)
+            state.grid[exit].occupant = morphed
+            events.append(.entityMoved(morphed.entityRef, from: intent.from, to: exit))
         case .move(let to, let motion):
             let presence = CaveWorldQuery.presence(in: state, at: to)
             state.grid[intent.from].occupant = nil
@@ -382,18 +442,24 @@ public struct CaveRules: Sendable {
                 killPlayer(at: to, causingOccupant: moved, in: &state, events: &events)
             case .occupant(let target):
                 if target.isEnemy {
-                    // Impact: rock/diamond occupies the cell; the queued explosion
-                    // then destroys the 3×3 (including this occupant).
                     state.grid[to].occupant = moved
                     events.append(.entityMoved(ref, from: intent.from, to: to))
                     triggerEnemyExplosion(target, at: to, in: &state, explosions: &explosions)
                 } else {
-                    // Should not happen after conflict resolution; restore source.
                     state.grid[intent.from].occupant = intent.occupant
                 }
             case .blocked:
                 state.grid[intent.from].occupant = intent.occupant
             }
+        }
+    }
+
+    private func tickMagicWallTimer(in state: inout CaveState) {
+        guard case .active(let remaining) = state.magicWallStatus else { return }
+        if remaining <= 1 {
+            state.magicWallStatus = .expired
+        } else {
+            state.magicWallStatus = .active(remainingTicks: remaining - 1)
         }
     }
 
@@ -581,7 +647,7 @@ public struct CaveRules: Sendable {
 
                 let cell = state.grid[position]
                 switch cell.terrain {
-                case .steelWall, .void, .exit:
+                case .steelWall, .void, .exit, .magicWall:
                     continue
                 case .wall, .dirt, .floor:
                     break

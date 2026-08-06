@@ -9,11 +9,12 @@
 /// - `*` diamond on floor
 /// - `F` firefly on floor (heading left)
 /// - `B` butterfly on floor (heading left)
+/// - `M` magic wall
 /// - `P` player on floor
 /// - `E` closed exit
 public enum CaveASCIIParser {
     public static let knownGlyphs: Set<Character> = [
-        " ", ".", "#", "X", "O", "*", "F", "B", "P", "E",
+        " ", ".", "#", "X", "O", "*", "F", "B", "M", "P", "E",
     ]
 
     public static func parse(_ text: String) throws(CaveParseError) -> CaveASCIIMap {
@@ -116,7 +117,8 @@ public enum CaveLevelBuilder {
         requiredDiamonds: Int? = nil,
         timeLimitTicks: Int = 1_000,
         diamondValue: Int = 10,
-        extraDiamondValue: Int = 15
+        extraDiamondValue: Int = 15,
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
     ) throws -> CaveLevel {
         let map = try CaveASCIIParser.parse(text)
         return try level(
@@ -124,7 +126,8 @@ public enum CaveLevelBuilder {
             requiredDiamonds: requiredDiamonds,
             timeLimitTicks: timeLimitTicks,
             diamondValue: diamondValue,
-            extraDiamondValue: extraDiamondValue
+            extraDiamondValue: extraDiamondValue,
+            magicWallMillingTicks: magicWallMillingTicks
         )
     }
 
@@ -133,7 +136,8 @@ public enum CaveLevelBuilder {
         requiredDiamonds: Int? = nil,
         timeLimitTicks: Int = 1_000,
         diamondValue: Int = 10,
-        extraDiamondValue: Int = 15
+        extraDiamondValue: Int = 15,
+        magicWallMillingTicks: Int = CaveLevelRulesV1.defaultMagicWallMillingTicks
     ) throws -> CaveLevel {
         var terrains: [CaveTerrain] = []
         terrains.reserveCapacity(map.width * map.height)
@@ -155,6 +159,8 @@ public enum CaveLevelBuilder {
                     terrains.append(.wall)
                 case "X":
                     terrains.append(.steelWall)
+                case "M":
+                    terrains.append(.magicWall)
                 case "E":
                     terrains.append(.exit(.closed))
                     exitCount += 1
@@ -204,7 +210,8 @@ public enum CaveLevelBuilder {
             requiredDiamonds: required,
             timeLimitTicks: timeLimitTicks,
             diamondValue: diamondValue,
-            extraDiamondValue: extraDiamondValue
+            extraDiamondValue: extraDiamondValue,
+            magicWallMillingTicks: magicWallMillingTicks
         )
     }
 }
