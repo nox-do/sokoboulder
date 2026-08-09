@@ -98,8 +98,10 @@ Audio-Mixer/Settings und CC0-Assets später.
 - `canAcceptMove` nur `.playing`; `canAcceptSessionCommand` `.playing` | `.outcomePresenting`
 - Terminaler Drain: bei `.outcomePresenting` Restqueue verwerfen
 - Pause/Fokusverlust: `session.pause()` / `resume()`; Phase `.paused`; Core-Zustand unverändert
-- `InputMapper`: zustandslos `NSEvent → GameplayIntent?`; ⌘/⌃/⌥ und `isARepeat` verwerfen
-- ⌘Z / ⇧⌘Z bleiben SwiftUI-Commands; Mapper liefert kein Redo über Gameplay-Pfad
+- `InputMapper`: zustandslos `NSEvent → GameplayIntent?`; `isARepeat` verwerfen
+- Buchstaben-Shortcuts (Z/R, ⌘Z/⇧⌘Z/⌘R) über `charactersIgnoringModifiers` (QWERTZ-sicher);
+  sonst ⌘/⌃/⌥ blockieren. Edit-Menü bleibt für Maus; Tastatur läuft über Local Monitor
+- WASD/Pfeile weiter per Hardware-`keyCode`
 - `GameplayInputRouter`: Modal sperrt Input; Outcome-Gate per Key-up; Confirm nur bei frischem Return/Space (keine Repeats, Confirm-Tasten auch im Gameplay getrackt)
 - Spike-App: `SokobanPlayController` + `SokobanSpriteView` verdrahten Session, Router und Scene; Demo-Level per Tastatur spielbar
 - SpriteKit: FIFO-Animationsqueue (ein Schritt gleichzeitig); Budget 3 → Hard-Resync; Resize/Abort setzt Counter per Generation-Token zurück
@@ -452,6 +454,7 @@ Leben/Bonus/Polishing (App-Schicht). Sand (4.1) getrennt.
 - [x] Bugfix: Seek/Pivot entfernt (Tür-Oszillation in 034)
 - [x] Demo 034: Firefly an Deckenecke + Butterfly unten links in der Kammer
 - [x] Explosion: Frames neu vom aktuellen OGA-Sheet (512×256, gelb/orange); Runtime-Multiply-Tint entfernt
+- [x] Bugfix: Demo-Außenrahmen `#`→`X` (Stahl/Titanium); Explosionen sprengen den Rand nicht mehr (Original-BD)
 - [ ] Explosion-Audio-Cue (Tod-Sound reicht vorerst)
 - [ ] Playtest Level 034
 
@@ -568,6 +571,8 @@ Nachzug SoC (2026-08-03, Review-Smells):
   Test: `GameCoreTests/CampaignSolvabilityOneShotTests.swift` (manuell, kein CI-Gate)
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
+- [x] Sokoban ⌘Z/⇧⌘Z/⌘R: InputMapper (`charactersIgnoringModifiers` für QWERTZ) +
+  `focusedSceneObject` für Edit-/Game-Menü-Klicks (2026-08-09)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
 - Phase 6: Signierung / Notarisierung / DMG
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob

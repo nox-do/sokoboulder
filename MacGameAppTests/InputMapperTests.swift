@@ -17,9 +17,29 @@ struct InputMapperTests {
         #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.d, characters: "d")) == .move(.right))
     }
 
-    @Test("plain Z maps to undo")
+    @Test("plain Z maps to undo via character, not ANSI keyCode")
     func plainZUndo() {
         #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.z, characters: "z")) == .undo)
+    }
+
+    @Test("German QWERTZ labeled Z key (ANSI Y keyCode) undoes")
+    func germanQWERTZCommandZ() {
+        // On QWERTZ the key labeled Z is kVK_ANSI_Y (16); characters are still "z".
+        let plain = TestKeyEvent.keyDown(KeyCode.y, characters: "z")
+        #expect(InputMapper.intent(from: plain) == .undo)
+
+        let commandZ = TestKeyEvent.keyDown(KeyCode.y, characters: "z", modifiers: .command)
+        #expect(InputMapper.intent(from: commandZ) == .undo)
+
+        let redo = TestKeyEvent.keyDown(
+            KeyCode.y,
+            characters: "Z",
+            modifiers: [.command, .shift]
+        )
+        #expect(InputMapper.intent(from: redo) == .redo)
+
+        // Physical ANSI-Z key produces "y" on QWERTZ — must not steal Undo.
+        #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.z, characters: "y")) == nil)
     }
 
     @Test("R maps to restart")
@@ -38,24 +58,56 @@ struct InputMapperTests {
         #expect(InputMapper.intent(from: event) == nil)
     }
 
-    @Test("Command-Z is ignored by gameplay mapper")
-    func commandZIgnored() {
+    @Test("Command-Z maps to undo via local-monitor path")
+    func commandZUndo() {
         let event = TestKeyEvent.keyDown(
             KeyCode.z,
             characters: "z",
             modifiers: .command
         )
-        #expect(InputMapper.intent(from: event) == nil)
+        #expect(InputMapper.intent(from: event) == .undo)
     }
 
-    @Test("Shift-Command-Z is ignored by gameplay mapper")
-    func shiftCommandZIgnored() {
+    @Test("Shift-Command-Z maps to redo via local-monitor path")
+    func shiftCommandZRedo() {
         let event = TestKeyEvent.keyDown(
             KeyCode.z,
             characters: "z",
             modifiers: [.command, .shift]
         )
-        #expect(InputMapper.intent(from: event) == nil)
+        #expect(InputMapper.intent(from: event) == .redo)
+    }
+
+    @Test("Command-R maps to restart via local-monitor path")
+    func commandRRestart() {
+        let event = TestKeyEvent.keyDown(
+            KeyCode.r,
+            characters: "r",
+            modifiers: .command
+        )
+        #expect(InputMapper.intent(from: event) == .restart)
+    }
+
+    @Test("Command-Option-Z and Control-Z stay ignored")
+    func exoticModifierCombosIgnored() {
+        #expect(
+            InputMapper.intent(
+                from: TestKeyEvent.keyDown(
+                    KeyCode.z,
+                    characters: "z",
+                    modifiers: [.command, .option]
+                )
+            ) == nil
+        )
+        #expect(
+            InputMapper.intent(
+                from: TestKeyEvent.keyDown(
+                    KeyCode.z,
+                    characters: "z",
+                    modifiers: .control
+                )
+            ) == nil
+        )
     }
 
     @Test("Space maps to wait; unsupported keys are ignored")

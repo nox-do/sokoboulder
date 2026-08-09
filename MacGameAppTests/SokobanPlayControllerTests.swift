@@ -431,6 +431,24 @@ struct SokobanPlayControllerTests {
         awaitOutcomeChoice(controller)
     }
 
+    @Test("Command-Z through handleKeyEvent undoes a move")
+    func commandZKeyEventUndoesMove() throws {
+        let controller = makeController()
+        controller.startLevel(id: "sokoban.tutorial.002", showIntro: false)
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow))
+        #expect(controller.canUndo)
+        let revisionAfterMove = try #require(controller.session).revision
+
+        // QWERTZ: labeled Z is ANSI-Y keyCode with characters "z".
+        let handled = controller.handleKeyEvent(
+            TestKeyEvent.keyDown(KeyCode.y, characters: "z", modifiers: .command)
+        )
+        #expect(handled)
+        #expect(try #require(controller.session).revision != revisionAfterMove)
+        #expect(controller.canRedo)
+    }
+
     @Test("pause overlay path stops gameplay input")
     func pauseStopsGameplayInput() throws {
         let controller = makeController()

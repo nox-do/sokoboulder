@@ -155,7 +155,9 @@ struct ContentView: View {
         .frame(minWidth: 520, minHeight: 400)
         .environment(\.visualTheme, controller.visualTheme)
         .accessibilityIdentifier("app.root")
-        .focusedValue(\.sokobanPlayController, controller)
+        // Scene-scoped so Edit/Game menu items can call into this window's controller
+        // (keyboard ⌘Z/⇧⌘Z/⌘R are owned by the local monitor + InputMapper).
+        .focusedSceneObject(controller)
         .onAppear { syncWindowKeyMonitor() }
         .onDisappear { removeWindowKeyMonitor() }
         .onChange(of: controller.presentationPhase) { _, _ in

@@ -1,19 +1,12 @@
 import SwiftUI
 
-private struct SokobanPlayControllerFocusedValueKey: FocusedValueKey {
-    typealias Value = SokobanPlayController
-}
-
-extension FocusedValues {
-    var sokobanPlayController: SokobanPlayController? {
-        get { self[SokobanPlayControllerFocusedValueKey.self] }
-        set { self[SokobanPlayControllerFocusedValueKey.self] = newValue }
-    }
-}
-
-/// macOS menu commands routed to the focused window's play controller.
+/// macOS menu commands routed to the key window's play controller.
+///
+/// Keyboard equivalents ⌘Z / ⇧⌘Z / ⌘R are also mapped in ``InputMapper`` because
+/// the window local key monitor is the reliable gameplay path. These menu items
+/// remain for the Edit / Game menus (mouse).
 struct SokobanCommands: Commands {
-    @FocusedValue(\.sokobanPlayController) private var controller
+    @FocusedObject private var controller: SokobanPlayController?
 
     var body: some Commands {
         CommandGroup(replacing: .undoRedo) {

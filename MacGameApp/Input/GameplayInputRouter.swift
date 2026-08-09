@@ -249,15 +249,15 @@ final class GameplayInputRouter {
     private func isPausedCommandKey(_ event: NSEvent) -> Bool {
         guard !hasBlockingModifiers(event) else { return false }
         return event.keyCode == KeyCode.escape
-            || event.keyCode == KeyCode.r
-            || event.keyCode == KeyCode.z
+            || InputMapper.isRestartLetter(event)
+            || InputMapper.isUndoLetter(event)
     }
 
     private func isOutcomeOwnedKey(_ event: NSEvent) -> Bool {
         guard !hasBlockingModifiers(event) else { return false }
         return isOutcomeConfirmKey(event.keyCode)
-            || event.keyCode == KeyCode.r
-            || event.keyCode == KeyCode.z
+            || InputMapper.isRestartLetter(event)
+            || InputMapper.isUndoLetter(event)
     }
 
     private func hasBlockingModifiers(_ event: NSEvent) -> Bool {
