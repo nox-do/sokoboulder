@@ -597,3 +597,8 @@ Nachzug SoC (2026-08-03, Review-Smells):
 - [x] Höhlen-Musik: Cave Wonder (Default) + Tinkering Cave (CC0, tapatilorenzo)
 - [x] Settings: getrennte Auswahl Sokoban / Höhle (`sokobanMusicTrackID`, `caveMusicTrackID`)
 - [x] `audio.cave` Default-Pfad auf Cave Wonder
+
+### Cave-Sand Vorbereitung (2026-08-11)
+
+- [x] Demo-Level 001–036: Außenrahmen `#` → `X` (Stahlwand)
+- [x] Plan `docs/plans/4.1-cave-sand.md` (Sand als fallende Masse; noch nicht implementiert)
