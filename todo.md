@@ -566,9 +566,9 @@ Nachzug SoC (2026-08-03, Review-Smells):
 - [ ] Später: Mode-Facades für Gameplay/Restart-Branches; Scene Visual-Factory
 
 - Playtest der 90 Kampagnen-Level (nach 3 Tutorials freischaltbar)
-- Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Leichtgewicht-Push-Suche
-  beweist Tutorials + mind. campaign.001; ab ~002 oft Budget-Timeout (nicht „unlösbar“).
-  Test: `GameCoreTests/CampaignSolvabilityOneShotTests.swift` (manuell, kein CI-Gate)
+- Lösbarkeits-Check (one-shot, 2026-08-03): Codec ≠ Solver. Eine lokale,
+  nicht versionierte Leichtgewicht-Push-Suche beweist Tutorials + mindestens
+  `campaign.001`; ab etwa `002` oft Budget-Timeout (nicht „unlösbar“).
 - Pause: Pfeiltasten — Fix: SKView gibt First-Responder beim Verlassen von `.playing` ab (2026-08-03)
 - [x] Menü-Tastatur über Local Monitor + Controller (kein SwiftUI onKeyPress/onMoveCommand; 2026-08-03)
 - [x] Sokoban ⌘Z/⇧⌘Z/⌘R: InputMapper (`charactersIgnoringModifiers` für QWERTZ) +

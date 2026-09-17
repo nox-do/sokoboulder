@@ -64,3 +64,6 @@ Credentials/
 
 # Local art / scratch (asset experiments, retints)
 .tmp/
+
+# Local one-off analysis tools
+Packages/GameCore/Tests/GameCoreTests/CampaignSolvabilityOneShotTests.swift
