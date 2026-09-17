@@ -47,6 +47,19 @@ struct InputMapperTests {
         #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.r, characters: "r")) == .restart)
     }
 
+    @Test("M maps to goal-marker toggle via character")
+    func mTogglesGoalMarker() {
+        #expect(
+            InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.m, characters: "m"))
+                == .toggleGoalMarker
+        )
+        #expect(
+            InputMapper.intent(
+                from: TestKeyEvent.keyDown(KeyCode.m, characters: "m", modifiers: .command)
+            ) == nil
+        )
+    }
+
     @Test("Escape maps to pause")
     func escapePause() {
         #expect(InputMapper.intent(from: TestKeyEvent.keyDown(KeyCode.escape)) == .pause)

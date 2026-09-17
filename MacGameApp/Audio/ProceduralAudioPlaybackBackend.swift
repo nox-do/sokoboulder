@@ -14,6 +14,8 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     private var engineRunning = false
     private var currentMusic: MusicPlaybackState = .stopped
     private var musicPlayer: AVAudioPlayer?
+    /// Bundle-relative path currently loaded into ``musicPlayer`` (if any).
+    private var loadedMusicPath: String?
     private var activeTheme: AudioTheme
     private var outputSettings: AudioOutputSettings = .default
     private lazy var proceduralBuffers: [AudioCue: AVAudioPCMBuffer] = Self.makeProceduralBuffers(
@@ -48,16 +50,18 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     }
 
     func applyTheme(_ theme: AudioTheme) {
-        guard theme != activeTheme else { return }
-        let wasPlaying = currentMusic == .themeLoop && musicPlayer?.isPlaying == true
+        if theme == activeTheme, loadedMusicPath == theme.musicPlayingPath {
+            return
+        }
+        let shouldResumeLoop = currentMusic == .themeLoop
         cancelMusicFade()
+        // Stop before replacing the player so a released AVAudioPlayer cannot keep
+        // playing the previous track (settings music switches rely on this).
+        stopMusicPlayback()
         activeTheme = theme
         reloadThemeAssets()
-        if currentMusic == .themeLoop {
-            stopMusicPlayback()
-            if wasPlaying || effectiveMusicVolume > 0 {
-                startThemeMusicIfNeeded()
-            }
+        if shouldResumeLoop, effectiveMusicVolume > 0 {
+            startThemeMusicIfNeeded()
         }
     }
 
@@ -77,9 +81,16 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     func setMusic(_ state: MusicPlaybackState, fadeOutDuration: TimeInterval) {
         if state == .themeLoop {
             cancelMusicFade()
-            if currentMusic == .themeLoop {
+            let pathMatches =
+                musicPlayer != nil
+                && loadedMusicPath == activeTheme.musicPlayingPath
+            if currentMusic == .themeLoop, pathMatches {
                 applyGains()
                 return
+            }
+            if !pathMatches {
+                stopMusicPlayback()
+                reloadThemeAssets()
             }
             currentMusic = .themeLoop
             startThemeMusicIfNeeded()
@@ -132,16 +143,25 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
             fileCueURLs[cue] = url
         }
 
+        let previousPath = loadedMusicPath
         let previousTime = musicPlayer?.currentTime ?? 0
+        // Always halt before dropping the reference — releasing alone is not enough
+        // to guarantee the previous file goes silent.
+        stopMusicPlayback()
         musicPlayer = nil
+        loadedMusicPath = nil
         if let path = activeTheme.musicPlayingPath,
            let url = try? resources.url(at: path),
            let player = try? AVAudioPlayer(contentsOf: url)
         {
             player.numberOfLoops = -1
             player.prepareToPlay()
-            player.currentTime = min(previousTime, player.duration)
+            // Keep position only when reloading the same file (e.g. cue refresh).
+            if path == previousPath {
+                player.currentTime = min(previousTime, player.duration)
+            }
             musicPlayer = player
+            loadedMusicPath = path
         }
     }
 
@@ -219,6 +239,11 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         musicPlayer?.currentTime = 0
         musicPlayer?.volume = effectiveMusicVolume
     }
+
+    #if DEBUG
+    /// Test-only: path currently loaded for looping music, if any.
+    var loadedMusicPathForTesting: String? { loadedMusicPath }
+    #endif
 
     @discardableResult
     private func startEngineIfNeeded() -> Bool {

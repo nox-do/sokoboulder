@@ -1405,8 +1405,8 @@ BoulderDash/
 │       └── Audio/
 ```
 
-Der Name des App-Targets und ein eigener Produktname werden vor Veröffentlichung
-festgelegt. Die Arbeitsstruktur ist nicht an den aktuellen Ordnernamen gebunden.
+Der Produktname ist **SokoBoulder**; das App-Target bleibt `MacGameApp`. Die
+Arbeitsstruktur ist nicht an den aktuellen Ordnernamen gebunden.
 Ein eigenständiges `LevelValidator`-Tool kommt erst hinzu, wenn Validierung
 tatsächlich außerhalb von Tests und App benötigt wird.
 

@@ -115,6 +115,11 @@ enum PresentationFactory {
                     title: AppStrings.text(.uiHelpPauseTitle),
                     detail: AppStrings.text(.uiHelpPauseDetail)
                 ),
+                HelpControlRow(
+                    id: "goal_marker",
+                    title: AppStrings.text(.uiHelpGoalMarkerTitle),
+                    detail: AppStrings.text(.uiHelpGoalMarkerDetail)
+                ),
             ],
             tutorialSectionTitle: AppStrings.text(.uiHelpTutorialSection),
             tutorialHints: catalog.levels.compactMap { descriptor in

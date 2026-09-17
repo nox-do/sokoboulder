@@ -11,6 +11,8 @@ enum GameplayIntent: Equatable, Sendable {
     case redo
     case restart
     case pause
+    /// Presentation-only bookmark on the goal the player occupies.
+    case toggleGoalMarker
 }
 
 /// Stateless NSEvent → ``GameplayIntent`` mapping for Sokoban Phase 2.
@@ -56,6 +58,8 @@ enum InputMapper {
             return .undo
         case "r":
             return .restart
+        case "m":
+            return .toggleGoalMarker
         default:
             return nil
         }
@@ -138,4 +142,6 @@ enum KeyCode {
     static let `return`: UInt16 = 36
     static let keypadEnter: UInt16 = 76
     static let space: UInt16 = 49
+    /// US-QWERTY / QWERTZ M (`kVK_ANSI_M`). Letter mapping still uses characters.
+    static let m: UInt16 = 46
 }

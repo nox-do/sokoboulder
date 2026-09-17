@@ -103,6 +103,8 @@ enum AppStringID: String, CaseIterable, Sendable {
     case uiHelpRestartDetail = "ui.help.restart.detail"
     case uiHelpPauseTitle = "ui.help.pause.title"
     case uiHelpPauseDetail = "ui.help.pause.detail"
+    case uiHelpGoalMarkerTitle = "ui.help.goal_marker.title"
+    case uiHelpGoalMarkerDetail = "ui.help.goal_marker.detail"
     case uiHelpTutorialSection = "ui.help.tutorial_section"
 
     // Settings
@@ -250,6 +252,9 @@ enum AppStrings {
         AppStringID.uiHelpRestartDetail.rawValue: "R startet das Level neu",
         AppStringID.uiHelpPauseTitle.rawValue: "Pause / Zurück",
         AppStringID.uiHelpPauseDetail.rawValue: "Escape öffnet Pause oder geht zurück",
+        AppStringID.uiHelpGoalMarkerTitle.rawValue: "Ziel markieren",
+        AppStringID.uiHelpGoalMarkerDetail.rawValue:
+            "M färbt den Zielkreis unter dir orange (nochmal M nimmt die Markierung weg)",
         AppStringID.uiHelpTutorialSection.rawValue: "Tutorial-Hinweise",
 
         AppStringID.uiSettingsTitle.rawValue: "Einstellungen",

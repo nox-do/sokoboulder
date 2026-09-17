@@ -159,7 +159,7 @@ final class GameplayInputRouter {
                 switch intent {
                 case .pause, .restart, .undo, .redo:
                     return .routed(.gameplay(intent))
-                case .move, .wait:
+                case .move, .wait, .toggleGoalMarker:
                     return .unhandled
                 }
             }
@@ -197,7 +197,7 @@ final class GameplayInputRouter {
                 switch intent {
                 case .undo, .redo, .restart:
                     return .routed(.gameplay(intent))
-                case .move, .pause:
+                case .move, .pause, .toggleGoalMarker:
                     return .unhandled
                 case .wait:
                     break

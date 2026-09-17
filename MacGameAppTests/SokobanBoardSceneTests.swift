@@ -545,4 +545,46 @@ struct SokobanBoardSceneTests {
         #expect(scene.boardRootPositionForTesting == .zero)
         #expect(!scene.usesCameraForTesting)
     }
+
+    @Test("M toggles an orange bookmark only on the occupied goal")
+    func goalBookmarkToggle() throws {
+        let session = try startedSession(
+            """
+            ######
+            #+$  #
+            ######
+            """
+        )
+        let scene = makeScene()
+        scene.apply(session.bootstrapEmission!.render)
+        let goal = GridPosition(column: 1, row: 1)
+        #expect(scene.currentSnapshot?.player.position == goal)
+        #expect(scene.currentSnapshot?.cell(at: goal)?.terrain == .goal)
+
+        scene.toggleGoalBookmarkAtPlayer()
+        #expect(scene.markedGoalPositionsForTesting == [goal])
+        #expect(scene.goalColorBlendForTesting(at: goal) == 1)
+
+        scene.toggleGoalBookmarkAtPlayer()
+        #expect(scene.markedGoalPositionsForTesting.isEmpty)
+        #expect(scene.goalColorBlendForTesting(at: goal) == 0)
+
+        scene.prepareForNewSession()
+        #expect(scene.markedGoalPositionsForTesting.isEmpty)
+    }
+
+    @Test("goal bookmark is ignored when the player is not on a goal")
+    func goalBookmarkIgnoredOffGoal() throws {
+        let session = try startedSession(
+            """
+            #####
+            #@$.#
+            #####
+            """
+        )
+        let scene = makeScene()
+        scene.apply(session.bootstrapEmission!.render)
+        scene.toggleGoalBookmarkAtPlayer()
+        #expect(scene.markedGoalPositionsForTesting.isEmpty)
+    }
 }

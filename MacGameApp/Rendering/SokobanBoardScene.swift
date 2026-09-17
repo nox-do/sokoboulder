@@ -75,6 +75,8 @@ final class SokobanBoardScene: SKScene {
     /// True while goal tiles / frame still show completion celebration visuals.
     private var celebrationVisualsActive = false
     private var textureCache: [String: SKTexture] = [:]
+    /// Player-placed bookmarks on Sokoban goal tiles (M toggle). Presentation only.
+    private var markedGoalPositions: Set<GridPosition> = []
 
     private(set) var appliedRevision: UInt64 = 0
     /// Last revision whose presentation has visually settled (or hard-synced).
@@ -249,6 +251,7 @@ final class SokobanBoardScene: SKScene {
         terrainNodes.removeAll(keepingCapacity: true)
         entityNodes.removeAll(keepingCapacity: true)
         playerNode = nil
+        markedGoalPositions.removeAll(keepingCapacity: true)
     }
 
     /// Applies one ordered ``RenderUpdate`` according to the revision contract.
@@ -266,6 +269,19 @@ final class SokobanBoardScene: SKScene {
         for emission in emissions {
             apply(emission.render)
         }
+    }
+
+    /// Toggles an orange bookmark on the Sokoban goal under the player. No-op off-goal or in cave.
+    func toggleGoalBookmarkAtPlayer() {
+        guard !presentsCaveContent, let snapshot = appliedSnapshot else { return }
+        let position = snapshot.player.position
+        guard snapshot.cell(at: position)?.terrain == .goal else { return }
+        if markedGoalPositions.contains(position) {
+            markedGoalPositions.remove(position)
+        } else {
+            markedGoalPositions.insert(position)
+        }
+        applyGoalBookmark(at: position, using: snapshot)
     }
 
     // MARK: - Revision handling
@@ -482,6 +498,7 @@ final class SokobanBoardScene: SKScene {
         entityLayer.addChild(player)
         playerNode = player
         updateGoalStateMarkers(using: snapshot)
+        applyGoalBookmarks(using: snapshot)
         layoutCompletionFrame()
         snapCamera(to: snapshot)
     }
@@ -517,6 +534,7 @@ final class SokobanBoardScene: SKScene {
             resizeSemanticMarkers(in: playerNode, tileSize: geometry.tileSize)
         }
         updateGoalStateMarkers(using: snapshot)
+        applyGoalBookmarks(using: snapshot)
         layoutCompletionFrame()
         snapCamera(to: snapshot)
     }
@@ -1264,8 +1282,52 @@ final class SokobanBoardScene: SKScene {
                 } else {
                     node.color = fillColor(for: cell.terrain).skColor
                 }
+                applyGoalBookmark(at: position, using: snapshot, node: node)
             }
         }
+    }
+
+    private func applyGoalBookmarks(using snapshot: RenderSnapshot) {
+        guard !presentsCaveContent else { return }
+        var index = 0
+        for row in 0..<snapshot.height {
+            for column in 0..<snapshot.width {
+                defer { index += 1 }
+                guard index < terrainNodes.count else { return }
+                let position = GridPosition(column: column, row: row)
+                applyGoalBookmark(at: position, using: snapshot, node: terrainNodes[index])
+            }
+        }
+    }
+
+    private func applyGoalBookmark(at position: GridPosition, using snapshot: RenderSnapshot) {
+        guard let index = snapshot.index(of: position), index < terrainNodes.count else { return }
+        applyGoalBookmark(at: position, using: snapshot, node: terrainNodes[index])
+    }
+
+    private func applyGoalBookmark(
+        at position: GridPosition,
+        using snapshot: RenderSnapshot,
+        node: SKSpriteNode
+    ) {
+        guard !presentsCaveContent else { return }
+        guard snapshot.cell(at: position)?.terrain == .goal else { return }
+        let marked = markedGoalPositions.contains(position)
+        let usesTexture = usesPixelTextures && node.texture != nil
+        let markerColor = theme.ui.warning.skColor
+        let strokeColor = marked ? markerColor : theme.board.terrain.goalStroke.skColor
+        if marked {
+            node.color = markerColor
+            node.colorBlendFactor = usesTexture ? 0.72 : 1
+        } else if usesTexture {
+            node.color = .white
+            node.colorBlendFactor = 0
+        } else {
+            node.color = theme.board.terrain.goalFill.skColor
+            node.colorBlendFactor = 0
+        }
+        (node.childNode(withName: "semanticMarker") as? SKLabelNode)?.fontColor = strokeColor
+        (node.childNode(withName: "stroke") as? SKShapeNode)?.strokeColor = strokeColor
     }
 
     private func fillColor(for terrain: RenderTerrain) -> ThemeColor {
@@ -1355,7 +1417,8 @@ final class SokobanBoardScene: SKScene {
                     node.color = highlight
                     node.colorBlendFactor = usesTexture ? 0.45 : 1
                 }
-                let restore = {
+                let restore = { [weak self] in
+                    guard let self else { return }
                     if usesTexture {
                         node.color = .white
                         node.colorBlendFactor = 0
@@ -1363,6 +1426,7 @@ final class SokobanBoardScene: SKScene {
                         node.color = goalFill
                         node.colorBlendFactor = 0
                     }
+                    self.applyGoalBookmark(at: position, using: snapshot, node: node)
                 }
                 if !animated || prefersReducedMotion {
                     applyHighlight()
@@ -1420,5 +1484,13 @@ final class SokobanBoardScene: SKScene {
         var themeIDForTesting: String { theme.id }
         var renderingProfileForTesting: BoardRenderingProfile { theme.rendering.profile }
         var celebrationVisualsActiveForTesting: Bool { celebrationVisualsActive }
+        var markedGoalPositionsForTesting: Set<GridPosition> { markedGoalPositions }
+        func goalColorBlendForTesting(at position: GridPosition) -> CGFloat? {
+            guard let snapshot = appliedSnapshot,
+                  let index = snapshot.index(of: position),
+                  index < terrainNodes.count
+            else { return nil }
+            return terrainNodes[index].colorBlendFactor
+        }
     #endif
 }

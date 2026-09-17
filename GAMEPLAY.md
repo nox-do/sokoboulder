@@ -167,12 +167,18 @@ Standardbefehle:
 - Pfeiltasten oder WASD: bewegen,
 - `Command-Z` sowie optional `Z`: Undo,
 - `Shift-Command-Z`: Redo,
+- `M`: Zielkreis unter dem Spieler orange markieren beziehungsweise Markierung
+  entfernen (reine Darstellungshilfe),
 - `R`: sofort neu starten,
 - `Escape`: Pause beziehungsweise zurück,
 - Menübefehle spiegeln alle Aktionen mit sichtbaren Tastaturkürzeln.
 
 Ein erfolgreicher Zug wird logisch sofort ausgeführt. Animationen dürfen schnelle
 Folgeeingaben nicht sperren.
+
+Zielmarkierungen verändern weder Regeln noch Undo-Verlauf. Mehrere Ziele können
+gleichzeitig markiert sein; die Markierungen bleiben bei Undo und Neustart
+erhalten und werden beim Levelwechsel entfernt.
 
 ### 5.2 HUD
 

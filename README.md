@@ -1,43 +1,42 @@
-# BoulderDash
+# SokoBoulder
 
-Native macOS-App mit zwei Rasterspielen (Sokoban-artig und Boulder-Dash-artig)
-auf einer gemeinsamen, deterministischen Engine.
+SokoBoulder ist eine native macOS-App mit zwei Rasterspielen auf einer
+gemeinsamen, deterministischen Swift-Engine:
 
-Produktname: **SokoBoulder** (Target/Modul: `MacGameApp`)
+- **Sokoban:** rundenbasierte Schiebepuzzles mit Undo/Redo, automatischer
+  Wiederaufnahme und einer Kampagne aus drei Tutorials plus 90 Leveln.
+- **Höhle:** ein Boulder-Dash-artiges Echtzeitspiel mit Gravitation, Diamanten,
+  Kamera, Gegnern, Explosionen, magischer Wand und Amöbe.
 
-Siehe [ARCHITECTURE.md](ARCHITECTURE.md), [GAMEPLAY.md](GAMEPLAY.md) und
-[AUDIO.md](AUDIO.md).
+SwiftUI bildet App-Shell und Overlays, SpriteKit rendert die Spielfelder und
+AVFAudio spielt Musik und Effekte. Die Regeln liegen unabhängig von UI und
+Rendering im lokalen Swift-Package `GameCore`.
+
+## Projektstand
+
+Sokoban und der Höhlen-Demopfad sind spielbar. Die gemeinsame Plattform für
+Level-Manifeste, Fortschritt, Einstellungen, Themes, Audio und Replay-Grundlagen
+ist umgesetzt. Aktuell offen sind vor allem Playtests, Cave-Sand, weiteres
+Polishing sowie Signierung, Notarisierung und DMG-Verteilung.
+
+Die detaillierte Änderungs- und Aufgabenübersicht steht in [todo.md](todo.md).
 
 ## Voraussetzungen
 
-- macOS
+- macOS 14.0 oder neuer
 - Xcode 26.6
 - Swift 6.3.3
-- Deployment-Target: macOS 14.0
 
-## GameCore testen
+## Bauen und testen
 
-Das UI-freie Package liegt unter `Packages/GameCore`:
+Das UI-freie `GameCore`-Package testen:
 
 ```bash
 cd Packages/GameCore
 swift test
 ```
 
-Es gibt keine GitHub-CI; Tests laufen lokal auf der festgelegten Toolchain.
-
-## Mac-App bauen (Phase-2-Smoke)
-
-```bash
-xcodebuild \
-  -project MacGameApp.xcodeproj \
-  -scheme MacGameApp \
-  -destination 'platform=macOS,arch=arm64' \
-  -configuration Debug \
-  build
-```
-
-Session-/Revisionsvertrag (ohne SpriteKit):
+Die macOS-App samt Integrationstests testen:
 
 ```bash
 xcodebuild \
@@ -48,15 +47,52 @@ xcodebuild \
   test
 ```
 
-Die App importiert das lokale Package `GameCore`. Bundle-Identifier:
-`com.sokoboulder.app` (Tests: `com.sokoboulder.app.tests`).
+Nur die App bauen:
 
-## Verteilung
+```bash
+xcodebuild \
+  -project MacGameApp.xcodeproj \
+  -scheme MacGameApp \
+  -destination 'platform=macOS,arch=arm64' \
+  -configuration Debug \
+  build
+```
 
-Das Auslieferungsziel ist eine macOS-`.dmg` (siehe
-`docs/adr/0002-dmg-distribution.md`). Packaging folgt in späteren Phasen.
+Es gibt derzeit keine GitHub-CI; die Tests laufen lokal auf der festgelegten
+Toolchain. Bundle-Identifier: `com.sokoboulder.app` (Tests:
+`com.sokoboulder.app.tests`).
 
-## Projektstand
+## Steuerung
 
-Phase 1 (Sokoban-Kern) und Phase 2 (spielbare Mac-App, Schritte 1–9) sind
-abgenommen. Als Nächstes: Phase 3 beziehungsweise gezieltes Audio-/UI-Polishing.
+| Taste | Aktion |
+| --- | --- |
+| Pfeiltasten oder WASD | Bewegen |
+| Leertaste | In der Höhle einen Tick warten; in Menüs bestätigen |
+| ⌘Z oder Z | Sokoban: Undo |
+| ⇧⌘Z | Sokoban: Redo |
+| M | Sokoban: Ziel unter dem Spieler orange markieren/Markierung entfernen |
+| R oder ⌘R | Level neu starten |
+| Escape | Pause beziehungsweise zurück |
+| Return oder Leertaste | Markierte Menüaktion ausführen |
+
+Der Zielmarker ist eine reine Darstellungshilfe: Er verändert weder Regeln noch
+Spielstand und wird beim Levelwechsel zurückgesetzt.
+
+## Dokumentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): Module, Zustands- und Simulationsverträge
+- [GAMEPLAY.md](GAMEPLAY.md): Bedienung, Spielfluss und Barrierefreiheit
+- [AUDIO.md](AUDIO.md): Musik, Effekte, Audio-Mapping und Lizenzstrategie
+- [docs/adr](docs/adr): Architekturentscheidungen
+- [docs/plans](docs/plans): Feature- und Regelpläne
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Herkunft und Lizenzen
+  eingebundener Assets
+
+## Verteilung und Lizenz
+
+Das geplante Auslieferungsformat ist eine signierte und notarisierte macOS-DMG;
+Packaging und Release-Automation folgen in einer späteren Phase.
+
+Für den eigenen Quellcode ist noch keine Projektlizenz festgelegt. Die
+Drittanbieter-Assets unterliegen den jeweils in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dokumentierten Lizenzen.

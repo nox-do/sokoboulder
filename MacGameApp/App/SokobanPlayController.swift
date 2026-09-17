@@ -1454,6 +1454,10 @@ final class SokobanPlayController: ObservableObject {
         case .wait:
             break
 
+        case .toggleGoalMarker:
+            guard presentationPhase == .playing else { return }
+            scene.toggleGoalBookmarkAtPlayer()
+
         case .undo:
             clearMoveHold()
             undo()
@@ -1492,7 +1496,7 @@ final class SokobanPlayController: ObservableObject {
         case .pause:
             togglePause()
 
-        case .undo, .redo:
+        case .undo, .redo, .toggleGoalMarker:
             break
         }
         _ = keyCode

@@ -287,7 +287,10 @@ struct AudioDirectorTests {
 
         director.reset()
         #expect(director.lastAppliedRevision == nil)
-        #expect(spy.calls == [.stopAll])
+        #expect(spy.calls.first == .stopAll)
+        // Reset re-binds theme assets to the current track selection after stopAll.
+        #expect(spy.calls.contains(.applyTheme(AudioTheme.sokobanID)))
+        #expect(spy.musicStates.isEmpty)
     }
 
     @Test("completed perform plays jingle and soft-fades BGM immediately")

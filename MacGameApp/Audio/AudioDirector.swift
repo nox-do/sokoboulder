@@ -131,6 +131,10 @@ final class AudioDirector {
         lastAppliedRevision = nil
         desiredMusic = .stopped
         backend.stopAll()
+        // Keep the selected track IDs, but re-bind assets for the current game so a
+        // later settings change (or the next ``selectTheme``) cannot leave a stale
+        // music file loaded after Cave ↔ Sokoban switches.
+        forcePushEffectiveTheme(for: activeTheme.game)
     }
 
     // MARK: - Mapping
@@ -200,17 +204,29 @@ final class AudioDirector {
     }
 
     private func pushEffectiveTheme(for game: AudioGameMode) {
+        let theme = makeEffectiveTheme(for: game)
+        guard theme != activeTheme else { return }
+        activeTheme = theme
+        backend.applyTheme(theme)
+    }
+
+    /// Like ``pushEffectiveTheme(for:)`` but always forwards to the backend so a
+    /// prior ``stopAll`` cannot leave mismatched loaded assets.
+    private func forcePushEffectiveTheme(for game: AudioGameMode) {
+        let theme = makeEffectiveTheme(for: game)
+        activeTheme = theme
+        backend.applyTheme(theme)
+    }
+
+    private func makeEffectiveTheme(for game: AudioGameMode) -> AudioTheme {
         let trackID =
             selectedMusicTrackIDs[game]
             ?? musicCatalog.defaultTrackID(for: game)
-        let theme = Self.effectiveTheme(
+        return Self.effectiveTheme(
             base: catalog.resolvedTheme(for: game),
             musicTrackID: trackID,
             musicCatalog: musicCatalog
         )
-        guard theme != activeTheme else { return }
-        activeTheme = theme
-        backend.applyTheme(theme)
     }
 
     static func effectiveTheme(

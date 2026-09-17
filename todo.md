@@ -602,3 +602,15 @@ Nachzug SoC (2026-08-03, Review-Smells):
 
 - [x] Demo-Level 001–036: Außenrahmen `#` → `X` (Stahlwand)
 - [x] Plan `docs/plans/4.1-cave-sand.md` (Sand als fallende Masse; noch nicht implementiert)
+
+### Fix: Sokoban-Musikauswahl (2026-08-11)
+
+- [x] Playback-Backend: alten Track stoppen vor Reload; Pfad-Mismatch erzwingt Neustart
+- [x] `AudioDirector.reset` re-bindet Theme-Assets an die aktuelle Track-Auswahl
+- [x] Regressionstests: Pause→Trackwechsel→Resume + reales Backend
+
+### Sokoban Ziel-Marker (M) – 2026-08-20
+
+- [x] `M` toggelt ein orangenes Lesezeichen auf dem Zielkreis unter dem Spieler
+- [x] Mehrere Ziele markierbar; bleibt bei Undo/Neustart; weg bei Levelwechsel
+- [x] Nur Sokoban (Hilfe-Eintrag); Darstellung only, keine Regellogik

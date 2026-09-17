@@ -662,4 +662,26 @@ struct SokobanPlayControllerTests {
         #expect(controller.scene.settledRevision == afterMove + 1)
         #expect(controller.presentationPhase == .playing)
     }
+
+    @Test("M on a goal marks it orange and toggles off")
+    func mMarksOccupiedGoal() throws {
+        let controller = makeController()
+        // Tutorial 001: walk around the crate onto `.`
+        for key in [
+            KeyCode.downArrow, KeyCode.rightArrow, KeyCode.rightArrow,
+            KeyCode.rightArrow, KeyCode.rightArrow, KeyCode.upArrow,
+        ] {
+            controller.handleKeyEvent(TestKeyEvent.keyDown(key))
+            controller.handleKeyEvent(TestKeyEvent.keyUp(key))
+        }
+        let goal = GridPosition(column: 6, row: 2)
+        #expect(controller.scene.currentSnapshot?.player.position == goal)
+        #expect(controller.scene.currentSnapshot?.cell(at: goal)?.terrain == .goal)
+
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.m, characters: "m"))
+        #expect(controller.scene.markedGoalPositionsForTesting == [goal])
+
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.m, characters: "m"))
+        #expect(controller.scene.markedGoalPositionsForTesting.isEmpty)
+    }
 }

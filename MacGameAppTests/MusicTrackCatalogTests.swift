@@ -137,6 +137,63 @@ struct MusicTrackSettingsTests {
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-puzzling.mp3")
     }
 
+    @Test("pause then change sokoban track then resume keeps the new path")
+    func pauseChangeSokobanTrackResume() throws {
+        let spy = SpyAudioPlaybackBackend()
+        let director = AudioDirector(
+            backend: spy,
+            musicCatalog: MusicTrackCatalog(
+                tracks: BuiltInMusicTracks.allFallbacks(),
+                defaultTrackIDs: BuiltInMusicTracks.defaultTrackIDs()
+            )
+        )
+        let bundle = try TestPlayControllerFactory.make(
+            audioDirector: director,
+            markIntroDismissed: true
+        )
+        #expect(spy.lastMusicPath == "Audio/Music/sokoban-puzzling.mp3")
+
+        bundle.controller.togglePause()
+        bundle.controller.openSettingsFromPause()
+        bundle.controller.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
+        #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.preludeID)
+        #expect(spy.lastMusicPath == "Audio/Music/sokoban-prelude.mp3")
+        #expect(director.activeTheme.musicPlayingPath == "Audio/Music/sokoban-prelude.mp3")
+
+        bundle.controller.dismissHelpOrSettings()
+        spy.resetCalls()
+        bundle.controller.resumeFromPauseOverlay()
+        #expect(spy.musicStates == [.themeLoop])
+        #expect(spy.lastMusicPath == "Audio/Music/sokoban-prelude.mp3")
+        #expect(director.activeTheme.musicPlayingPath == "Audio/Music/sokoban-prelude.mp3")
+    }
+
+    @Test("real backend reloads looping music when the sokoban track changes")
+    func proceduralBackendSwitchesSokobanTrack() throws {
+        let resources = BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
+        let backend = ProceduralAudioPlaybackBackend(resources: resources)
+        let director = AudioDirector(
+            backend: backend,
+            musicCatalog: MusicTrackCatalogLoader.load(from: resources)
+        )
+        director.apply(
+            AudioUpdate(
+                targetRevision: 1,
+                context: AudioContext(game: .sokoban, levelID: "t", status: .playing),
+                events: [],
+                delivery: .synchronize
+            )
+        )
+        #expect(backend.loadedMusicPathForTesting == "Audio/Music/sokoban-puzzling.mp3")
+
+        director.interrupt()
+        director.applyMusicTrackID(MusicTrack.preludeID, for: .sokoban)
+        #expect(backend.loadedMusicPathForTesting == "Audio/Music/sokoban-prelude.mp3")
+
+        director.resumePlayback()
+        #expect(backend.loadedMusicPathForTesting == "Audio/Music/sokoban-prelude.mp3")
+    }
+
     @Test("music track preference persists per game")
     func musicTrackPersists() throws {
         let name = "\(AppSettingsStore.suitePrefix).music.\(UUID().uuidString)"
