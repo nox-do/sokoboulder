@@ -12,6 +12,16 @@ SwiftUI bildet App-Shell und Overlays, SpriteKit rendert die Spielfelder und
 AVFAudio spielt Musik und Effekte. Die Regeln liegen unabhängig von UI und
 Rendering im lokalen Swift-Package `GameCore`.
 
+## Screenshots
+
+### Sokoban
+
+![Sokoban-Level mit Kisten und leuchtenden Zielmarkierungen](docs/images/sokoboulder-sokoban.png)
+
+### Höhle
+
+![Höhlen-Level mit Erde, Felsen und Diamanten](docs/images/sokoboulder-cave.png)
+
 ## Projektstand
 
 Sokoban und der Höhlen-Demopfad sind spielbar. Die gemeinsame Plattform für
