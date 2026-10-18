@@ -9,7 +9,7 @@ final class SokobanPlayController: ObservableObject {
         "sokoban.tutorial.001": [
             "11d20dcf2b735f52b3522e76d7b22df60fc855563d8754462f80b57d609fc585",
             "d951ac0c0b9114dae245aecabc5befdac913614a096a21f3fd303f0777cfd594",
-        ],
+        ]
     ]
 
     let scene: SokobanBoardScene
@@ -497,7 +497,8 @@ final class SokobanPlayController: ObservableObject {
         }
         let results = session.submitMove(direction)
         applyResults(results)
-        gameplayNotice = session.preventedStaticDeadlockOnLastMove
+        gameplayNotice =
+            session.preventedStaticDeadlockOnLastMove
             ? AppStrings.text(.uiDeadlockPrevented)
             : nil
     }

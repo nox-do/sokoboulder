@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("Sokoban level JSON V1")
@@ -35,7 +36,8 @@ struct SokobanLevelJSONCodecTests {
     @Test("content hash ignores presentation string IDs")
     func hashIgnoresPresentationIDs() throws {
         let a = try SokobanLevelJSONCodec.decode(json: introJSON)
-        let altered = introJSON
+        let altered =
+            introJSON
             .replacingOccurrences(
                 of: "level.sokoban.tutorial.001.title",
                 with: "level.other.title"

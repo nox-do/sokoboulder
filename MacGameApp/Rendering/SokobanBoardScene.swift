@@ -420,7 +420,7 @@ final class SokobanBoardScene: SKScene {
         for index in 0..<32 {
             let path = String(format: "Textures/cave/explosion/frame_%02d.png", index)
             guard let url = try? resources.url(at: path),
-                  let image = NSImage(contentsOf: url)
+                let image = NSImage(contentsOf: url)
             else { break }
             let texture = SKTexture(image: image)
             texture.filteringMode = .nearest
@@ -1134,7 +1134,7 @@ final class SokobanBoardScene: SKScene {
 
         // Pixel themes: no separate player-on-goal marker; goal terrain shows through.
         if !usesPixelTextures,
-           let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode
+            let marker = playerNode?.childNode(withName: "goalStateMarker") as? SKLabelNode
         {
             marker.alpha = snapshot.cell(at: snapshot.player.position)?.terrain == .goal ? 1 : 0
         }
@@ -1487,8 +1487,8 @@ final class SokobanBoardScene: SKScene {
         var markedGoalPositionsForTesting: Set<GridPosition> { markedGoalPositions }
         func goalColorBlendForTesting(at position: GridPosition) -> CGFloat? {
             guard let snapshot = appliedSnapshot,
-                  let index = snapshot.index(of: position),
-                  index < terrainNodes.count
+                let index = snapshot.index(of: position),
+                index < terrainNodes.count
             else { return nil }
             return terrainNodes[index].colorBlendFactor
         }

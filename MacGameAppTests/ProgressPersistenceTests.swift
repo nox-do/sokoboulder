@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import MacGameApp
 
 @Suite("Progress persistence")
@@ -173,11 +174,12 @@ struct ProgressPersistenceTests {
             caveTutorialLevelIDs: ["cave.demo.001", "cave.demo.002", "cave.demo.003"]
         )
         #expect(persistence.file.unlockedLevelIDs == ["level.001"])
-        #expect(persistence.file.unlockedCaveLevelIDs == [
-            "cave.demo.001",
-            "cave.demo.002",
-            "cave.demo.003",
-        ])
+        #expect(
+            persistence.file.unlockedCaveLevelIDs == [
+                "cave.demo.001",
+                "cave.demo.002",
+                "cave.demo.003",
+            ])
         #expect(persistence.isFreshCaveCampaign)
     }
 

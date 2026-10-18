@@ -59,7 +59,7 @@ enum AudioThemeCatalogLoader {
             do {
                 theme = try AudioThemeFileCodec.decodeTheme(data)
             } catch {
-                let guessedID = (try? guessThemeID(from: data)) ?? path
+                let guessedID = guessThemeID(from: data) ?? path
                 if AudioTheme.knownIDs.contains(guessedID) {
                     theme = BuiltInAudioThemes.fallback(id: guessedID)
                 } else {

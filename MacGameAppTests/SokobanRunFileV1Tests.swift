@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -23,10 +24,10 @@ struct SokobanRunFileV1Tests {
 
     private func makeFreshSession(
         ascii: String = """
-            #####
-            #@$.#
-            #####
-            """,
+        #####
+        #@$.#
+        #####
+        """,
         levelID: String = "test.level",
         contentHash: String = "hash",
         sink: SokobanRunSaveSink? = nil
@@ -163,7 +164,7 @@ struct SokobanRunFileV1Tests {
         let session = try makeFreshSession(sink: sink)
         _ = session.start()
         let savesAfterStart = sink.saves.count
-        _ = session.submitMove(.up) // wall
+        _ = session.submitMove(.up)  // wall
         #expect(sink.saves.count == savesAfterStart)
     }
 

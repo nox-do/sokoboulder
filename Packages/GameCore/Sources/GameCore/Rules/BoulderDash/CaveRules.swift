@@ -133,7 +133,8 @@ public struct CaveRules: Sendable {
         openExitsIfNeeded(in: &working, events: &events)
 
         if case .alive(let position) = working.player,
-           case .exit(.open) = working.grid[position].terrain {
+            case .exit(.open) = working.grid[position].terrain
+        {
             working.status = .completed
             events.append(.levelCompleted)
             working.tick += 1
@@ -196,7 +197,8 @@ public struct CaveRules: Sendable {
             switch occupant {
             case .boulder(_, let motion):
                 guard motion == .resting,
-                      direction == .left || direction == .right else {
+                    direction == .left || direction == .right
+                else {
                     if motion == .falling {
                         killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
                     } else {
@@ -267,7 +269,8 @@ public struct CaveRules: Sendable {
     ) {
         state.grid[position].occupant = nil
         state.collectedDiamonds += 1
-        let value = state.collectedDiamonds <= state.requiredDiamonds
+        let value =
+            state.collectedDiamonds <= state.requiredDiamonds
             ? state.diamondValue
             : state.extraDiamondValue
         state.score += value
@@ -398,7 +401,8 @@ public struct CaveRules: Sendable {
             let left = from.neighbor(in: .left)
             let leftDown = left.neighbor(in: .down)
             if CaveWorldQuery.presence(in: state, at: left) == .empty,
-               CaveWorldQuery.canFallInto(in: state, at: leftDown, motion: .falling) {
+                CaveWorldQuery.canFallInto(in: state, at: leftDown, motion: .falling)
+            {
                 return GravityIntent(
                     from: from,
                     occupant: occupant,
@@ -409,7 +413,8 @@ public struct CaveRules: Sendable {
             let right = from.neighbor(in: .right)
             let rightDown = right.neighbor(in: .down)
             if CaveWorldQuery.presence(in: state, at: right) == .empty,
-               CaveWorldQuery.canFallInto(in: state, at: rightDown, motion: .falling) {
+                CaveWorldQuery.canFallInto(in: state, at: rightDown, motion: .falling)
+            {
                 return GravityIntent(
                     from: from,
                     occupant: occupant,
@@ -444,8 +449,8 @@ public struct CaveRules: Sendable {
             }
             state.grid[intent.from].occupant = nil
             guard let exit,
-                  case .active = state.magicWallStatus,
-                  CaveWorldQuery.presence(in: state, at: exit) == .empty
+                case .active = state.magicWallStatus,
+                CaveWorldQuery.presence(in: state, at: exit) == .empty
             else {
                 return
             }
@@ -616,7 +621,8 @@ public struct CaveRules: Sendable {
     ) {
         // Source may already have been cleared by an earlier explosion this tick.
         guard let current = state.grid[intent.from].occupant,
-              current.id == intent.occupant.id else {
+            current.id == intent.occupant.id
+        else {
             return
         }
 
@@ -693,7 +699,8 @@ public struct CaveRules: Sendable {
                     intents.append(.convertToDiamond(at: position, id: id))
                 }
             } else {
-                let factor = snapshot.amoebaSlowTicksRemaining > 0
+                let factor =
+                    snapshot.amoebaSlowTicksRemaining > 0
                     ? Self.amoebaSlowRandomFactor
                     : Self.amoebaFastRandomFactor
                 for position in positions {
@@ -774,17 +781,17 @@ public struct CaveRules: Sendable {
         events: inout [GameEvent]
     ) {
         switch intent {
-        case .convertToBoulder(at: let position, id: let id):
+        case .convertToBoulder(at: let position, let id):
             guard state.grid[position].occupant?.id == id else { return }
             let newID = EntityID(state.nextEntityID)
             state.nextEntityID += 1
             state.grid[position].occupant = .boulder(newID, motion: .resting)
-        case .convertToDiamond(at: let position, id: let id):
+        case .convertToDiamond(at: let position, let id):
             guard state.grid[position].occupant?.id == id else { return }
             let newID = EntityID(state.nextEntityID)
             state.nextEntityID += 1
             state.grid[position].occupant = .diamond(newID, motion: .resting)
-        case .grow(from: let from, to: let to):
+        case .grow(let from, let to):
             guard state.grid[from].occupant?.isAmoeba == true else { return }
             guard isAmoebaGrowthTarget(to, in: state) else { return }
             if case .dirt = state.grid[to].terrain {
@@ -938,8 +945,8 @@ public struct CaveRules: Sendable {
     }
 }
 
-private extension CaveLevel {
-    func gridContainsPlayerAndOccupants() -> Bool {
+extension CaveLevel {
+    fileprivate func gridContainsPlayerAndOccupants() -> Bool {
         guard terrain.contains(playerStart) else { return false }
         var seen = Set<GridPosition>([playerStart])
         for start in occupantStarts {

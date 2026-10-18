@@ -129,7 +129,7 @@ final class CaveSession {
 
         var aggregatedEvents: [GameEvent] = []
         var ticksRun = 0
-        var terminalStatus: PlayStatus?
+        var reachedTerminal = false
 
         while accumulator >= fixedStep && ticksRun < Self.maxCatchUpTicks {
             accumulator -= fixedStep
@@ -139,8 +139,8 @@ final class CaveSession {
                 state = transition.state
                 aggregatedEvents.append(contentsOf: transition.events)
                 ticksRun += 1
-                if case .terminal(let status) = transition.outcome {
-                    terminalStatus = status
+                if case .terminal = transition.outcome {
+                    reachedTerminal = true
                     break
                 }
             } catch {
@@ -158,7 +158,7 @@ final class CaveSession {
 
         guard ticksRun > 0 else { return nil }
 
-        if let terminalStatus {
+        if reachedTerminal {
             phase = .outcomePresenting
             clearInputState()
             return makeEmission(

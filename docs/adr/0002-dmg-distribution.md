@@ -1,6 +1,7 @@
 # ADR 0002: Verteilung als macOS-`.dmg`
 
-Status: Accepted  
+Status: Accepted; ergänzt durch [ADR 0006](0006-github-releases.md) (2026-10-18)
+
 Datum: 2026-07-31
 
 ## Kontext
@@ -24,6 +25,7 @@ entschieden werden.
 
 ## Folgen
 
-- Phase 6 muss Signierung, Notarisierung und DMG-Erzeugung abdecken.
-- Build-Skripte und Release-Checklisten zielen auf ein DMG-Artefakt, nicht auf
-  GitHub-Release-Automation als Pflicht.
+- DMG-Erzeugung ist umgesetzt. Developer-ID-Signierung und Notarisierung sind
+  gemäß ADR 0006 und Maintainer-Entscheidung vom 2026-10-18 nicht vorgesehen.
+- Build-Skripte liefern ein DMG-Artefakt. Seit ADR 0006 kommt ein portables
+  App-ZIP hinzu; GitHub Actions übernimmt Tests, Packaging und Release-Entwürfe.

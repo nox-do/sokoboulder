@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("SokobanRules")
@@ -27,7 +28,8 @@ struct SokobanRulesTests {
 
     @Test("free movement updates position and move count")
     func freeMovement() throws {
-        let state = try start("""
+        let state = try start(
+            """
             #####
             # @ #
             # .$#
@@ -39,20 +41,22 @@ struct SokobanRulesTests {
         #expect(transition.state.playerPosition == GridPosition(column: 1, row: 1))
         #expect(transition.state.moveCount == 1)
         #expect(transition.state.pushCount == 0)
-        #expect(transition.events == [
-            .entityMoved(
-                state.playerRef,
-                from: GridPosition(column: 2, row: 1),
-                to: GridPosition(column: 1, row: 1)
-            ),
-        ])
+        #expect(
+            transition.events == [
+                .entityMoved(
+                    state.playerRef,
+                    from: GridPosition(column: 2, row: 1),
+                    to: GridPosition(column: 1, row: 1)
+                )
+            ])
         // Input state must not be mutated.
         #expect(before == state)
     }
 
     @Test("wall and void leave state unchanged")
     func blockedByWallAndVoid() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ###
             #@.
             #$#
@@ -63,7 +67,8 @@ struct SokobanRulesTests {
         #expect(wall.state == state)
         #expect(wall.events == [.movementBlocked(at: GridPosition(column: 1, row: 0))])
 
-        let open = try start("""
+        let open = try start(
+            """
             ----
             -@.-
             -$--
@@ -77,7 +82,8 @@ struct SokobanRulesTests {
 
     @Test("simple crate push increments move and push counts")
     func simplePush() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ######
             # @$ #
             #  . #
@@ -92,23 +98,25 @@ struct SokobanRulesTests {
         #expect(transition.state.grid[GridPosition(column: 3, row: 1)].occupant == nil)
 
         let crate = EntityRef(id: EntityID(2), kind: .crate)
-        #expect(transition.events == [
-            .objectPushed(
-                crate,
-                from: GridPosition(column: 3, row: 1),
-                to: GridPosition(column: 4, row: 1)
-            ),
-            .entityMoved(
-                state.playerRef,
-                from: GridPosition(column: 2, row: 1),
-                to: GridPosition(column: 3, row: 1)
-            ),
-        ])
+        #expect(
+            transition.events == [
+                .objectPushed(
+                    crate,
+                    from: GridPosition(column: 3, row: 1),
+                    to: GridPosition(column: 4, row: 1)
+                ),
+                .entityMoved(
+                    state.playerRef,
+                    from: GridPosition(column: 2, row: 1),
+                    to: GridPosition(column: 3, row: 1)
+                ),
+            ])
     }
 
     @Test("second crate or wall behind crate blocks without changing counters")
     func pushBlocked() throws {
-        let againstWall = try start("""
+        let againstWall = try start(
+            """
             ####
             #@$#
             # .#
@@ -119,7 +127,8 @@ struct SokobanRulesTests {
         #expect(blockedWall.state == againstWall)
         #expect(blockedWall.state.moveCount == 0)
 
-        let againstCrate = try start("""
+        let againstCrate = try start(
+            """
             ######
             # @$$#
             #  ..#
@@ -132,27 +141,29 @@ struct SokobanRulesTests {
 
     @Test("crate entering a goal emits ordered events and can complete")
     func enterGoalAndComplete() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ######
             # @$.#
             ######
             """)
         let ontoGoal = try rules.move(.right, in: state)
         let crate = EntityRef(id: EntityID(2), kind: .crate)
-        #expect(ontoGoal.events == [
-            .objectPushed(
-                crate,
-                from: GridPosition(column: 3, row: 1),
-                to: GridPosition(column: 4, row: 1)
-            ),
-            .entityMoved(
-                state.playerRef,
-                from: GridPosition(column: 2, row: 1),
-                to: GridPosition(column: 3, row: 1)
-            ),
-            .crateEnteredGoal(crate, at: GridPosition(column: 4, row: 1), completed: 1, total: 1),
-            .levelCompleted,
-        ])
+        #expect(
+            ontoGoal.events == [
+                .objectPushed(
+                    crate,
+                    from: GridPosition(column: 3, row: 1),
+                    to: GridPosition(column: 4, row: 1)
+                ),
+                .entityMoved(
+                    state.playerRef,
+                    from: GridPosition(column: 2, row: 1),
+                    to: GridPosition(column: 3, row: 1)
+                ),
+                .crateEnteredGoal(crate, at: GridPosition(column: 4, row: 1), completed: 1, total: 1),
+                .levelCompleted,
+            ])
         #expect(ontoGoal.outcome == .terminal(.completed))
         #expect(ontoGoal.state.status == .completed)
         #expect(ontoGoal.state.moveCount == 1)
@@ -162,7 +173,8 @@ struct SokobanRulesTests {
     @Test("crate leaving a goal emits crateLeftGoal")
     func leaveGoal() throws {
         // Two goals / two crates so the level is not already completed at start.
-        let leaveStart = try start("""
+        let leaveStart = try start(
+            """
             ########
             # @* .$#
             ########
@@ -170,26 +182,28 @@ struct SokobanRulesTests {
         #expect(leaveStart.status == .playing)
         let leave = try rules.move(.right, in: leaveStart)
         let leaveCrate = EntityRef(id: EntityID(2), kind: .crate)
-        #expect(leave.events == [
-            .objectPushed(
-                leaveCrate,
-                from: GridPosition(column: 3, row: 1),
-                to: GridPosition(column: 4, row: 1)
-            ),
-            .entityMoved(
-                leaveStart.playerRef,
-                from: GridPosition(column: 2, row: 1),
-                to: GridPosition(column: 3, row: 1)
-            ),
-            .crateLeftGoal(leaveCrate, at: GridPosition(column: 3, row: 1), completed: 0, total: 2),
-        ])
+        #expect(
+            leave.events == [
+                .objectPushed(
+                    leaveCrate,
+                    from: GridPosition(column: 3, row: 1),
+                    to: GridPosition(column: 4, row: 1)
+                ),
+                .entityMoved(
+                    leaveStart.playerRef,
+                    from: GridPosition(column: 2, row: 1),
+                    to: GridPosition(column: 3, row: 1)
+                ),
+                .crateLeftGoal(leaveCrate, at: GridPosition(column: 3, row: 1), completed: 0, total: 2),
+            ])
         #expect(leave.outcome == .changed)
         #expect(leave.state.status == .playing)
     }
 
     @Test("input after completion is rejected without mutation or fault")
     func terminalInputRejected() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ######
             # @$.#
             ######

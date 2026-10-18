@@ -160,7 +160,7 @@ Attribution is not required by CC0. The author and source are listed voluntarily
 - Attribution (required): NenadSimic,
   https://opengameart.org/content/menu-selection-click
 
-## `audio.effect.shared.objectPushed` / `boulderDash.boulderPushed`
+## `boulderDash.boulderPushed` / `sokoban.cratePushed`
 
 - Title: Push Stone Boulder (Yo Frankie!)
 - Author: Blender Foundation (submitted by Lamoot)
@@ -171,12 +171,12 @@ Attribution is not required by CC0. The author and source are listed voluntarily
 - Local license: `MacGameApp/Resources/Audio/Licenses/CC-BY-3.0.txt`
 - Downloaded: 2026-08-03
 - Changes: FLAC → WAV mono 44.1 kHz/16‑bit; Peak ≈ −3 dBFS; getrimmt.
-  - Fels (`shared/objectPushed.wav`, `boulderDash/boulderPushed.wav`):
+  - Fels (`boulderDash/boulderPushed.wav`):
     Pitch ≈ 0.78×, Soft-Sat, Lowpass — tiefer/rauer.
   - Kiste (`sokoban/cratePushed.wav`): Pitch ≈ 1.15×, Highpass — trockener/holziger.
 - Attribution (required): © Blender Foundation | apricot.blender.org
 
-## `audio.effect.shared.collectiblePickedUp` / `boulderDash.diamondCollected`
+## `boulderDash.diamondCollected`
 
 - Pack: 10 8bit coin sounds
 - Author: Luke.RUSTLTD
@@ -187,8 +187,7 @@ Attribution is not required by CC0. The author and source are listed voluntarily
 - Local license: `MacGameApp/Resources/Audio/Licenses/CC0-1.0.txt`
 - Downloaded: 2026-08-03
 - Changes: `coin7.wav` → mono 44.1 kHz/16‑bit, Peak ≈ −3 dBFS; Pitch ≈ 1.22× + Highpass
-  (heller/gläserner) → `shared/collectiblePickedUp.wav` /
-  `boulderDash/diamondCollected.wav`
+  (heller/gläserner) → `boulderDash/diamondCollected.wav`
 
 ## `audio.effect.shared.playerDied`
 
@@ -332,6 +331,10 @@ Tiles are authored at 64×64 with `.nearest` filtering (same continuous scale as
   `d5a291e4efa30a6f0c06cafd4fbb4bcc47873ef2a0adcd113a439e9d0e8af84a`
 - Changes: cropped sapphire (32×32), nearest-scaled and centered on transparent
   64×64 → `Textures/cave/diamond.png`.
+- App icon: sapphire sprite cropped and nearest-scaled onto a rounded dark
+  tile, exported at macOS icon sizes under `Resources/Assets.xcassets/AppIcon.appiconset/`.
+  These derived icon images are also licensed under CC-BY-SA 3.0.
+  Regeneration source: `scripts/generate-release-artwork.swift`.
 - Attribution: Clint Bellanger.
 
 ### Exit open / closed

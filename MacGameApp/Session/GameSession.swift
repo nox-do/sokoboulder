@@ -454,12 +454,12 @@ final class GameSession {
     }
 
     #if DEBUG
-    /// Test-only: replace state to exercise ``EngineFault`` handling.
-    func replaceStateForTesting(_ newState: SokobanState) {
-        state = newState
-    }
+        /// Test-only: replace state to exercise ``EngineFault`` handling.
+        func replaceStateForTesting(_ newState: SokobanState) {
+            state = newState
+        }
 
-    /// Test-only: inspect checkpoint after compaction.
-    var checkpointForTesting: SokobanCheckpoint { checkpoint }
+        /// Test-only: inspect checkpoint after compaction.
+        var checkpointForTesting: SokobanCheckpoint { checkpoint }
     #endif
 }

@@ -1,7 +1,8 @@
 import Foundation
-import Testing
-@testable import MacGameApp
 import GameCore
+import Testing
+
+@testable import MacGameApp
 
 @Suite("Cave content catalog")
 struct CaveDemoCatalogTests {
@@ -25,11 +26,12 @@ struct CaveDemoCatalogTests {
         #expect(!catalog.tutorialHint(for: catalog.levels[33]).isEmpty)
         #expect(!catalog.tutorialHint(for: catalog.levels[34]).isEmpty)
         #expect(!catalog.tutorialHint(for: catalog.levels[35]).isEmpty)
-        #expect(catalog.tutorialLevelIDs == [
-            "cave.demo.001",
-            "cave.demo.002",
-            "cave.demo.003",
-        ])
+        #expect(
+            catalog.tutorialLevelIDs == [
+                "cave.demo.001",
+                "cave.demo.002",
+                "cave.demo.003",
+            ])
     }
 
     @Test("compatibility helper loads first demo")

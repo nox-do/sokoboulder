@@ -1,6 +1,8 @@
 import Foundation
 import GameCore
 
+@testable import MacGameApp
+
 /// Compatibility helpers for tests that need the first bundled cave demo.
 enum CaveDemoLevel {
     static let id = "cave.demo.001"

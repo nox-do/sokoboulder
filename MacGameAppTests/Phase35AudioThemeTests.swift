@@ -25,10 +25,12 @@ struct Phase35AudioThemeTests {
             from: BundleContentResources(bundle: Bundle(for: SokobanPlayController.self))
         )
         #expect(catalog.defaultThemeID == AudioTheme.sokobanID)
-        #expect(catalog.theme(id: AudioTheme.sokobanID)?.musicPlayingPath
-            == "Audio/Music/sokoban-puzzling.mp3")
-        #expect(catalog.theme(id: AudioTheme.caveID)?.musicPlayingPath
-            == "Audio/Music/cave-wonder.mp3")
+        #expect(
+            catalog.theme(id: AudioTheme.sokobanID)?.musicPlayingPath
+                == "Audio/Music/sokoban-puzzling.mp3")
+        #expect(
+            catalog.theme(id: AudioTheme.caveID)?.musicPlayingPath
+                == "Audio/Music/cave-wonder.mp3")
         #expect(catalog.resolvedTheme(for: .sokoban).id == AudioTheme.sokobanID)
         #expect(catalog.resolvedTheme(for: .cave).id == AudioTheme.caveID)
     }
@@ -95,8 +97,9 @@ struct Phase35AudioThemeTests {
         let catalog = AudioThemeCatalogLoader.load(from: empty)
         #expect(catalog.theme(id: AudioTheme.sokobanID)?.id == AudioTheme.sokobanID)
         #expect(catalog.theme(id: AudioTheme.caveID)?.id == AudioTheme.caveID)
-        #expect(catalog.resolvedTheme(for: .cave).musicPlayingPath
-            == "Audio/Music/cave-wonder.mp3")
+        #expect(
+            catalog.resolvedTheme(for: .cave).musicPlayingPath
+                == "Audio/Music/cave-wonder.mp3")
     }
 
     @Test("theme may reference missing cue files without failing decode")

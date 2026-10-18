@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import GameCore
 
 @Suite("Sokoban state digest")

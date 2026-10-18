@@ -6,13 +6,13 @@ import PackageDescription
 let package = Package(
     name: "GameCore",
     platforms: [
-        .macOS(.v14),
+        .macOS(.v14)
     ],
     products: [
         .library(
             name: "GameCore",
             targets: ["GameCore"]
-        ),
+        )
     ],
     targets: [
         .target(

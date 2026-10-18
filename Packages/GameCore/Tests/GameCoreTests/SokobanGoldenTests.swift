@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 /// Golden scenarios: ASCII → parse → validate → start → moves → completed.
@@ -8,14 +9,15 @@ struct SokobanGoldenTests {
 
     @Test("golden 1: free movement and blockades")
     func freeMovementAndBlockades() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            #####
-            #   #
-            # @ #
-            #  .#
-            #  $#
-            #####
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                #####
+                #   #
+                # @ #
+                #  .#
+                #  $#
+                #####
+                """)
         var state = try rules.start(level: level)
 
         for direction in [Direction.left, .up, .right, .right] {
@@ -36,29 +38,31 @@ struct SokobanGoldenTests {
 
     @Test("golden 2: push onto goal completes; further input ignored")
     func pushOnGoalAndTerminal() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            #######
-            #  @$.#
-            #######
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                #######
+                #  @$.#
+                #######
+                """)
         var state = try rules.start(level: level)
         let crate = EntityRef(id: EntityID(2), kind: .crate)
 
         let onto = try rules.move(.right, in: state)
-        #expect(onto.events == [
-            .objectPushed(
-                crate,
-                from: GridPosition(column: 4, row: 1),
-                to: GridPosition(column: 5, row: 1)
-            ),
-            .entityMoved(
-                state.playerRef,
-                from: GridPosition(column: 3, row: 1),
-                to: GridPosition(column: 4, row: 1)
-            ),
-            .crateEnteredGoal(crate, at: GridPosition(column: 5, row: 1), completed: 1, total: 1),
-            .levelCompleted,
-        ])
+        #expect(
+            onto.events == [
+                .objectPushed(
+                    crate,
+                    from: GridPosition(column: 4, row: 1),
+                    to: GridPosition(column: 5, row: 1)
+                ),
+                .entityMoved(
+                    state.playerRef,
+                    from: GridPosition(column: 3, row: 1),
+                    to: GridPosition(column: 4, row: 1)
+                ),
+                .crateEnteredGoal(crate, at: GridPosition(column: 5, row: 1), completed: 1, total: 1),
+                .levelCompleted,
+            ])
         #expect(onto.outcome == .terminal(.completed))
         state = onto.state
 
@@ -100,12 +104,13 @@ struct SokobanGoldenTests {
 
         let player = EntityRef(id: EntityID(1), kind: .player)
         let crate = EntityRef(id: EntityID(2), kind: .crate)
-        #expect(allEvents == [
-            .entityMoved(player, from: GridPosition(column: 1, row: 1), to: GridPosition(column: 2, row: 1)),
-            .objectPushed(crate, from: GridPosition(column: 2, row: 2), to: GridPosition(column: 2, row: 3)),
-            .entityMoved(player, from: GridPosition(column: 2, row: 1), to: GridPosition(column: 2, row: 2)),
-            .crateEnteredGoal(crate, at: GridPosition(column: 2, row: 3), completed: 1, total: 1),
-            .levelCompleted,
-        ])
+        #expect(
+            allEvents == [
+                .entityMoved(player, from: GridPosition(column: 1, row: 1), to: GridPosition(column: 2, row: 1)),
+                .objectPushed(crate, from: GridPosition(column: 2, row: 2), to: GridPosition(column: 2, row: 3)),
+                .entityMoved(player, from: GridPosition(column: 2, row: 1), to: GridPosition(column: 2, row: 2)),
+                .crateEnteredGoal(crate, at: GridPosition(column: 2, row: 3), completed: 1, total: 1),
+                .levelCompleted,
+            ])
     }
 }

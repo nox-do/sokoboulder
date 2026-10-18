@@ -40,7 +40,8 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     ) {
         self.resources = resources
         self.activeTheme = theme
-        format = AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)
+        format =
+            AVAudioFormat(standardFormatWithSampleRate: 22_050, channels: 1)
             ?? AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
         engine.attach(effectPlayer)
         engine.connect(effectPlayer, to: engine.mainMixerNode, format: format)
@@ -151,8 +152,8 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
         musicPlayer = nil
         loadedMusicPath = nil
         if let path = activeTheme.musicPlayingPath,
-           let url = try? resources.url(at: path),
-           let player = try? AVAudioPlayer(contentsOf: url)
+            let url = try? resources.url(at: path),
+            let player = try? AVAudioPlayer(contentsOf: url)
         {
             player.numberOfLoops = -1
             player.prepareToPlay()
@@ -241,8 +242,8 @@ final class ProceduralAudioPlaybackBackend: AudioPlaybackBackend {
     }
 
     #if DEBUG
-    /// Test-only: path currently loaded for looping music, if any.
-    var loadedMusicPathForTesting: String? { loadedMusicPath }
+        /// Test-only: path currently loaded for looping music, if any.
+        var loadedMusicPathForTesting: String? { loadedMusicPath }
     #endif
 
     @discardableResult

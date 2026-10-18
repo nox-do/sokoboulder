@@ -106,9 +106,9 @@ enum ThemeCatalogLoader {
 
     private static func guessThemeID(path: String, data: Data?) -> String? {
         if let data,
-           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let id = object["id"] as? String,
-           !id.isEmpty
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let id = object["id"] as? String,
+            !id.isEmpty
         {
             return id
         }

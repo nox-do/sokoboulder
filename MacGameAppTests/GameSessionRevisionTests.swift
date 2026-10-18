@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -140,10 +141,11 @@ struct GameSessionRevisionTests {
             Issue.record("expected emission")
             return
         }
-        #expect(emission.render.events.contains { event in
-            if case .movementBlocked = event { return true }
-            return false
-        })
+        #expect(
+            emission.render.events.contains { event in
+                if case .movementBlocked = event { return true }
+                return false
+            })
         #expect(emission.render.targetRevision == 2)
         #expect(session.undoCount == beforeUndo)
     }

@@ -1419,7 +1419,7 @@ tatsächlich außerhalb von Tests und App benötigt wird.
 - Basisdatentypen `Grid`, `GridPosition`, `Direction` implementieren.
 - Swift-Testing-Ziel einrichten.
 - Lokalen, dokumentierten `swift test`-Befehl für `GameCore` festlegen
-  (keine GitHub-CI; siehe `docs/adr/0001-ci-swift-test.md`).
+  (seit ADR 0006 zusätzlich GitHub-CI; siehe `docs/RELEASING.md`).
 - Nur Entscheidungen mit echten Alternativen und Folgekosten als ADR unter
   `docs/adr/` dokumentieren.
 - Distributionsziel `.dmg` festhalten (siehe `docs/adr/0002-dmg-distribution.md`).
@@ -1446,7 +1446,7 @@ Abnahme:
 
 ### Phase 2: Spielbare Mac-App
 
-- Vollständiges Xcode-/SDK-/Signierungs-Preflight durchführen.
+- Vollständiges Xcode-/SDK-Preflight durchführen.
 - Xcode-App-Projekt mit SwiftUI.
 - SpriteKit-Szene und Rasterdarstellung.
 - Tastatureingabe und `@MainActor`-Session.
@@ -1632,7 +1632,9 @@ Abnahme:
 - Bedienungshilfen und Einstellungen vervollständigen.
 - Performance-, Speicher- und UI-Tests.
 - Audio-Asset- und Lizenznachweise aus [AUDIO.md](AUDIO.md) vollständig prüfen.
-- Signierung, Sandbox und DMG-Erzeugung für die lokale `.dmg`-Verteilung.
+- Ad-hoc Universal-ZIP/DMG und GitHub-Release-Entwürfe sind seit ADR 0006 umgesetzt.
+  Developer-ID-Signierung, Notarisierung und Stapling sind bewusst nicht vorgesehen;
+  die bestehende App-Sandbox bleibt aktiv.
 
 ## 22. Risiken und Gegenmaßnahmen
 
@@ -1692,7 +1694,8 @@ In frühen Spikes zu entscheiden:
 
 Bereits entschieden (siehe `docs/adr/`):
 
-1. Keine GitHub-CI; lokale `swift test`-Abnahme.
+1. Lokale Tests und GitHub-CI; Universal-ZIP/DMG und Release-Entwürfe
+   (ADR 0006 ersetzt ADR 0001).
 2. Primäres Auslieferungsformat ist eine `.dmg`.
 3. Auflösungsunabhängige Brett-Skalierung (`docs/adr/0003-…`); Pixel-Profil
    `pixelNearest` und Themes Dungeon/Kenney in `docs/adr/0004-…` (Phase 3.8).
@@ -1783,8 +1786,9 @@ Ein anschließender Umsetzungsreview schloss weitere konkrete Lücken:
 - terminale App-Zustände besitzen definierte Übergänge für Undo, Neustart und
   Levelauswahl,
 - lokale Test- und Build-Smokes sind ab Phase 0 beziehungsweise Phase 2 Teil
-  der Abnahme; eine GitHub-CI ist nicht vorgesehen,
-- das Auslieferungsziel ist eine signierte/notariserte `.dmg`.
+  der Abnahme; seit ADR 0006 laufen sie zusätzlich in GitHub Actions,
+- das Auslieferungsziel ist eine DMG plus App-ZIP mit lokaler Ad-hoc-Signatur;
+  Apple-Developer-Signierung und Notarisierung sind nicht vorgesehen.
 
 Das Audio-Thema wurde anschließend aus dem Architekturplan herausgelöst:
 

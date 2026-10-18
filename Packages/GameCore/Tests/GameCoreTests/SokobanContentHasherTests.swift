@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("Sokoban content hash")
@@ -30,16 +31,18 @@ struct SokobanContentHasherTests {
 
     @Test("whitespace-significant rows change the hash")
     func whitespaceChangesHash() throws {
-        let a = try SokobanContentHasher.sha256Hex(ascii: """
-            ####
-            #@.#
-            ####
-            """)
-        let b = try SokobanContentHasher.sha256Hex(ascii: """
-            #####
-            #@. #
-            #####
-            """)
+        let a = try SokobanContentHasher.sha256Hex(
+            ascii: """
+                ####
+                #@.#
+                ####
+                """)
+        let b = try SokobanContentHasher.sha256Hex(
+            ascii: """
+                #####
+                #@. #
+                #####
+                """)
         #expect(a != b)
     }
 }

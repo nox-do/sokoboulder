@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -49,7 +50,7 @@ struct GameSessionSubmitMoveTests {
         #expect(results.count == 2)
 
         guard case .emitted(let first) = results[0],
-              case .emitted(let second) = results[1]
+            case .emitted(let second) = results[1]
         else {
             Issue.record("expected two emissions")
             return

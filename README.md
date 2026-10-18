@@ -27,7 +27,8 @@ Rendering im lokalen Swift-Package `GameCore`.
 Sokoban und der Höhlen-Demopfad sind spielbar. Die gemeinsame Plattform für
 Level-Manifeste, Fortschritt, Einstellungen, Themes, Audio und Replay-Grundlagen
 ist umgesetzt. Aktuell offen sind vor allem Playtests, Cave-Sand, weiteres
-Polishing sowie Signierung, Notarisierung und DMG-Verteilung.
+Polishing. Universal-App, ZIP-/DMG-Packaging und GitHub-Workflows sind
+eingerichtet.
 
 Die detaillierte Änderungs- und Aufgabenübersicht steht in [todo.md](todo.md).
 
@@ -68,8 +69,35 @@ xcodebuild \
   build
 ```
 
-Es gibt derzeit keine GitHub-CI; die Tests laufen lokal auf der festgelegten
-Toolchain. Bundle-Identifier: `com.sokoboulder.app` (Tests:
+Stilprüfung und beide Tests gemeinsam: `./scripts/test.sh`. GitHub Actions führt
+sie bei Pull Requests und Pushes auf `main` ebenfalls aus.
+
+Swift-Code formatieren beziehungsweise nur prüfen:
+
+```bash
+./scripts/format.sh
+./scripts/lint.sh
+```
+
+Dafür verwenden wir das in Xcode enthaltene `swift-format`, konfiguriert über
+`.swift-format` (vier Leerzeichen, 120 Zeichen Zeilenlänge). Es ist keine weitere
+Installation nötig. Die Skripte prüfen App, Tests, GameCore und das Swift-Skript
+für Release-Grafiken; Build-Verzeichnisse und lokale Experimente bleiben außen vor.
+Der Stilcheck läuft auch vor Tests und Release-Builds in CI.
+Details und Xcode-Bedienung: [Entwicklung](docs/DEVELOPMENT.md).
+
+Release-Pakete für Apple Silicon und Intel bauen:
+
+```bash
+./scripts/package-macos.sh 0.1.0
+```
+
+ZIP mit direkt startbarer `SokoBoulder.app`, DMG und Prüfsummen liegen danach
+unter `dist/0.1.0/`. Ein Push von `v0.1.0` erzeugt nach erfolgreichen Tests einen
+GitHub-Release-Entwurf mit diesen Dateien; manuelle Workflow-Läufe liefern
+Downloads als Actions-Artefakte. Details: [Release-Anleitung](docs/RELEASING.md).
+
+Bundle-Identifier: `com.sokoboulder.app` (Tests:
 `com.sokoboulder.app.tests`).
 
 ## Steuerung
@@ -100,8 +128,10 @@ Spielstand und wird beim Levelwechsel zurückgesetzt.
 
 ## Verteilung und Lizenz
 
-Das geplante Auslieferungsformat ist eine signierte und notarisierte macOS-DMG;
-Packaging und Release-Automation folgen in einer späteren Phase.
+Auslieferungsformate sind eine Universal-App im ZIP und eine DMG für macOS 14+.
+Die App ist lokal ad-hoc signiert. Apple-Developer-Signierung und
+Notarisierung sind bewusst nicht vorgesehen. Beim ersten Download kann macOS eine manuelle
+Freigabe verlangen. Installation und Release-Ablauf: [docs/RELEASING.md](docs/RELEASING.md).
 
 Für den eigenen Quellcode ist noch keine Projektlizenz festgelegt. Die
 Drittanbieter-Assets unterliegen den jeweils in

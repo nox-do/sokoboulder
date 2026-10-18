@@ -63,10 +63,10 @@ public enum CaveOccupant: Equatable, Sendable {
     public var id: EntityID {
         switch self {
         case .boulder(let id, _),
-             .diamond(let id, _),
-             .firefly(let id, _),
-             .butterfly(let id, _),
-             .amoeba(let id):
+            .diamond(let id, _),
+            .firefly(let id, _),
+            .butterfly(let id, _),
+            .amoeba(let id):
             id
         }
     }

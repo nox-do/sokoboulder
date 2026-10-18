@@ -129,7 +129,7 @@ final class SokobanRunPersistence: SokobanRunSaveSink {
         // Peek schema before full decode.
         // Newer schemas must stay in place; older / unknown lower versions are quarantined.
         if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let schemaVersion = root["schemaVersion"] as? Int
+            let schemaVersion = root["schemaVersion"] as? Int
         {
             if schemaVersion > SokobanRunFileV1.currentSchemaVersion {
                 return .invalid(

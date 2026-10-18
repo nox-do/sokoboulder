@@ -1,6 +1,7 @@
 # ADR 0001: Keine GitHub-CI; lokale `swift test`-Abnahme
 
-Status: Accepted  
+Status: Superseded by [ADR 0006](0006-github-releases.md) (2026-10-18)
+
 Datum: 2026-07-31
 
 ## Kontext

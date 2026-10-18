@@ -1,0 +1,102 @@
+name: Package macOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v (e.g. 0.1.0); creates workflow artifacts only'
+        required: true
+        type: string
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  package:
+    runs-on: macos-26
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$INPUT_VERSION"
+          fi
+          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo 'Expected MAJOR.MINOR.PATCH, e.g. 0.1.0' >&2
+            exit 1
+          fi
+          printf 'value=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Lint and test
+        run: ./scripts/test.sh
+      - name: Build Universal app, ZIP and DMG
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ./scripts/package-macos.sh "$RELEASE_VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: SokoBoulder-${{ steps.version.outputs.value }}-macos-universal
+          path: dist/${{ steps.version.outputs.value }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  draft-release:
+    if: github.event_name == 'push'
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: SokoBoulder-${{ needs.package.outputs.version }}-macos-universal
+          path: release-assets
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Native macOS-App für macOS 14+, Apple Silicon und Intel.
+
+          - DMG öffnen und SokoBoulder.app zum direkten Spielen doppelklicken.
+          - Zum Installieren die App nach Programme ziehen.
+          - Alternativ ZIP entpacken und die App direkt starten.
+          - Prüfsummen stehen in SHA256SUMS.txt.
+
+          Diese Version ist lokal ad-hoc signiert und nicht Apple-notarisiert.
+          macOS kann eine manuelle Freigabe unter Datenschutz & Sicherheit benötigen.
+          Hinweise und Lizenzen liegen den Downloads bei.
+          NOTES
+          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > is-draft.txt 2> release-error.txt; then
+            if [[ "$(cat is-draft.txt)" != true ]]; then
+              echo 'Refusing to replace assets on a published release.' >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          else
+            # --verify-tag prevents a new tag being created implicitly.
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --verify-tag --draft --title "SokoBoulder $RELEASE_TAG" \
+              --notes-file release-notes.md
+          fi

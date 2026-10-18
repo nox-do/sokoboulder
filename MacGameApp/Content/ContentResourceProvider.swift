@@ -15,10 +15,6 @@ protocol ContentResourceProvider: Sendable {
 struct BundleContentResources: ContentResourceProvider {
     let bundle: Bundle
 
-    init(bundle: Bundle) {
-        self.bundle = bundle
-    }
-
     func data(at path: String) throws -> Data {
         let url = try url(at: path)
         do {
@@ -39,10 +35,6 @@ struct BundleContentResources: ContentResourceProvider {
 /// Directory-backed provider for tests and tooling.
 struct DirectoryContentResources: ContentResourceProvider {
     let root: URL
-
-    init(root: URL) {
-        self.root = root
-    }
 
     func data(at path: String) throws -> Data {
         let url = try url(at: path)
@@ -83,7 +75,7 @@ enum ContentPath {
         }
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory),
-              !isDirectory.boolValue
+            !isDirectory.boolValue
         else {
             throw ContentLoadError.missingResource(path: path)
         }

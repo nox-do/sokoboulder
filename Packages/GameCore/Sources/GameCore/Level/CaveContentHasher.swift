@@ -17,12 +17,13 @@ public enum CaveContentHasher {
         map: CaveASCIIMap,
         rules: CaveLevelRulesV1
     ) -> String {
-        sha256Hex(utf8: canonicalString(
-            game: game,
-            schemaVersion: schemaVersion,
-            rows: map.rows,
-            rules: rules
-        ))
+        sha256Hex(
+            utf8: canonicalString(
+                game: game,
+                schemaVersion: schemaVersion,
+                rows: map.rows,
+                rules: rules
+            ))
     }
 
     public static func canonicalString(

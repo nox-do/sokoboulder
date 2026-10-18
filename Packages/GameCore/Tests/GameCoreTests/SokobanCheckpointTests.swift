@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("Sokoban checkpoint contract")

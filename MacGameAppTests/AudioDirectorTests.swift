@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -75,7 +76,7 @@ struct AudioDirectorTests {
         #expect(AudioDirector.cues(from: [playerMoved()]) == [.movementStep])
         #expect(
             AudioDirector.cues(from: [
-                .movementBlocked(at: GridPosition(column: 0, row: 0)),
+                .movementBlocked(at: GridPosition(column: 0, row: 0))
             ]) == [.movementBlocked]
         )
         #expect(

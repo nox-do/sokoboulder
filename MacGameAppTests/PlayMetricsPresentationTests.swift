@@ -1,6 +1,7 @@
-import Testing
-@testable import MacGameApp
 import GameCore
+import Testing
+
+@testable import MacGameApp
 
 @Suite("Play metrics presentation")
 struct PlayMetricsPresentationTests {

@@ -1,16 +1,18 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("RenderSnapshot")
 struct RenderSnapshotTests {
     @Test("projects terrain, player, crates, and counters in row-major order")
     func projectsSokobanState() throws {
-        let level = try SokobanLevelValidator.level(fromASCII:
-            """
-            #####
-            #@$.#
-            #####
-            """
+        let level = try SokobanLevelValidator.level(
+            fromASCII:
+                """
+                #####
+                #@$.#
+                #####
+                """
         )
         let state = try SokobanRules().start(level: level)
         let snapshot = RenderSnapshot.project(state)
@@ -41,13 +43,14 @@ struct RenderSnapshotTests {
 
     @Test("player is not duplicated in entities")
     func playerNotInEntities() throws {
-        let level = try SokobanLevelValidator.level(fromASCII:
-            """
-            ####
-            #@$#
-            # .#
-            ####
-            """
+        let level = try SokobanLevelValidator.level(
+            fromASCII:
+                """
+                ####
+                #@$#
+                # .#
+                ####
+                """
         )
         let snapshot = RenderSnapshot.project(try SokobanRules().start(level: level))
         #expect(snapshot.entities.allSatisfy { $0.ref.kind == .crate })
@@ -56,12 +59,13 @@ struct RenderSnapshotTests {
 
     @Test("projection follows a push and completion")
     func followsPushAndCompletion() throws {
-        let level = try SokobanLevelValidator.level(fromASCII:
-            """
-            #####
-            #@$.#
-            #####
-            """
+        let level = try SokobanLevelValidator.level(
+            fromASCII:
+                """
+                #####
+                #@$.#
+                #####
+                """
         )
         var state = try SokobanRules().start(level: level)
         let moved = try SokobanRules().move(.right, in: state)

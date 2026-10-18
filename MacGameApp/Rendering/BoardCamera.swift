@@ -149,10 +149,15 @@ struct BoardCamera: Equatable, Sendable {
             }
             let dc = to.column - from.column
             let dr = to.row - from.row
-            if dc == 1, dr == 0 { found = .right }
-            else if dc == -1, dr == 0 { found = .left }
-            else if dc == 0, dr == 1 { found = .down }
-            else if dc == 0, dr == -1 { found = .up }
+            if dc == 1, dr == 0 {
+                found = .right
+            } else if dc == -1, dr == 0 {
+                found = .left
+            } else if dc == 0, dr == 1 {
+                found = .down
+            } else if dc == 0, dr == -1 {
+                found = .up
+            }
         }
         return found
     }

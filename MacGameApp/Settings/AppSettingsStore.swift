@@ -1,10 +1,7 @@
 import Combine
 import Foundation
 
-/// Persisted presentation / audio preferences (Phase 3.3).
-///
-/// Audio-theme mapping and manifests arrive in Phase 3.5; this store is the
-/// reusable settings surface those themes will read.
+/// Persisted presentation and audio preferences shared by settings and themes.
 struct AppSettingsSnapshot: Equatable, Sendable {
     /// App-local reduce-motion preference (OR’d with the system setting).
     var reduceMotionEnabled: Bool

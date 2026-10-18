@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import MacGameApp
 
 @Suite("Cave progress and level selection")

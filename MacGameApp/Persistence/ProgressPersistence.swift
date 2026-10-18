@@ -134,7 +134,7 @@ final class ProgressPersistence {
         firstLevelID: String,
         caveTutorialLevelIDs: [String] = []
     ) throws -> ProgressPersistence {
-        try ProgressPersistence(
+        ProgressPersistence(
             configuration: Configuration(
                 directoryURL: directoryURL,
                 fileName: Configuration.defaultFileName
@@ -239,7 +239,8 @@ final class ProgressPersistence {
                 && $0.contentHash == contentHash
                 && $0.ruleVersion == ruleVersion
         }
-        var record = existingIndex.map { next.records[$0] }
+        var record =
+            existingIndex.map { next.records[$0] }
             ?? SokobanLevelRecordV1(
                 levelID: levelID,
                 contentHash: contentHash,
@@ -309,7 +310,8 @@ final class ProgressPersistence {
                 && $0.contentHash == contentHash
                 && $0.ruleVersion == ruleVersion
         }
-        var record = existingIndex.map { next.caveRecords[$0] }
+        var record =
+            existingIndex.map { next.caveRecords[$0] }
             ?? CaveLevelRecordV1(
                 levelID: levelID,
                 contentHash: contentHash,

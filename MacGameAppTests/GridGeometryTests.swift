@@ -1,5 +1,6 @@
 import CoreGraphics
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -7,7 +8,7 @@ import Testing
 struct GridGeometryTests {
     @Test("centers flip model Y and letterbox inside the available area")
     func centersAndLetterbox() {
-        var geometry = GridGeometry(
+        let geometry = GridGeometry(
             availableSize: CGSize(width: 300, height: 200),
             gridWidth: 3,
             gridHeight: 2

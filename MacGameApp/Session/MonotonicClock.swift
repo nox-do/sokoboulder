@@ -11,22 +11,3 @@ struct SystemUptimeClock: MonotonicClock {
         ProcessInfo.processInfo.systemUptime
     }
 }
-
-/// Test double with an explicitly advanced timeline.
-final class ManualClock: MonotonicClock, @unchecked Sendable {
-    private(set) var current: TimeInterval
-
-    init(start: TimeInterval = 0) {
-        self.current = start
-    }
-
-    func now() -> TimeInterval { current }
-
-    func advance(by delta: TimeInterval) {
-        current += delta
-    }
-
-    func set(_ value: TimeInterval) {
-        current = value
-    }
-}

@@ -1,6 +1,7 @@
 import Foundation
 import GameCore
 import Testing
+
 @testable import MacGameApp
 
 @Suite("CaveSession timing (Ready → Tick 1)")
@@ -68,10 +69,10 @@ struct CaveSessionTimingTests {
         for _ in 0..<20 {
             if let emission = session.advance(to: now) {
                 if emission.audio.delivery == .perform,
-                   emission.audio.events.contains(where: {
-                       if case .playerDied = $0 { return true }
-                       return false
-                   })
+                    emission.audio.events.contains(where: {
+                        if case .playerDied = $0 { return true }
+                        return false
+                    })
                 {
                     sawDeath = true
                     #expect(session.phase == .outcomePresenting)

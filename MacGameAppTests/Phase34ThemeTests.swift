@@ -70,12 +70,13 @@ struct Phase34ThemeTests {
 
     @Test("explicit vectorContinuous rendering is accepted without textures")
     func explicitVectorRendering() throws {
-        let json = Self.minimalThemeJSON(rendering: """
-              "rendering": {
-                "profile": "vectorContinuous",
-                "baseTilePoints": 32
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            rendering: """
+                  "rendering": {
+                    "profile": "vectorContinuous",
+                    "baseTilePoints": 32
+                  }
+                """)
         let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         #expect(theme.rendering.profile == .vectorContinuous)
         #expect(theme.rendering.textures == nil)
@@ -83,20 +84,22 @@ struct Phase34ThemeTests {
 
     @Test("pixelNearest rendering requires textures and accepts known keys")
     func pixelNearestRenderingDecode() throws {
-        let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
-              "rendering": {
-                "profile": "pixelNearest",
-                "baseTilePoints": 32,
-                "textures": {
-                  "floor": "Textures/dungeon/floor.png",
-                  "wall": "Textures/dungeon/wall.png",
-                  "goal": "Textures/dungeon/goal.png",
-                  "player": "Textures/dungeon/player.png",
-                  "crate": "Textures/dungeon/crate.png",
-                  "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
-                }
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            id: "theme.dungeon",
+            rendering: """
+                  "rendering": {
+                    "profile": "pixelNearest",
+                    "baseTilePoints": 32,
+                    "textures": {
+                      "floor": "Textures/dungeon/floor.png",
+                      "wall": "Textures/dungeon/wall.png",
+                      "goal": "Textures/dungeon/goal.png",
+                      "player": "Textures/dungeon/player.png",
+                      "crate": "Textures/dungeon/crate.png",
+                      "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
+                    }
+                  }
+                """)
         let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         #expect(theme.rendering.profile == .pixelNearest)
         #expect(theme.rendering.baseTilePoints == 32)
@@ -108,33 +111,35 @@ struct Phase34ThemeTests {
 
     @Test("pixelNearest textures may include optional cave pack")
     func pixelNearestCaveTextures() throws {
-        let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
-              "rendering": {
-                "profile": "pixelNearest",
-                "baseTilePoints": 32,
-                "textures": {
-                  "floor": "Textures/dungeon/floor.png",
-                  "wall": "Textures/dungeon/wall.png",
-                  "goal": "Textures/dungeon/goal.png",
-                  "player": "Textures/dungeon/player.png",
-                  "crate": "Textures/dungeon/crate.png",
-                  "crateOnGoal": "Textures/dungeon/crate-on-goal.png",
-                  "cave": {
-                    "dirt": "Textures/cave/dirt.png",
-                    "tunnel": "Textures/cave/tunnel.png",
-                    "wall": "Textures/cave/wall.png",
-                    "steelWall": "Textures/cave/steel-wall.png",
-                    "boulder": "Textures/cave/boulder.png",
-                    "diamond": "Textures/cave/diamond.png",
-                    "exitClosed": "Textures/cave/exit-closed.png",
-                    "exitOpen": "Textures/cave/exit-open.png",
-                    "player": "Textures/cave/player.png",
-                    "firefly": "Textures/cave/firefly.png",
-                    "butterfly": "Textures/cave/butterfly.png"
+        let json = Self.minimalThemeJSON(
+            id: "theme.dungeon",
+            rendering: """
+                  "rendering": {
+                    "profile": "pixelNearest",
+                    "baseTilePoints": 32,
+                    "textures": {
+                      "floor": "Textures/dungeon/floor.png",
+                      "wall": "Textures/dungeon/wall.png",
+                      "goal": "Textures/dungeon/goal.png",
+                      "player": "Textures/dungeon/player.png",
+                      "crate": "Textures/dungeon/crate.png",
+                      "crateOnGoal": "Textures/dungeon/crate-on-goal.png",
+                      "cave": {
+                        "dirt": "Textures/cave/dirt.png",
+                        "tunnel": "Textures/cave/tunnel.png",
+                        "wall": "Textures/cave/wall.png",
+                        "steelWall": "Textures/cave/steel-wall.png",
+                        "boulder": "Textures/cave/boulder.png",
+                        "diamond": "Textures/cave/diamond.png",
+                        "exitClosed": "Textures/cave/exit-closed.png",
+                        "exitOpen": "Textures/cave/exit-open.png",
+                        "player": "Textures/cave/player.png",
+                        "firefly": "Textures/cave/firefly.png",
+                        "butterfly": "Textures/cave/butterfly.png"
+                      }
+                    }
                   }
-                }
-              }
-            """)
+                """)
         let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         let cave = try #require(theme.rendering.textures?.cave)
         #expect(cave.dirt == "Textures/cave/dirt.png")
@@ -157,32 +162,35 @@ struct Phase34ThemeTests {
 
     @Test("legacy pixelInteger profile alias decodes as pixelNearest")
     func legacyPixelIntegerAlias() throws {
-        let json = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
-              "rendering": {
-                "profile": "pixelInteger",
-                "baseTilePoints": 32,
-                "textures": {
-                  "floor": "Textures/dungeon/floor.png",
-                  "wall": "Textures/dungeon/wall.png",
-                  "goal": "Textures/dungeon/goal.png",
-                  "player": "Textures/dungeon/player.png",
-                  "crate": "Textures/dungeon/crate.png",
-                  "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
-                }
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            id: "theme.dungeon",
+            rendering: """
+                  "rendering": {
+                    "profile": "pixelInteger",
+                    "baseTilePoints": 32,
+                    "textures": {
+                      "floor": "Textures/dungeon/floor.png",
+                      "wall": "Textures/dungeon/wall.png",
+                      "goal": "Textures/dungeon/goal.png",
+                      "player": "Textures/dungeon/player.png",
+                      "crate": "Textures/dungeon/crate.png",
+                      "crateOnGoal": "Textures/dungeon/crate-on-goal.png"
+                    }
+                  }
+                """)
         let theme = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         #expect(theme.rendering.profile == .pixelNearest)
     }
 
     @Test("pixelNearest without textures is rejected")
     func pixelNearestRequiresTextures() throws {
-        let json = Self.minimalThemeJSON(rendering: """
-              "rendering": {
-                "profile": "pixelNearest",
-                "baseTilePoints": 32
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            rendering: """
+                  "rendering": {
+                    "profile": "pixelNearest",
+                    "baseTilePoints": 32
+                  }
+                """)
         #expect(throws: ThemeDecodeError.missingTextures) {
             _ = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         }
@@ -190,11 +198,12 @@ struct Phase34ThemeTests {
 
     @Test("invalid rendering profile is rejected")
     func rejectsInvalidRenderingProfile() throws {
-        let json = Self.minimalThemeJSON(rendering: """
-              "rendering": {
-                "profile": "crtScanlines"
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            rendering: """
+                  "rendering": {
+                    "profile": "crtScanlines"
+                  }
+                """)
         #expect(throws: ThemeDecodeError.invalidRenderingProfile("crtScanlines")) {
             _ = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         }
@@ -202,12 +211,13 @@ struct Phase34ThemeTests {
 
     @Test("unknown rendering keys are rejected")
     func rejectsUnknownRenderingKeys() throws {
-        let json = Self.minimalThemeJSON(rendering: """
-              "rendering": {
-                "profile": "vectorContinuous",
-                "filter": "nearest"
-              }
-            """)
+        let json = Self.minimalThemeJSON(
+            rendering: """
+                  "rendering": {
+                    "profile": "vectorContinuous",
+                    "filter": "nearest"
+                  }
+                """)
         #expect(throws: ThemeDecodeError.unknownKeys(["filter"])) {
             _ = try ThemeFileCodec.decodeTheme(Data(json.utf8))
         }
@@ -232,20 +242,22 @@ struct Phase34ThemeTests {
             """
         try Data(manifest.utf8).write(to: themesDir.appendingPathComponent("manifest.json"))
 
-        let dungeon = Self.minimalThemeJSON(id: "theme.dungeon", rendering: """
-              "rendering": {
-                "profile": "pixelNearest",
-                "baseTilePoints": 32,
-                "textures": {
-                  "floor": "Textures/missing/floor.png",
-                  "wall": "Textures/missing/wall.png",
-                  "goal": "Textures/missing/goal.png",
-                  "player": "Textures/missing/player.png",
-                  "crate": "Textures/missing/crate.png",
-                  "crateOnGoal": "Textures/missing/crate-on-goal.png"
-                }
-              }
-            """)
+        let dungeon = Self.minimalThemeJSON(
+            id: "theme.dungeon",
+            rendering: """
+                  "rendering": {
+                    "profile": "pixelNearest",
+                    "baseTilePoints": 32,
+                    "textures": {
+                      "floor": "Textures/missing/floor.png",
+                      "wall": "Textures/missing/wall.png",
+                      "goal": "Textures/missing/goal.png",
+                      "player": "Textures/missing/player.png",
+                      "crate": "Textures/missing/crate.png",
+                      "crateOnGoal": "Textures/missing/crate-on-goal.png"
+                    }
+                  }
+                """)
         try Data(dungeon.utf8).write(to: themesDir.appendingPathComponent("theme.dungeon.json"))
 
         let catalog = ThemeCatalogLoader.load(from: DirectoryContentResources(root: root))
@@ -269,9 +281,10 @@ struct Phase34ThemeTests {
     func builtInStandardRendering() {
         #expect(BuiltInThemes.standard.rendering.profile == .vectorContinuous)
         #expect(BuiltInThemes.standard.rendering.textures == nil)
-        #expect(VisualTheme.knownIDs == [
-            VisualTheme.standardID, VisualTheme.dungeonID, VisualTheme.kenneyID,
-        ])
+        #expect(
+            VisualTheme.knownIDs == [
+                VisualTheme.standardID, VisualTheme.dungeonID, VisualTheme.kenneyID,
+            ])
         #expect(VisualTheme.optionalPixelIDs == [VisualTheme.dungeonID, VisualTheme.kenneyID])
     }
 
@@ -460,10 +473,11 @@ struct Phase34ThemeIntegrationTests {
             )
         )
         scene.settleAnimationsForTesting()
-        #expect(scene.lastEventsForTesting.contains { event in
-            if case .objectPushed = event { return true }
-            return false
-        })
+        #expect(
+            scene.lastEventsForTesting.contains { event in
+                if case .objectPushed = event { return true }
+                return false
+            })
 
         // Force completion celebration path, then hard-resync must not keep frame.
         scene.apply(

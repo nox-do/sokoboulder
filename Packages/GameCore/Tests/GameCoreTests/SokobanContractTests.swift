@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("Sokoban contract guards")
@@ -76,12 +77,13 @@ struct SokobanContractTests {
 
     @Test("move throws EngineFault for corrupt state before terminal short-circuit")
     func moveRejectsCorruptState() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            ####
-            #@$#
-            # .#
-            ####
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                ####
+                #@$#
+                # .#
+                ####
+                """)
         var state = try rules.start(level: level)
         state.moveCount = -1
 
@@ -92,12 +94,13 @@ struct SokobanContractTests {
 
     @Test("move throws EngineFault when player sits on a wall")
     func moveRejectsPlayerOnWall() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            ####
-            #@$#
-            # .#
-            ####
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                ####
+                #@$#
+                # .#
+                ####
+                """)
         var state = try rules.start(level: level)
         state.playerPosition = GridPosition(column: 0, row: 0)
 
@@ -134,12 +137,13 @@ struct SokobanContractTests {
 
     @Test("crate IDs are assigned in row-major grid order")
     func rowMajorCrateIDs() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            #####
-            #@$$#
-            #.. #
-            #####
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                #####
+                #@$$#
+                #.. #
+                #####
+                """)
         let state = try rules.start(level: level)
         #expect(state.grid[GridPosition(column: 2, row: 1)].occupant == .crate(EntityID(2)))
         #expect(state.grid[GridPosition(column: 3, row: 1)].occupant == .crate(EntityID(3)))

@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("SokobanASCIIParser")
@@ -57,12 +58,13 @@ struct SokobanASCIIParserTests {
 struct SokobanLevelValidatorTests {
     @Test("accepts a minimal valid level")
     func validLevel() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            ####
-            #@$#
-            # .#
-            ####
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                ####
+                #@$#
+                # .#
+                ####
+                """)
         #expect(level.width == 4)
         #expect(level.height == 4)
         #expect(level.playerStart == GridPosition(column: 1, row: 1))
@@ -74,17 +76,19 @@ struct SokobanLevelValidatorTests {
 
     @Test("decodes combined glyphs and void")
     func combinedGlyphs() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            -----
-            -+$*-
-            -----
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                -----
+                -+$*-
+                -----
+                """)
         #expect(level.playerStart == GridPosition(column: 1, row: 1))
         #expect(level.terrain[level.playerStart] == .goal)
-        #expect(level.crateStarts == [
-            GridPosition(column: 2, row: 1),
-            GridPosition(column: 3, row: 1),
-        ])
+        #expect(
+            level.crateStarts == [
+                GridPosition(column: 2, row: 1),
+                GridPosition(column: 3, row: 1),
+            ])
         #expect(level.terrain[GridPosition(column: 2, row: 1)] == .floor)
         #expect(level.terrain[GridPosition(column: 3, row: 1)] == .goal)
         #expect(level.terrain[GridPosition(column: 0, row: 0)] == .void)
@@ -130,12 +134,13 @@ struct SokobanLevelValidatorTests {
 
     @Test("does not reject a corner crate")
     func allowsCornerCrate() throws {
-        let level = try SokobanLevelValidator.level(fromASCII: """
-            ###
-            #$#
-            #@.
-            ###
-            """)
+        let level = try SokobanLevelValidator.level(
+            fromASCII: """
+                ###
+                #$#
+                #@.
+                ###
+                """)
         #expect(level.crateStarts.count == 1)
     }
 }

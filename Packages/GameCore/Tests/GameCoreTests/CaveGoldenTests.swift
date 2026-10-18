@@ -1,4 +1,5 @@
 import Testing
+
 @testable import GameCore
 
 @Suite("Cave golden conflict grids (ADR 0005)")
@@ -7,7 +8,8 @@ struct CaveGoldenTests {
 
     @Test("boulder falls into empty space with one-tick lag")
     func boulderFallsIntoEmpty() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ####
             #O #
             #  #
@@ -22,10 +24,12 @@ struct CaveGoldenTests {
         #expect(begin.outcome == .changed)
         state = begin.state
         #expect(motion(at: GridPosition(column: 1, row: 1), in: state) == .falling)
-        #expect(begin.events.contains(.objectStartedFalling(
-            EntityRef(id: boulderID, kind: .boulder),
-            at: GridPosition(column: 1, row: 1)
-        )))
+        #expect(
+            begin.events.contains(
+                .objectStartedFalling(
+                    EntityRef(id: boulderID, kind: .boulder),
+                    at: GridPosition(column: 1, row: 1)
+                )))
 
         let fall = try rules.tick(input: .wait, state: state)
         state = fall.state
@@ -36,15 +40,18 @@ struct CaveGoldenTests {
         let land = try rules.tick(input: .wait, state: state)
         state = land.state
         #expect(motion(at: GridPosition(column: 1, row: 3), in: state) == .resting)
-        #expect(land.events.contains(.objectLanded(
-            EntityRef(id: boulderID, kind: .boulder),
-            at: GridPosition(column: 1, row: 3)
-        )))
+        #expect(
+            land.events.contains(
+                .objectLanded(
+                    EntityRef(id: boulderID, kind: .boulder),
+                    at: GridPosition(column: 1, row: 3)
+                )))
     }
 
     @Test("resting boulder on player does not kill")
     func restingBoulderDoesNotKillPlayer() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ###
             #O#
             #P#
@@ -60,7 +67,8 @@ struct CaveGoldenTests {
 
     @Test("falling boulder kills player")
     func fallingBoulderKillsPlayer() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ###
             #O#
             # #
@@ -68,8 +76,8 @@ struct CaveGoldenTests {
             #E#
             ###
             """)
-        state = try rules.tick(input: .wait, state: state).state // begin falling
-        state = try rules.tick(input: .wait, state: state).state // move onto empty
+        state = try rules.tick(input: .wait, state: state).state  // begin falling
+        state = try rules.tick(input: .wait, state: state).state  // move onto empty
         let kill = try rules.tick(input: .wait, state: state)
         #expect(kill.outcome == .terminal(.failed))
         #expect(kill.state.status == .failed)
@@ -80,7 +88,8 @@ struct CaveGoldenTests {
 
     @Test("player steps aside then boulder falls")
     func playerStepsAsideThenFall() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ####
             #O #
             #P #
@@ -99,7 +108,8 @@ struct CaveGoldenTests {
 
     @Test("boulder can be pushed horizontally")
     func boulderPushHorizontal() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #######
             #  PO #
             #    E#
@@ -109,17 +119,19 @@ struct CaveGoldenTests {
         state = push.state
         #expect(state.player == .alive(at: GridPosition(column: 4, row: 1)))
         #expect(state.grid[GridPosition(column: 5, row: 1)].occupant != nil)
-        #expect(push.events.contains {
-            if case .objectPushed(_, let from, let to) = $0 {
-                return from == GridPosition(column: 4, row: 1) && to == GridPosition(column: 5, row: 1)
-            }
-            return false
-        })
+        #expect(
+            push.events.contains {
+                if case .objectPushed(_, let from, let to) = $0 {
+                    return from == GridPosition(column: 4, row: 1) && to == GridPosition(column: 5, row: 1)
+                }
+                return false
+            })
     }
 
     @Test("boulder cannot be pushed vertically")
     func boulderNoVerticalPush() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ###
             #P#
             #O#
@@ -135,7 +147,8 @@ struct CaveGoldenTests {
 
     @Test("boulder rolls left when left path is open")
     func boulderRollsLeftPreferred() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             # O #
@@ -151,7 +164,8 @@ struct CaveGoldenTests {
 
     @Test("boulder rolls right when left is blocked")
     func boulderRollsRightWhenLeftBlocked() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             ##O #
             ##O #
@@ -167,7 +181,8 @@ struct CaveGoldenTests {
 
     @Test("object updates at most once per tick while falling")
     func updateOnceSameTick() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ####
             #O #
             #  #
@@ -176,7 +191,7 @@ struct CaveGoldenTests {
             #PE#
             ####
             """)
-        state = try rules.tick(input: .wait, state: state).state // falling
+        state = try rules.tick(input: .wait, state: state).state  // falling
         let moved = try rules.tick(input: .wait, state: state)
         state = moved.state
         #expect(state.grid[GridPosition(column: 1, row: 1)].occupant == nil)
@@ -186,7 +201,8 @@ struct CaveGoldenTests {
 
     @Test("roll conflict: earlier scan wins shared destination")
     func twoIntentsSameCell() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #########
             ###O O###
             ###* *###
@@ -204,7 +220,8 @@ struct CaveGoldenTests {
 
     @Test("player digs dirt")
     func playerDigsDirt() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ####
             #P.#
             #E #
@@ -218,7 +235,8 @@ struct CaveGoldenTests {
 
     @Test("exit opens at required diamond count; enter to complete")
     func exitOpensAtRequired() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             #P*E#
             #####
@@ -238,7 +256,8 @@ struct CaveGoldenTests {
 
     @Test("time expiry kills the player")
     func timeExpiresKills() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ###
             #P#
             #E#
@@ -252,7 +271,8 @@ struct CaveGoldenTests {
 
     @Test("zero time limit fails on first tick without EngineFault")
     func zeroTimeLimitFailsCleanly() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ###
             #P#
             #E#
@@ -266,7 +286,8 @@ struct CaveGoldenTests {
 
     @Test("moving into a falling boulder kills the player")
     func moveIntoFallingBoulderKills() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ####
             #PO#
             #  #
@@ -282,14 +303,15 @@ struct CaveGoldenTests {
 
     @Test("identical wait sequence yields stable digest")
     func replayDigestStable() throws {
-        let level = try CaveLevelBuilder.level(fromASCII: """
-            ###
-            #O#
-            # #
-            #P#
-            #E#
-            ###
-            """, timeLimitTicks: 50)
+        let level = try CaveLevelBuilder.level(
+            fromASCII: """
+                ###
+                #O#
+                # #
+                #P#
+                #E#
+                ###
+                """, timeLimitTicks: 50)
         var stateA = try rules.start(level: level)
         var stateB = try rules.start(level: level)
         for _ in 0..<5 {
@@ -304,7 +326,8 @@ struct CaveGoldenTests {
 
     @Test("firefly turns left and moves when prefer side is open")
     func fireflyPrefersLeftTurn() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             #   #
             # F #
@@ -324,7 +347,8 @@ struct CaveGoldenTests {
 
     @Test("firefly orbits 2x2 in open space (classic BD)")
     func fireflyOrbitsOpenSpace() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ######
             #    #
             #  F #
@@ -357,7 +381,8 @@ struct CaveGoldenTests {
 
     @Test("firefly turns against preference then advances along corridor")
     func fireflyTurnsThenAdvancesAlongCorridor() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             #F  #
             #. P#
@@ -371,7 +396,7 @@ struct CaveGoldenTests {
             return
         }
         #expect(heading1 == .up)
-        state = try rules.tick(input: .wait, state: state).state // odd idle
+        state = try rules.tick(input: .wait, state: state).state  // odd idle
         // Heading up; prefer left + forward blocked → turn right, stay.
         state = try rules.tick(input: .wait, state: state).state
         guard case .firefly(_, let heading2) = state.grid[GridPosition(column: 1, row: 1)].occupant else {
@@ -379,7 +404,7 @@ struct CaveGoldenTests {
             return
         }
         #expect(heading2 == .right)
-        state = try rules.tick(input: .wait, state: state).state // odd idle
+        state = try rules.tick(input: .wait, state: state).state  // odd idle
         // Heading right; prefer up blocked; forward open → move.
         state = try rules.tick(input: .wait, state: state).state
         guard case .firefly(_, let heading3) = state.grid[GridPosition(column: 2, row: 1)].occupant else {
@@ -391,7 +416,8 @@ struct CaveGoldenTests {
 
     @Test("butterfly prefers right turn and moves when open")
     func butterflyPrefersRightTurn() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             #   #
             # B #
@@ -411,7 +437,8 @@ struct CaveGoldenTests {
 
     @Test("butterfly turns against preference without moving")
     func butterflyTurnsAgainstPreferenceInPlace() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             ##  #
             #B  #
@@ -431,7 +458,8 @@ struct CaveGoldenTests {
 
     @Test("firefly turns into a side tunnel while wall-following")
     func fireflyEntersSideTunnel() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ########
             #     F#
             ##### ##
@@ -456,7 +484,8 @@ struct CaveGoldenTests {
 
     @Test("firefly follows one-tile corridor after prefer turns")
     func fireflyFollowsCorridor() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ########
             #F     #
             ########
@@ -472,8 +501,8 @@ struct CaveGoldenTests {
             return
         }
         #expect(heading == .right)
-        state = try rules.tick(input: .wait, state: state).state // odd idle
-        state = try rules.tick(input: .wait, state: state).state // even: next step
+        state = try rules.tick(input: .wait, state: state).state  // odd idle
+        state = try rules.tick(input: .wait, state: state).state  // even: next step
         guard case .firefly = state.grid[GridPosition(column: 3, row: 1)].occupant else {
             Issue.record("expected firefly second step along corridor")
             return
@@ -482,7 +511,8 @@ struct CaveGoldenTests {
 
     @Test("firefly does not oscillate at convex doorway")
     func fireflyLeavesDoorwayWithoutOscillation() throws {
-        var state = try start("""
+        var state = try start(
+            """
             ########
             #      #
             #    F##
@@ -506,15 +536,17 @@ struct CaveGoldenTests {
         }
         let unique = Set(positions)
         #expect(unique.count >= 3)
-        #expect(!unique.isSubset(of: [
-            GridPosition(column: 5, row: 2),
-            GridPosition(column: 5, row: 3),
-        ]))
+        #expect(
+            !unique.isSubset(of: [
+                GridPosition(column: 5, row: 2),
+                GridPosition(column: 5, row: 3),
+            ]))
     }
 
     @Test("player walking into firefly explodes and dies")
     func playerWalksIntoFirefly() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ####
             #PF#
             #E #
@@ -523,18 +555,20 @@ struct CaveGoldenTests {
         let kill = try rules.tick(input: .move(.right), state: state)
         #expect(kill.outcome == .terminal(.failed))
         #expect(kill.state.player == .dead(at: GridPosition(column: 2, row: 1)))
-        #expect(kill.events.contains(where: {
-            if case .explosion(let center, _) = $0 {
-                return center == GridPosition(column: 2, row: 1)
-            }
-            return false
-        }))
+        #expect(
+            kill.events.contains(where: {
+                if case .explosion(let center, _) = $0 {
+                    return center == GridPosition(column: 2, row: 1)
+                }
+                return false
+            }))
         #expect(kill.state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
     }
 
     @Test("falling boulder triggers firefly explosion; steel survives")
     func boulderExplodesFireflySteelSurvives() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             #XOX#
             #XFX#
@@ -542,19 +576,21 @@ struct CaveGoldenTests {
             #P E#
             #####
             """)
-        state = try rules.tick(input: .wait, state: state).state // begin falling
+        state = try rules.tick(input: .wait, state: state).state  // begin falling
         let boom = try rules.tick(input: .wait, state: state)
         state = boom.state
-        #expect(boom.events.contains(where: {
-            if case .explosion = $0 { return true }
-            return false
-        }))
-        #expect(boom.events.contains(where: {
-            if case .entityMoved(let ref, _, let to) = $0 {
-                return ref.kind == .boulder && to == GridPosition(column: 2, row: 2)
-            }
-            return false
-        }))
+        #expect(
+            boom.events.contains(where: {
+                if case .explosion = $0 { return true }
+                return false
+            }))
+        #expect(
+            boom.events.contains(where: {
+                if case .entityMoved(let ref, _, let to) = $0 {
+                    return ref.kind == .boulder && to == GridPosition(column: 2, row: 2)
+                }
+                return false
+            }))
         #expect(state.grid[GridPosition(column: 1, row: 1)].terrain == .steelWall)
         #expect(state.grid[GridPosition(column: 3, row: 1)].terrain == .steelWall)
         #expect(state.grid[GridPosition(column: 2, row: 2)].occupant == nil)
@@ -564,7 +600,8 @@ struct CaveGoldenTests {
 
     @Test("butterfly explosion spawns diamonds")
     func butterflyExplosionSpawnsDiamonds() throws {
-        let state = try start("""
+        let state = try start(
+            """
             ####
             #PB#
             #E #
@@ -585,7 +622,8 @@ struct CaveGoldenTests {
 
     @Test("adjacent fireflies chain-explode")
     func fireflyChainExplosion() throws {
-        let state = try start("""
+        let state = try start(
+            """
             #####
             #PFF#
             #E  #
@@ -606,7 +644,8 @@ struct CaveGoldenTests {
 
     @Test("resting boulder on magic wall does not activate")
     func restingOnMagicWallDoesNothing() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             # M #
@@ -624,7 +663,8 @@ struct CaveGoldenTests {
 
     @Test("falling boulder through dormant magic wall becomes diamond")
     func fallingBoulderMorphsToDiamond() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             #   #
@@ -634,9 +674,9 @@ struct CaveGoldenTests {
             #####
             """, requiredDiamonds: 0, magicWallMillingTicks: 50)
         // Begin fall, then hit wall.
-        state = try rules.tick(input: .wait, state: state).state // beginFalling
-        state = try rules.tick(input: .wait, state: state).state // move to (2,2)
-        state = try rules.tick(input: .wait, state: state).state // magic hit
+        state = try rules.tick(input: .wait, state: state).state  // beginFalling
+        state = try rules.tick(input: .wait, state: state).state  // move to (2,2)
+        state = try rules.tick(input: .wait, state: state).state  // magic hit
         guard case .active = state.magicWallStatus else {
             Issue.record("expected magic wall active")
             return
@@ -651,7 +691,8 @@ struct CaveGoldenTests {
 
     @Test("falling diamond through active magic wall becomes boulder")
     func fallingDiamondMorphsToBoulder() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # * #
             #   #
@@ -671,7 +712,8 @@ struct CaveGoldenTests {
 
     @Test("blocked exit under magic wall consumes object but activates")
     func blockedMagicExitConsumes() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             #   #
@@ -694,7 +736,8 @@ struct CaveGoldenTests {
 
     @Test("player under magic wall consumes object without death")
     func playerUnderMagicWallSurvives() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             #   #
@@ -721,7 +764,8 @@ struct CaveGoldenTests {
 
     @Test("expired magic wall consumes without morph")
     func expiredMagicWallConsumes() throws {
-        var state = try start("""
+        var state = try start(
+            """
             #####
             # O #
             #   #
@@ -755,7 +799,8 @@ struct CaveGoldenTests {
 
     @Test("magic wall survives explosion")
     func magicWallSurvivesExplosion() throws {
-        let state = try start("""
+        let state = try start(
+            """
             #####
             #PFM#
             #E  #
@@ -953,11 +998,11 @@ struct CaveGoldenTests {
     func amoebaMaxCellsZeroAutoResolves() throws {
         let level = try CaveLevelBuilder.level(
             fromASCII: """
-            #####
-            #P A#
-            #E  #
-            #####
-            """,
+                #####
+                #P A#
+                #E  #
+                #####
+                """,
             requiredDiamonds: 0,
             amoebaMaxCells: 0
         )

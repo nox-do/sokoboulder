@@ -365,7 +365,7 @@ public struct SokobanRules: Sendable {
         }
 
         let events: [GameEvent] = [
-            .objectPushed(crateRef, from: cratePosition, to: destination),
+            .objectPushed(crateRef, from: cratePosition, to: destination)
         ]
 
         return try movePlayer(

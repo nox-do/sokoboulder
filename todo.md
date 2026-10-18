@@ -7,7 +7,7 @@
 - [x] Verzeichnisstruktur laut ARCHITECTURE.md
 - [x] Basisdatentypen `Grid`, `GridPosition`, `Direction`
 - [x] Swift-Testing-Ziel
-- [x] Lokale `swift test`-Abnahme (keine GitHub-CI)
+- [x] Lokale `swift test`-Abnahme (seit ADR 0006 zusätzlich GitHub-CI)
 - [x] Distributionsziel `.dmg` dokumentiert
 - [x] Abnahme: `swift test` grün (12 Tests), Rasterzugriff getestet
 
@@ -44,7 +44,8 @@ Audio-Mixer/Settings und CC0-Assets später.
 
 - SDK: aktuell installiertes macOS-SDK
 - Deployment-Target: macOS 14.0 (`MACOSX_DEPLOYMENT_TARGET = 14.0`, Package `platforms: [.macOS(.v14)]`)
-- Distribution: signierte/notarisierte `.dmg` (Umsetzung erst Phase 6)
+- Distribution: Universal-App als ZIP und DMG; keine Apple-Developer-Signierung
+  oder Notarisierung (Entscheidung vom 2026-10-18, ADR 0006)
 - Target/Modul/Scheme: `MacGameApp`
 - Öffentlicher Produktname: **SokoBoulder**
 - Bundle-Identifier: **`com.sokoboulder.app`** (Tests: `com.sokoboulder.app.tests`)
@@ -574,7 +575,8 @@ Nachzug SoC (2026-08-03, Review-Smells):
 - [x] Sokoban ⌘Z/⇧⌘Z/⌘R: InputMapper (`charactersIgnoringModifiers` für QWERTZ) +
   `focusedSceneObject` für Edit-/Game-Menü-Klicks (2026-08-09)
 - [x] Kurze Feier-Pause (1.5s Timer) vor Ergebnis-Overlay (2026-08-03)
-- Phase 6: Signierung / Notarisierung / DMG
+- Phase 6: ad-hoc ZIP/DMG umgesetzt; Developer-ID-Signierung, Notarisierung
+  und Stapling sind bewusst nicht vorgesehen
 - Bei ersten externen Swift-Package-Abhängigkeiten: prüfen, ob
   `Package.resolved` für reproduzierbare App-/DMG-Builds eingecheckt werden soll
   (derzeit ignoriert, weil keine Abhängigkeiten existieren)
@@ -614,3 +616,30 @@ Nachzug SoC (2026-08-03, Review-Smells):
 - [x] `M` toggelt ein orangenes Lesezeichen auf dem Zielkreis unter dem Spieler
 - [x] Mehrere Ziele markierbar; bleibt bei Undo/Neustart; weg bei Levelwechsel
 - [x] Nur Sokoban (Hilfe-Eintrag); Darstellung only, keine Regellogik
+
+
+### Build und Distribution (2026-10-18)
+
+- [x] Gemeinsamer lokaler/CI-Testbefehl `scripts/test.sh`
+- [x] Universal-Release-Build für Apple Silicon und Intel
+- [x] Portable App im ZIP und gestaltetes DMG mit Programme-Verknüpfung
+- [x] DMG: Direktstart per Doppelklick sichtbar erklären; großes Spielsymbol
+- [x] Ad-hoc-Signatur, Versions-/Architekturprüfung, DMG-Prüfung und SHA-256
+- [x] Asset-Lizenzen im App-Bundle (ZIP und DMG)
+- [x] GitHub-CI sowie manueller und Tag-basierter Packaging-Workflow
+- [x] GitHub-Release-Entwürfe mit Downloads bei Tag-Push
+- Developer-ID-Signierung, Notarisierung und Stapling: bewusst nicht vorgesehen
+  (Maintainer-Entscheidung vom 2026-10-18)
+- [ ] Download-/Gatekeeper-Test auf frischem Mac, Intel und macOS 14
+
+
+### Repo-Bereinigung und Swift-Stilprüfung (2026-10-18)
+
+- [x] Unbenutzte Test-Uhr und doppelte, unreferenzierte Audio-Dateien entfernt
+- [x] Test-Helfer aus dem Produktions-Target in das Test-Target verschoben
+- [x] Redundante Fehlerbehandlung und Compiler-Warnungen bereinigt
+- [x] Swift-Bestand vollständig mit `swift-format` vereinheitlicht
+- [x] Formatter-Konfiguration, EditorConfig und lokale Format-/Lint-Skripte
+- [x] Stilcheck in gemeinsame Test-/CI-/Release-Abnahme eingebunden
+- [x] Ressourcen-Referenzen, dynamische Frames und lokale Doku-Links geprüft
+- [x] `.gitignore` für SwiftPM-Build-Ausgaben korrigiert

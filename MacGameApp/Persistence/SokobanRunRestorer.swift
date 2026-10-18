@@ -76,20 +76,16 @@ enum SokobanRunRestorer {
         let initialState: SokobanState
         do {
             initialState = try rules.start(level: level)
-        } catch let fault as EngineFault {
-            throw SokobanRunRestoreFailure.engineFault(faultDetail(fault))
         } catch {
-            throw SokobanRunRestoreFailure.engineFault(String(describing: error))
+            throw SokobanRunRestoreFailure.engineFault(faultDetail(error))
         }
 
         let semanticCheckpoint = file.checkpoint.semantic
         let checkpointState: SokobanState
         do {
             checkpointState = try rules.restore(level: level, checkpoint: semanticCheckpoint)
-        } catch let fault as EngineFault {
-            throw SokobanRunRestoreFailure.checkpointInvalid(faultDetail(fault))
         } catch {
-            throw SokobanRunRestoreFailure.checkpointInvalid(String(describing: error))
+            throw SokobanRunRestoreFailure.checkpointInvalid(faultDetail(error))
         }
 
         let directions = file.commands.map(\.direction)
@@ -104,10 +100,8 @@ enum SokobanRunRestorer {
             let transition: Transition<SokobanState>
             do {
                 transition = try rules.move(direction, in: state)
-            } catch let fault as EngineFault {
-                throw SokobanRunRestoreFailure.engineFault(faultDetail(fault))
             } catch {
-                throw SokobanRunRestoreFailure.engineFault(String(describing: error))
+                throw SokobanRunRestoreFailure.engineFault(faultDetail(error))
             }
 
             switch transition.outcome {
@@ -154,11 +148,13 @@ enum SokobanRunRestorer {
         let recoveredStaticDeadlock = firstDeadStateIndex != nil
         let cursor = min(file.cursor, safeCommandCount)
         let current = states[cursor]
-        let commands = recoveredStaticDeadlock
+        let commands =
+            recoveredStaticDeadlock
             ? Array(directions.prefix(safeCommandCount))
             : directions
         let undoStack = Array(states[0..<cursor])
-        let redoStack = cursor < safeCommandCount
+        let redoStack =
+            cursor < safeCommandCount
             ? Array(states[(cursor + 1)...safeCommandCount].reversed())
             : []
 

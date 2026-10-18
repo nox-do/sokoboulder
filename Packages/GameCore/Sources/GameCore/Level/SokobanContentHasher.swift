@@ -22,12 +22,13 @@ public enum SokobanContentHasher {
         map: SokobanASCIIMap,
         rules: SokobanLevelRulesV1 = SokobanLevelRulesV1()
     ) -> String {
-        sha256Hex(utf8: canonicalString(
-            game: game,
-            schemaVersion: schemaVersion,
-            rows: map.rows,
-            rules: rules
-        ))
+        sha256Hex(
+            utf8: canonicalString(
+                game: game,
+                schemaVersion: schemaVersion,
+                rows: map.rows,
+                rules: rules
+            ))
     }
 
     /// Convenience: parse ASCII rows, then hash with default Sokoban V1 rules.

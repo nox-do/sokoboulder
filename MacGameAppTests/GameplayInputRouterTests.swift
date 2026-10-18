@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+
 @testable import GameCore
 @testable import MacGameApp
 
@@ -9,10 +10,10 @@ struct GameplayInputRouterTests {
     private func startedSession() throws -> GameSession {
         let level = try SokobanLevelValidator.level(
             fromASCII: """
-            #####
-            #@$.#
-            #####
-            """
+                #####
+                #@$.#
+                #####
+                """
         )
         let session = try GameSession(level: level, levelID: "gate")
         _ = session.start()

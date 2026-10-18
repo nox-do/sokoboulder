@@ -116,11 +116,12 @@ final class GameplayInputRouter {
         case .keyDown:
             return routeKeyDownDecision(event)
         case .keyUp:
-            let wasTracked = pressedKeyCodes.contains(event.keyCode)
+            let wasTracked =
+                pressedKeyCodes.contains(event.keyCode)
                 || lockedKeyCodes.contains(event.keyCode)
             routeKeyUp(event)
             if mode == .outcomePresenting,
-               wasTracked || isOutcomeConfirmKey(event.keyCode)
+                wasTracked || isOutcomeConfirmKey(event.keyCode)
             {
                 return .consumed
             }
