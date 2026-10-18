@@ -155,7 +155,7 @@ struct SokobanTutorialFlowTests {
 
         #expect(controller.currentLevelID == "sokoban.tutorial.001")
         #expect(controller.presentationPhase == .playing)
-        #expect(controller.moveCount == 0)
+        #expect(controller.metrics.sokoban?.moveCount == 0)
     }
 
     @Test("Return after celebration advances to the next level")

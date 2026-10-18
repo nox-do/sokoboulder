@@ -437,6 +437,7 @@ struct SokobanPlayControllerTests {
         controller.startLevel(id: "sokoban.tutorial.002", showIntro: false)
         controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.rightArrow))
         controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.rightArrow))
+        #expect(!controller.router.pressedKeyCodes.contains(KeyCode.rightArrow))
         #expect(controller.canUndo)
         let revisionAfterMove = try #require(controller.session).revision
 
@@ -580,7 +581,7 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .playing)
         #expect(controller.session?.phase == .playing)
         #expect(try #require(controller.session).revision > before)
-        #expect(controller.scene.currentSnapshot?.moveCount == 0)
+        #expect(controller.scene.currentSnapshot?.metrics.sokoban?.moveCount == 0)
     }
 
     @Test("resize during pause and outcome stays consistent")
@@ -606,13 +607,13 @@ struct SokobanPlayControllerTests {
     @Test("HUD mirrors snapshot goal counters")
     func hudMirrorsGoalCounters() throws {
         let controller = makeController()
-        #expect(controller.totalGoalCount == 1)
-        #expect(controller.completedGoalCount == 0)
+        #expect(controller.metrics.sokoban?.totalGoalCount == 1)
+        #expect(controller.metrics.sokoban?.completedGoalCount == 0)
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
-        #expect(controller.completedGoalCount == 1)
-        #expect(controller.moveCount == 3)
-        #expect(controller.pushCount == 2)
+        #expect(controller.metrics.sokoban?.completedGoalCount == 1)
+        #expect(controller.metrics.sokoban?.moveCount == 3)
+        #expect(controller.metrics.sokoban?.pushCount == 2)
     }
 
     @Test("deactivation during outcome clears locks without pausing")

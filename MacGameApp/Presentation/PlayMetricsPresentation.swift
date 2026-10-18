@@ -1,33 +1,6 @@
 import Foundation
 import GameCore
 
-/// Shared play counters projected for HUD / outcome / accessibility.
-struct PlayMetricCounters: Equatable, Sendable {
-    var moveCount: Int
-    var pushCount: Int
-    var completedGoalCount: Int
-    var totalGoalCount: Int
-
-    init(
-        moveCount: Int,
-        pushCount: Int,
-        completedGoalCount: Int,
-        totalGoalCount: Int
-    ) {
-        self.moveCount = moveCount
-        self.pushCount = pushCount
-        self.completedGoalCount = completedGoalCount
-        self.totalGoalCount = totalGoalCount
-    }
-
-    init(snapshot: RenderSnapshot) {
-        self.moveCount = snapshot.moveCount
-        self.pushCount = snapshot.pushCount
-        self.completedGoalCount = snapshot.completedGoalCount
-        self.totalGoalCount = snapshot.totalGoalCount
-    }
-}
-
 /// One labeled metric row for HUD (and shared titles/values elsewhere).
 struct PlayMetricLine: Equatable, Sendable, Identifiable {
     var id: String
@@ -35,70 +8,46 @@ struct PlayMetricLine: Equatable, Sendable, Identifiable {
     var value: String
 }
 
-/// Single source for cave vs Sokoban metric labels and value formatting.
+/// Shared formatting for HUD, outcome, intro and accessibility.
 enum PlayMetricsPresentation {
-    static func lines(isCaveMode: Bool, counters: PlayMetricCounters) -> [PlayMetricLine] {
-        if isCaveMode {
+    static func caveTime(ticks: Int) -> String {
+        let seconds = Int(ceil(Double(ticks) * CaveRules.fixedStepSeconds))
+        if seconds < 60 { return "\(seconds) s" }
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    static func lines(metrics: PlayMetrics) -> [PlayMetricLine] {
+        switch metrics {
+        case .cave(let cave):
             return [
                 PlayMetricLine(
-                    id: "diamonds",
-                    title: AppStrings.text(.uiHudDiamonds),
-                    value: "\(counters.completedGoalCount)/\(counters.totalGoalCount)"
+                    id: "diamonds", title: AppStrings.text(.uiHudDiamonds),
+                    value: "\(cave.collectedDiamonds)/\(cave.requiredDiamonds)"
                 ),
                 PlayMetricLine(
-                    id: "time",
-                    title: AppStrings.text(.uiHudTime),
-                    value: String(counters.moveCount)
+                    id: "time", title: AppStrings.text(.uiHudTime),
+                    value: caveTime(ticks: cave.remainingTicks)
                 ),
+                PlayMetricLine(id: "score", title: AppStrings.text(.uiHudScore), value: String(cave.score)),
+            ]
+        case .sokoban(let sokoban):
+            return [
+                PlayMetricLine(id: "moves", title: AppStrings.text(.uiHudMoves), value: String(sokoban.moveCount)),
+                PlayMetricLine(id: "pushes", title: AppStrings.text(.uiHudPushes), value: String(sokoban.pushCount)),
                 PlayMetricLine(
-                    id: "score",
-                    title: AppStrings.text(.uiHudScore),
-                    value: String(counters.pushCount)
+                    id: "goals", title: AppStrings.text(.uiHudGoals),
+                    value: "\(sokoban.completedGoalCount)/\(sokoban.totalGoalCount)"
                 ),
             ]
         }
-        return [
-            PlayMetricLine(
-                id: "moves",
-                title: AppStrings.text(.uiHudMoves),
-                value: String(counters.moveCount)
-            ),
-            PlayMetricLine(
-                id: "pushes",
-                title: AppStrings.text(.uiHudPushes),
-                value: String(counters.pushCount)
-            ),
-            PlayMetricLine(
-                id: "goals",
-                title: AppStrings.text(.uiHudGoals),
-                value: "\(counters.completedGoalCount)/\(counters.totalGoalCount)"
-            ),
-        ]
     }
 
-    static func outcomeMetricLines(
-        isCaveMode: Bool,
-        counters: PlayMetricCounters
-    ) -> [OutcomeMetricLine] {
-        lines(isCaveMode: isCaveMode, counters: counters).map {
-            OutcomeMetricLine(id: $0.id, title: $0.title, value: $0.value)
-        }
+    static func outcomeMetricLines(metrics: PlayMetrics) -> [OutcomeMetricLine] {
+        lines(metrics: metrics).map { OutcomeMetricLine(id: $0.id, title: $0.title, value: $0.value) }
     }
 
-    /// Spoken metric suffix after player position (German "von" kept for a11y parity).
-    static func accessibilityMetrics(
-        isCaveMode: Bool,
-        counters: PlayMetricCounters
-    ) -> String {
-        if isCaveMode {
-            return "\(AppStrings.text(.uiHudDiamonds)) "
-                + "\(counters.completedGoalCount) von \(counters.totalGoalCount). "
-                + "\(AppStrings.text(.uiHudTime)) \(counters.moveCount), "
-                + "\(AppStrings.text(.uiHudScore)) \(counters.pushCount)."
-        }
-        return "\(AppStrings.text(.uiHudGoals)) "
-            + "\(counters.completedGoalCount) von \(counters.totalGoalCount). "
-            + "\(AppStrings.text(.uiHudMoves)) \(counters.moveCount), "
-            + "\(AppStrings.text(.uiHudPushes)) \(counters.pushCount)."
+    static func accessibilityMetrics(metrics: PlayMetrics) -> String {
+        lines(metrics: metrics).map { "\($0.title) \($0.value.replacingOccurrences(of: "/", with: " von "))" }
+            .joined(separator: ". ") + "."
     }
 }

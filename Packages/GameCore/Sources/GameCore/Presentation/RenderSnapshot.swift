@@ -35,6 +35,53 @@ public struct RenderEntity: Equatable, Sendable {
     }
 }
 
+/// Game-specific counters; cave time and score never masquerade as Sokoban moves/pushes.
+public enum PlayMetrics: Equatable, Sendable {
+    case sokoban(SokobanMetrics)
+    case cave(CaveMetrics)
+
+    public var sokoban: SokobanMetrics? {
+        if case .sokoban(let metrics) = self { return metrics }
+        return nil
+    }
+
+    public var cave: CaveMetrics? {
+        if case .cave(let metrics) = self { return metrics }
+        return nil
+    }
+}
+
+public struct SokobanMetrics: Equatable, Sendable {
+    public let moveCount: Int
+    public let pushCount: Int
+    public let completedGoalCount: Int
+    public let totalGoalCount: Int
+
+    public init(moveCount: Int, pushCount: Int, completedGoalCount: Int, totalGoalCount: Int) {
+        precondition(moveCount >= 0 && pushCount >= 0)
+        precondition(completedGoalCount >= 0 && completedGoalCount <= totalGoalCount)
+        self.moveCount = moveCount
+        self.pushCount = pushCount
+        self.completedGoalCount = completedGoalCount
+        self.totalGoalCount = totalGoalCount
+    }
+}
+
+public struct CaveMetrics: Equatable, Sendable {
+    public let collectedDiamonds: Int
+    public let requiredDiamonds: Int
+    public let remainingTicks: Int
+    public let score: Int
+
+    public init(collectedDiamonds: Int, requiredDiamonds: Int, remainingTicks: Int, score: Int) {
+        precondition(collectedDiamonds >= 0 && requiredDiamonds >= 0 && remainingTicks >= 0 && score >= 0)
+        self.collectedDiamonds = collectedDiamonds
+        self.requiredDiamonds = requiredDiamonds
+        self.remainingTicks = remainingTicks
+        self.score = score
+    }
+}
+
 /// Immutable presentation projection of a playable board.
 ///
 /// Cells are stored flat in row-major order: `index = row * width + column`.
@@ -46,12 +93,7 @@ public struct RenderSnapshot: Equatable, Sendable {
     /// Non-player movable entities (Sokoban crates), stable for the run.
     public let entities: [RenderEntity]
     public let player: RenderEntity
-    public let moveCount: Int
-    public let pushCount: Int
-    /// Crates currently on goal terrain.
-    public let completedGoalCount: Int
-    /// Total goal cells in the level.
-    public let totalGoalCount: Int
+    public let metrics: PlayMetrics
     public let status: PlayStatus
 
     public init(
@@ -60,10 +102,7 @@ public struct RenderSnapshot: Equatable, Sendable {
         cells: [RenderCell],
         entities: [RenderEntity],
         player: RenderEntity,
-        moveCount: Int,
-        pushCount: Int,
-        completedGoalCount: Int,
-        totalGoalCount: Int,
+        metrics: PlayMetrics,
         status: PlayStatus
     ) {
         precondition(width >= 0, "RenderSnapshot width must be non-negative")
@@ -72,21 +111,12 @@ public struct RenderSnapshot: Equatable, Sendable {
             cells.count == width * height,
             "RenderSnapshot cells.count must equal width * height"
         )
-        precondition(completedGoalCount >= 0, "completedGoalCount must be non-negative")
-        precondition(totalGoalCount >= 0, "totalGoalCount must be non-negative")
-        precondition(
-            completedGoalCount <= totalGoalCount,
-            "completedGoalCount must not exceed totalGoalCount"
-        )
         self.width = width
         self.height = height
         self.cells = cells
         self.entities = entities
         self.player = player
-        self.moveCount = moveCount
-        self.pushCount = pushCount
-        self.completedGoalCount = completedGoalCount
-        self.totalGoalCount = totalGoalCount
+        self.metrics = metrics
         self.status = status
     }
 
@@ -142,17 +172,18 @@ extension RenderSnapshot {
             cells: cells,
             entities: entities,
             player: RenderEntity(ref: state.playerRef, position: state.playerPosition),
-            moveCount: state.moveCount,
-            pushCount: state.pushCount,
-            completedGoalCount: state.completedGoalCount,
-            totalGoalCount: state.goalCount,
+            metrics: .sokoban(
+                SokobanMetrics(
+                    moveCount: state.moveCount,
+                    pushCount: state.pushCount,
+                    completedGoalCount: state.completedGoalCount,
+                    totalGoalCount: state.goalCount
+                )),
             status: state.status
         )
     }
 
-    /// Projects authoritative cave state. HUD counters map as:
-    /// `completedGoalCount`/`totalGoalCount` = diamonds,
-    /// `moveCount` = remaining ticks, `pushCount` = score.
+    /// Projects authoritative cave state, including the unchanged diamond requirement.
     public static func project(_ state: CaveState) -> RenderSnapshot {
         let width = state.grid.width
         let height = state.grid.height
@@ -187,10 +218,13 @@ extension RenderSnapshot {
             cells: cells,
             entities: entities,
             player: RenderEntity(ref: state.playerRef, position: playerPosition),
-            moveCount: state.remainingTicks,
-            pushCount: state.score,
-            completedGoalCount: state.collectedDiamonds,
-            totalGoalCount: max(state.requiredDiamonds, state.collectedDiamonds),
+            metrics: .cave(
+                CaveMetrics(
+                    collectedDiamonds: state.collectedDiamonds,
+                    requiredDiamonds: state.requiredDiamonds,
+                    remainingTicks: state.remainingTicks,
+                    score: state.score
+                )),
             status: state.status
         )
     }

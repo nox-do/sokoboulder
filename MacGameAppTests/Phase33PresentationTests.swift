@@ -284,12 +284,12 @@ struct Phase33PresentationTests {
     func reduceMotionDoesNotAlterCoreState() throws {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
         let before = try #require(bundle.controller.session).revision
-        let moveCount = bundle.controller.moveCount
+        let moveCount = bundle.controller.metrics.sokoban?.moveCount
 
         bundle.controller.updateReduceMotionEnabled(true)
         #expect(bundle.controller.scene.prefersReducedMotion == true)
         #expect(bundle.controller.session?.revision == before)
-        #expect(bundle.controller.moveCount == moveCount)
+        #expect(bundle.controller.metrics.sokoban?.moveCount == moveCount)
         #expect(bundle.controller.presentationPhase == .playing)
     }
 
@@ -327,7 +327,7 @@ struct Phase33PresentationTests {
         bundle.controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
         #expect(bundle.controller.currentLevelID == "sokoban.tutorial.001")
         #expect(bundle.controller.presentationPhase == .playing)
-        #expect(bundle.controller.moveCount == 0)
+        #expect(bundle.controller.metrics.sokoban?.moveCount == 0)
     }
 
     @Test("17 locked levels cannot be started")

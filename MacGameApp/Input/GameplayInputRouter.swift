@@ -39,6 +39,11 @@ final class GameplayInputRouter {
 
     /// Currently held key codes (from key-down without matching up).
     private(set) var pressedKeyCodes: Set<UInt16> = []
+    private var movementKeys: [UInt16] = []
+
+    var heldDirection: Direction? {
+        movementKeys.last.flatMap { InputMapper.moveDirection(keyCode: $0) }
+    }
 
     /// Keys held when entering outcome; blocked until their key-up arrives.
     private(set) var lockedKeyCodes: Set<UInt16> = []
@@ -49,6 +54,7 @@ final class GameplayInputRouter {
     /// Clears held / locked keys. Used by pause and focus loss.
     func clearPendingInputs() {
         pressedKeyCodes.removeAll(keepingCapacity: true)
+        movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         if mode != .outcomePresenting {
             outcomeGateOpen = false
@@ -60,6 +66,7 @@ final class GameplayInputRouter {
     func enterGameplay() {
         mode = .gameplay
         pressedKeyCodes.removeAll(keepingCapacity: true)
+        movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         outcomeGateOpen = false
     }
@@ -67,6 +74,7 @@ final class GameplayInputRouter {
     func enterPaused() {
         mode = .paused
         pressedKeyCodes.removeAll(keepingCapacity: true)
+        movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         outcomeGateOpen = false
     }
@@ -74,6 +82,7 @@ final class GameplayInputRouter {
     func enterModalBlocked() {
         mode = .modalBlocked
         pressedKeyCodes.removeAll(keepingCapacity: true)
+        movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         outcomeGateOpen = false
     }
@@ -82,6 +91,7 @@ final class GameplayInputRouter {
     func enterLevelIntro() {
         mode = .levelIntro
         pressedKeyCodes.removeAll(keepingCapacity: true)
+        movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
         outcomeGateOpen = false
     }
@@ -219,6 +229,7 @@ final class GameplayInputRouter {
     private func routeKeyUp(_ event: NSEvent) {
         let keyCode = event.keyCode
         pressedKeyCodes.remove(keyCode)
+        movementKeys.removeAll { $0 == keyCode }
 
         guard mode == .outcomePresenting else { return }
         guard lockedKeyCodes.contains(keyCode) else { return }
@@ -231,6 +242,10 @@ final class GameplayInputRouter {
 
     private func trackPress(_ keyCode: UInt16, from event: NSEvent) {
         guard !event.isARepeat else { return }
+        if case .move = InputMapper.intent(from: event) {
+            movementKeys.removeAll { $0 == keyCode }
+            movementKeys.append(keyCode)
+        }
         // Always record confirm keys; also record anything the mapper cares about.
         if isOutcomeConfirmKey(keyCode) || InputMapper.intent(from: event) != nil {
             pressedKeyCodes.insert(keyCode)

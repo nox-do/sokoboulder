@@ -43,6 +43,9 @@ Zwei klassische Ansätze:
     Schiebeverzögerung (erst nach Playtest + Freigabe).
 12. **Digest/Replay:** globale `simulationTick` + Absichten; keine Epochen.
     Seeded RNG-State (Amöbe) ist Teil des Digests.
+13. **Gegnerkontakt (Regelversion 2):** Orthogonale Nachbarschaft löst nach
+    Spielerbewegung und nach Gegnerbewegung eine Explosion aus. Spielerbewegungen
+    bleiben auch auf den Ruhe-Ticks der Gegner tödlich, wenn sie Kontakt herstellen.
 
 Weltmodell bleibt ARCHITECTURE §6.2 — kein flaches `Tile`-Enum mit Spieler in
 der Zelle.

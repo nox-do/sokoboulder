@@ -19,10 +19,9 @@ enum PresentationFactory {
         timeLimitTicks: Int,
         hint: String
     ) -> LevelIntroPresentation {
-        let seconds = max(1, Int((Double(timeLimitTicks) * CaveRules.fixedStepSeconds).rounded()))
         let goals =
             "\(AppStrings.text(.uiCaveIntroDiamonds)): \(requiredDiamonds)\n"
-            + "\(AppStrings.text(.uiCaveIntroTime)): \(formatCaveTimeLimit(seconds: seconds))"
+            + "\(AppStrings.text(.uiCaveIntroTime)): \(PlayMetricsPresentation.caveTime(ticks: timeLimitTicks))"
         let body: String
         if hint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             body = goals
@@ -35,15 +34,6 @@ enum PresentationFactory {
             continueTitle: AppStrings.text(.uiCaveIntroStart),
             skipHint: AppStrings.text(.uiCaveIntroReadyHint)
         )
-    }
-
-    static func formatCaveTimeLimit(seconds: Int) -> String {
-        if seconds < 60 {
-            return "\(seconds) s"
-        }
-        let minutes = seconds / 60
-        let rem = seconds % 60
-        return String(format: "%d:%02d", minutes, rem)
     }
 
     static func pause(isCaveMode: Bool) -> PausePresentation {
@@ -200,10 +190,7 @@ enum PresentationFactory {
         var title: String
         var hint: String
         var primaryTitle: String
-        var moveCount: Int
-        var pushCount: Int
-        var completedGoalCount: Int
-        var totalGoalCount: Int
+        var metrics: PlayMetrics
         var canRestart: Bool
         var canUndo: Bool
         var bestMoveCount: Int?
@@ -213,16 +200,7 @@ enum PresentationFactory {
     }
 
     static func outcome(_ input: OutcomeInput) -> OutcomePresentation {
-        let counters = PlayMetricCounters(
-            moveCount: input.moveCount,
-            pushCount: input.pushCount,
-            completedGoalCount: input.completedGoalCount,
-            totalGoalCount: input.totalGoalCount
-        )
-        let metrics = PlayMetricsPresentation.outcomeMetricLines(
-            isCaveMode: input.isCaveMode,
-            counters: counters
-        )
+        let metrics = PlayMetricsPresentation.outcomeMetricLines(metrics: input.metrics)
 
         if input.isCaveMode {
             var records: [OutcomeRecordLine] = []
@@ -240,7 +218,7 @@ enum PresentationFactory {
                 records.append(
                     OutcomeRecordLine(
                         title: AppStrings.text(.uiOutcomeBestTime),
-                        value: String(bestTime),
+                        value: PlayMetricsPresentation.caveTime(ticks: bestTime),
                         isNewRecord: input.newBestMoves,
                         newRecordTitle: AppStrings.text(.uiOutcomeNewRecordTime)
                     )
@@ -313,8 +291,7 @@ enum PresentationFactory {
             + "\(AppStrings.text(.uiBoardRow)) \(player.row + 1). "
         return position
             + PlayMetricsPresentation.accessibilityMetrics(
-                isCaveMode: isCaveMode,
-                counters: PlayMetricCounters(snapshot: snapshot)
+                metrics: snapshot.metrics
             )
     }
 }

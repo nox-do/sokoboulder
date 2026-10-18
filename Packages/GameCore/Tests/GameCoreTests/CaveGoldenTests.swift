@@ -331,8 +331,8 @@ struct CaveGoldenTests {
             #####
             #   #
             # F #
-            #  P#
-            #E  #
+            #   #
+            #E P#
             #####
             """)
         // Default heading left → prefer left is down.
@@ -638,6 +638,23 @@ struct CaveGoldenTests {
         #expect(explosionCount >= 2)
         #expect(boom.state.grid[GridPosition(column: 2, row: 1)].occupant == nil)
         #expect(boom.state.grid[GridPosition(column: 3, row: 1)].occupant == nil)
+    }
+
+    @Test("Player approaching an enemy explodes on both enemy beats", arguments: ["F", "B"], [UInt64(0), UInt64(1)])
+    func playerApproachesEnemy(enemy: String, tick: UInt64) throws {
+        var state = try start("#######\n#P \(enemy)  #\n#    E#\n#######", requiredDiamonds: 0)
+        state.tick = tick
+        let contact = try rules.tick(input: .move(.right), state: state)
+        #expect(contact.outcome == .terminal(.failed))
+        #expect(contact.events.contains { if case .explosion = $0 { true } else { false } })
+    }
+
+    @Test("Enemy approaching the player explodes before the next player move")
+    func enemyApproachesPlayer() throws {
+        let state = try start("#######\n#     #\n# F   #\n#  P E#\n#######", requiredDiamonds: 0)
+        let contact = try rules.tick(input: .wait, state: state)
+        #expect(contact.outcome == .terminal(.failed))
+        #expect(contact.events.contains { if case .explosion = $0 { true } else { false } })
     }
 
     // MARK: - Phase 5.2a magic wall

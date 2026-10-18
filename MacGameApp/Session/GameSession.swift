@@ -17,20 +17,20 @@ final class GameSession {
     static let historyLimit = SokobanRunRestorer.commandLimit
 
     private let rules = SokobanRules()
-    private let level: SokobanLevel
     private let levelID: String
     private let contentHash: String
     private let staticDeadSquares: Set<GridPosition>
     private weak var saveSink: SokobanRunSaveSink?
 
-    private var state: SokobanState
-    /// True level start — restart returns here even after checkpoint compaction.
-    private var initialState: SokobanState
-    private var checkpoint: SokobanCheckpoint
+    /// State zero is the checkpoint; command N leads to state N + 1.
+    /// Undo and redo only move the cursor through this single timeline.
+    private var history: [SokobanState]
     private var journalCommands: [Direction] = []
     private var journalCursor: Int = 0
-    private var undoStack: [SokobanState] = []
-    private var redoStack: [SokobanState] = []
+    private var state: SokobanState { history[journalCursor] }
+    private var checkpoint: SokobanCheckpoint { rules.checkpoint(from: history[0]) }
+    /// True level start — restart returns here even after checkpoint compaction.
+    private let initialState: SokobanState
     private var pendingMoves: [Direction] = []
 
     private(set) var revision: UInt64 = 0
@@ -47,15 +47,13 @@ final class GameSession {
         contentHash: String = "",
         saveSink: SokobanRunSaveSink? = nil
     ) throws {
-        self.level = level
         self.levelID = levelID
         self.contentHash = contentHash
         self.staticDeadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: level)
         self.saveSink = saveSink
         let started = try SokobanRules().start(level: level)
-        self.state = started
+        self.history = [started]
         self.initialState = started
-        self.checkpoint = SokobanRules().checkpoint(from: started)
     }
 
     /// Restored run after successful ``SokobanRunRestorer`` replay.
@@ -63,18 +61,14 @@ final class GameSession {
         restored: SokobanRunRestoreResult,
         saveSink: SokobanRunSaveSink? = nil
     ) {
-        self.level = restored.level
         self.levelID = restored.levelID
         self.contentHash = restored.contentHash
         self.staticDeadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: restored.level)
         self.saveSink = saveSink
-        self.state = restored.currentState
+        self.history = restored.undoStack + [restored.currentState] + restored.redoStack.reversed()
         self.initialState = restored.initialState
-        self.checkpoint = restored.checkpoint
         self.journalCommands = restored.commands
         self.journalCursor = restored.cursor
-        self.undoStack = restored.undoStack
-        self.redoStack = restored.redoStack
     }
 
     /// Emits the initial hard-resync (revision 0 → 1). Call once after construction.
@@ -102,8 +96,8 @@ final class GameSession {
         return emission
     }
 
-    var undoCount: Int { undoStack.count }
-    var redoCount: Int { redoStack.count }
+    var undoCount: Int { journalCursor }
+    var redoCount: Int { journalCommands.count - journalCursor }
     var pendingMoveCount: Int { pendingMoves.count }
     var journalCommandCount: Int { journalCommands.count }
     var journalCursorValue: Int { journalCursor }
@@ -266,12 +260,10 @@ final class GameSession {
 
         switch transition.outcome {
         case .changed, .terminal:
-            recordChangingMove(direction, previous: previous)
+            recordChangingMove(direction, next: next)
         case .blocked:
             break
         }
-
-        state = next
 
         var appTransition: SessionAppTransition?
         if case .terminal(.completed) = transition.outcome {
@@ -289,17 +281,19 @@ final class GameSession {
         )
     }
 
-    private func recordChangingMove(_ direction: Direction, previous: SokobanState) {
-        if journalCursor < journalCommands.count {
-            journalCommands.removeSubrange(journalCursor...)
-        }
+    private func recordChangingMove(_ direction: Direction, next: SokobanState) {
+        journalCommands.removeSubrange(journalCursor...)
+        history.removeSubrange((journalCursor + 1)...)
         journalCommands.append(direction)
-        journalCursor = journalCommands.count
+        history.append(next)
+        journalCursor += 1
 
-        undoStack.append(previous)
-        redoStack.removeAll(keepingCapacity: true)
-
-        compactJournalIfNeeded()
+        let excess = max(0, journalCommands.count - Self.historyLimit)
+        if excess > 0 {
+            journalCommands.removeFirst(excess)
+            history.removeFirst(excess)
+            journalCursor -= excess
+        }
         persistRun()
     }
 
@@ -311,12 +305,9 @@ final class GameSession {
     }
 
     private func applyUndo() -> SessionApplyResult {
-        guard let restored = undoStack.popLast() else { return .ignored }
         guard journalCursor > 0 else { return .ignored }
 
-        redoStack.append(state)
         journalCursor -= 1
-        state = restored
         persistRun()
 
         let transition: SessionAppTransition?
@@ -338,12 +329,9 @@ final class GameSession {
     }
 
     private func applyRedo() -> SessionApplyResult {
-        guard let restored = redoStack.popLast() else { return .ignored }
         guard journalCursor < journalCommands.count else { return .ignored }
 
-        undoStack.append(state)
         journalCursor += 1
-        state = restored
         persistRun()
 
         var appTransition: SessionAppTransition?
@@ -364,12 +352,9 @@ final class GameSession {
 
     private func applyRestart() -> SessionApplyResult {
         let wasOutcome = phase == .outcomePresenting
-        undoStack.removeAll(keepingCapacity: true)
-        redoStack.removeAll(keepingCapacity: true)
+        history = [initialState]
         journalCommands.removeAll(keepingCapacity: true)
         journalCursor = 0
-        checkpoint = rules.checkpoint(from: initialState)
-        state = initialState
         persistRun()
 
         let transition: SessionAppTransition?
@@ -389,33 +374,6 @@ final class GameSession {
                 appTransition: transition
             )
         )
-    }
-
-    /// Advances the checkpoint by the oldest command when the journal exceeds the limit.
-    private func compactJournalIfNeeded() {
-        while journalCommands.count > Self.historyLimit {
-            let oldest = journalCommands.removeFirst()
-            do {
-                let before = try rules.restore(level: level, checkpoint: checkpoint)
-                let transition = try rules.move(oldest, in: before)
-                switch transition.outcome {
-                case .changed, .terminal:
-                    checkpoint = rules.checkpoint(from: transition.state)
-                case .blocked:
-                    // Should be unreachable for a journal of applied commands.
-                    phase = .faulted
-                    return
-                }
-            } catch {
-                phase = .faulted
-                return
-            }
-
-            if !undoStack.isEmpty {
-                undoStack.removeFirst()
-            }
-            journalCursor = max(0, journalCursor - 1)
-        }
     }
 
     private func persistRun() {
@@ -456,7 +414,7 @@ final class GameSession {
     #if DEBUG
         /// Test-only: replace state to exercise ``EngineFault`` handling.
         func replaceStateForTesting(_ newState: SokobanState) {
-            state = newState
+            history[journalCursor] = newState
         }
 
         /// Test-only: inspect checkpoint after compaction.

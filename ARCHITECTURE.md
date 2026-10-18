@@ -1080,8 +1080,8 @@ Beginn des erhaltenen Verlaufs; er ist nicht einfach ein codierter
 `SokobanState`. Aus Checkpoint, Befehlen und Cursor rekonstruiert die App
 deterministisch aktuellen Zustand, Undo und Redo.
 
-Wächst der Verlauf über das Limit, werden die ältesten Befehle in einen neuen
-Checkpoint eingerechnet und anschließend entfernt. Damit bleiben Datei und
+Wächst der Verlauf über das Limit, werden die ältesten Befehle und Zustände
+entfernt. Der erste erhaltene Zustand liefert den neuen Checkpoint. Damit bleiben Datei und
 Undo-Verlauf begrenzt, ohne die Wiederherstellbarkeit zu verlieren. Nach jeder
 Laufmutation, einschließlich Zug, Undo, Redo und Neustart, wird ein kleiner,
 atomarer und nach Revision geordneter Schreibauftrag erzeugt; mehrere wartende
@@ -1096,15 +1096,15 @@ passender Sokoban-Lauf wird verständlich abgelehnt und kann neu gestartet werde
 
 ### 14.1 Sokoban-Undo und -Redo
 
-Vor jedem neuen Zug mit `StepOutcome.changed` oder `.terminal` legt
-`GameSession` den vorherigen `SokobanState` auf den Undo-Stack und leert den
-Redo-Stack. Blockierte Eingaben erzeugen keinen Verlaufsschritt. Der initiale
-Zustand wird separat für Neustart gehalten.
+Für jeden neuen Zug mit `StepOutcome.changed` oder `.terminal` hängt
+`GameSession` den neuen `SokobanState` an eine gemeinsame Verlaufsliste an.
+Der Befehlscursor bestimmt zugleich den aktuellen Zustand in dieser Liste.
+Blockierte Eingaben erzeugen keinen Verlaufsschritt. Der initiale Zustand wird
+separat für Neustart gehalten.
 
-Undo entfernt den letzten Zustand vom Undo-Stack, legt den aktuellen Zustand auf
-den Redo-Stack und stellt den entfernten Zustand her. Redo führt die umgekehrte
-Operation aus. Ein neuer verändernder Zug nach Undo verwirft den Redo-Stack.
-Neustart und Levelwechsel leeren beide Stacks.
+Undo verschiebt den Cursor einen Schritt zurück, Redo einen Schritt vor.
+Ein neuer verändernder Zug nach Undo verwirft Befehle und Zustände hinter dem
+Cursor. Neustart setzt Liste und Cursor auf den initialen Zustand zurück.
 
 Vollständige Snapshots werden zunächst gegenüber komplexen inversen Befehlen
 bevorzugt: Sokoban-Level sind klein, und Korrektheit ist wichtiger als minimale

@@ -15,7 +15,7 @@ struct CaveSessionTimingTests {
         #expect(session.simulationTick == 0)
         #expect(boot.render.delivery == .hardResync)
 
-        #expect(session.advance(to: 1.0) == nil)
+        #expect(try session.advance(to: 1.0) == nil)
         #expect(session.phase == .ready)
         #expect(session.simulationTick == 0)
     }
@@ -25,7 +25,7 @@ struct CaveSessionTimingTests {
         let session = try makeSession()
         _ = session.start()
         session.noteDirectionDown(.right)
-        let emission = session.advance(to: 0.5)
+        let emission = try session.advance(to: 0.5)
         #expect(emission != nil)
         #expect(session.phase == .playing || session.phase == .outcomePresenting)
         #expect(session.simulationTick == 1)
@@ -36,12 +36,36 @@ struct CaveSessionTimingTests {
         let session = try makeSession()
         _ = session.start()
         session.noteWait()
-        _ = session.advance(to: 0)
+        _ = try session.advance(to: 0)
         #expect(session.simulationTick == 1)
 
-        let emission = session.advance(to: CaveRules.fixedStepSeconds * 3.5)
+        let emission = try session.advance(to: CaveRules.fixedStepSeconds * 3.5)
         #expect(emission != nil)
         #expect(session.simulationTick >= 3)
+    }
+
+    @Test("Releasing one of two keys for the same direction keeps cave movement held")
+    func movementAliasesRemainIndependent() throws {
+        let level = try CaveLevelBuilder.level(
+            fromASCII: "#########\n#P     E#\n#########", requiredDiamonds: 0
+        )
+        let session = try CaveSession(level: level)
+        let router = GameplayInputRouter()
+        session.start()
+
+        _ = router.route(TestKeyEvent.keyDown(KeyCode.rightArrow))
+        session.noteDirectionDown(.right)
+        _ = try session.advance(to: 0, heldDirection: router.heldDirection)
+        _ = router.route(TestKeyEvent.keyDown(KeyCode.d))
+        session.noteDirectionDown(.right)
+        _ = router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
+        _ = try session.advance(to: 0.11, heldDirection: router.heldDirection)
+        _ = try session.advance(to: 0.22, heldDirection: router.heldDirection)
+        #expect(session.snapshot.player.position.column == 4)
+
+        _ = router.route(TestKeyEvent.keyUp(KeyCode.d))
+        _ = try session.advance(to: 0.33, heldDirection: router.heldDirection)
+        #expect(session.snapshot.player.position.column == 4)
     }
 
     @Test("terminal death performs audio cues including playerDied")
@@ -67,7 +91,7 @@ struct CaveSessionTimingTests {
         var sawDeath = false
         var now: TimeInterval = 0
         for _ in 0..<20 {
-            if let emission = session.advance(to: now) {
+            if let emission = try session.advance(to: now) {
                 if emission.audio.delivery == .perform,
                     emission.audio.events.contains(where: {
                         if case .playerDied = $0 { return true }

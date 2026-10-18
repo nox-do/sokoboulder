@@ -133,7 +133,7 @@ struct SokobanLevelCatalogTests {
         #expect(snapshot.cell(at: snapshot.player.position)?.terrain == .floor)
         #expect(snapshot.entities.first?.position == GridPosition(column: 4, row: 2))
         #expect(snapshot.cell(at: GridPosition(column: 6, row: 2))?.terrain == .goal)
-        #expect(snapshot.completedGoalCount == 0)
+        #expect(snapshot.metrics.sokoban?.completedGoalCount == 0)
     }
 
     @Test("missing string IDs are rejected when loading catalog")

@@ -6,15 +6,7 @@ struct SokobanHUDView: View {
     @Environment(\.visualTheme) private var theme
 
     private var metricLines: [PlayMetricLine] {
-        PlayMetricsPresentation.lines(
-            isCaveMode: controller.isCaveMode,
-            counters: PlayMetricCounters(
-                moveCount: controller.moveCount,
-                pushCount: controller.pushCount,
-                completedGoalCount: controller.completedGoalCount,
-                totalGoalCount: controller.totalGoalCount
-            )
-        )
+        PlayMetricsPresentation.lines(metrics: controller.metrics)
     }
 
     var body: some View {

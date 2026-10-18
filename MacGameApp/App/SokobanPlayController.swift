@@ -38,10 +38,9 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var isCaveMode = false
     /// Which campaign the launch / level-selection menus currently operate on.
     @Published private(set) var shellCampaign: ShellCampaign = .sokoban
-    @Published private(set) var moveCount = 0
-    @Published private(set) var pushCount = 0
-    @Published private(set) var completedGoalCount = 0
-    @Published private(set) var totalGoalCount = 0
+    @Published private(set) var metrics: PlayMetrics = .sokoban(
+        SokobanMetrics(moveCount: 0, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)
+    )
     @Published private(set) var canUndo = false
     @Published private(set) var canRedo = false
     @Published private(set) var canPause = false
@@ -320,10 +319,7 @@ final class SokobanPlayController: ObservableObject {
                 title: outcomeTitle,
                 hint: outcomeHint,
                 primaryTitle: outcomePrimaryTitle,
-                moveCount: moveCount,
-                pushCount: pushCount,
-                completedGoalCount: completedGoalCount,
-                totalGoalCount: totalGoalCount,
+                metrics: metrics,
                 canRestart: canRestart,
                 canUndo: canUndo,
                 bestMoveCount: outcomeBestMoveCount,
@@ -470,19 +466,21 @@ final class SokobanPlayController: ObservableObject {
         guard case .cave(let caveSession) = activePlay else { return }
         guard presentationPhase == .playing else { return }
         guard caveSession.phase == .playing || caveSession.phase == .ready else { return }
-        guard let emission = caveSession.advance(to: clock.now()) else { return }
-        emissions.apply(emission)
-        applyEmissionSideEffects(emission)
-        refreshPublishedState()
+        do {
+            guard let emission = try caveSession.advance(to: clock.now(), heldDirection: router.heldDirection) else {
+                return
+            }
+            applyResults([.emitted(emission)])
+        } catch {
+            applyResults([.faulted(message: String(describing: error))])
+        }
     }
 
     private func handleMoveHoldKeyUp(_ event: NSEvent) -> Bool {
         guard event.type == .keyUp else { return false }
-        guard let direction = InputMapper.moveDirection(keyCode: event.keyCode) else { return false }
+        guard InputMapper.moveDirection(keyCode: event.keyCode) != nil else { return false }
+        _ = router.routeDecision(event)
         moveHoldRepeater.noteKeyUp(keyCode: event.keyCode)
-        if case .cave(let caveSession) = activePlay {
-            caveSession.noteDirectionUp(direction)
-        }
         return true
     }
 
@@ -1442,7 +1440,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func handleGameplay(_ intent: GameplayIntent, keyCode: UInt16) {
         if isCaveMode {
-            handleCaveGameplay(intent, keyCode: keyCode)
+            handleCaveGameplay(intent)
             return
         }
         switch intent {
@@ -1477,7 +1475,7 @@ final class SokobanPlayController: ObservableObject {
         }
     }
 
-    private func handleCaveGameplay(_ intent: GameplayIntent, keyCode: UInt16) {
+    private func handleCaveGameplay(_ intent: GameplayIntent) {
         guard let caveSession else { return }
         switch intent {
         case .move(let direction):
@@ -1500,7 +1498,6 @@ final class SokobanPlayController: ObservableObject {
         case .undo, .redo, .toggleGoalMarker:
             break
         }
-        _ = keyCode
     }
 
     private func handleOutcomeAction() {
@@ -1624,6 +1621,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func recordCompletionIfNeeded(snapshot: RenderSnapshot) {
         guard !recordedCompletionForSession,
+            let counters = snapshot.metrics.sokoban,
             let descriptor = catalog.descriptor(id: currentLevelID)
         else { return }
 
@@ -1631,8 +1629,8 @@ final class SokobanPlayController: ObservableObject {
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             ruleVersion: SokobanRules.ruleVersion,
-            moveCount: snapshot.moveCount,
-            pushCount: snapshot.pushCount,
+            moveCount: counters.moveCount,
+            pushCount: counters.pushCount,
             nextLevelID: catalog.descriptor(after: descriptor.id)?.id
         )
         recordedCompletionForSession = true
@@ -1644,16 +1642,16 @@ final class SokobanPlayController: ObservableObject {
 
     private func recordCaveCompletionIfNeeded(snapshot: RenderSnapshot) {
         guard !recordedCompletionForSession,
+            let counters = snapshot.metrics.cave,
             let descriptor = caveCatalog.descriptor(id: currentLevelID)
         else { return }
 
-        // Cave snapshot: moveCount = remaining ticks, pushCount = score.
         let delta = progressPersistence.recordCaveCompletion(
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             ruleVersion: CaveRules.ruleVersion,
-            score: snapshot.pushCount,
-            remainingTicks: snapshot.moveCount,
+            score: counters.score,
+            remainingTicks: counters.remainingTicks,
             nextLevelID: caveCatalog.descriptor(after: descriptor.id)?.id
         )
         recordedCompletionForSession = true
@@ -1736,10 +1734,7 @@ final class SokobanPlayController: ObservableObject {
         canResume = caps.canResume
 
         if let snapshot = scene.currentSnapshot {
-            moveCount = snapshot.moveCount
-            pushCount = snapshot.pushCount
-            completedGoalCount = snapshot.completedGoalCount
-            totalGoalCount = snapshot.totalGoalCount
+            metrics = snapshot.metrics
         }
     }
 }

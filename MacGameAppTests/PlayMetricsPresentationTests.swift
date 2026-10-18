@@ -5,35 +5,29 @@ import Testing
 
 @Suite("Play metrics presentation")
 struct PlayMetricsPresentationTests {
-    @Test("Sokoban and cave share one metric mapping")
+    @Test("Each game presents its own counters; cave time is in seconds")
     func linesDifferByMode() {
-        let counters = PlayMetricCounters(
-            moveCount: 12,
-            pushCount: 3,
-            completedGoalCount: 2,
-            totalGoalCount: 5
-        )
-        let sokoban = PlayMetricsPresentation.lines(isCaveMode: false, counters: counters)
-        #expect(sokoban.map(\.id) == ["moves", "pushes", "goals"])
-        #expect(sokoban.map(\.value) == ["12", "3", "2/5"])
-
-        let cave = PlayMetricsPresentation.lines(isCaveMode: true, counters: counters)
-        #expect(cave.map(\.id) == ["diamonds", "time", "score"])
-        #expect(cave.map(\.value) == ["2/5", "12", "3"])
+        let sokoban = PlayMetrics.sokoban(
+            SokobanMetrics(
+                moveCount: 12, pushCount: 3, completedGoalCount: 2, totalGoalCount: 5
+            ))
+        let cave = PlayMetrics.cave(
+            CaveMetrics(
+                collectedDiamonds: 6, requiredDiamonds: 5, remainingTicks: 900, score: 30
+            ))
+        #expect(PlayMetricsPresentation.lines(metrics: sokoban).map(\.value) == ["12", "3", "2/5"])
+        #expect(PlayMetricsPresentation.lines(metrics: cave).map(\.value) == ["6/5", "1:30", "30"])
+        #expect(PlayMetricsPresentation.caveTime(ticks: 1) == "1 s")
+        #expect(PlayMetricsPresentation.caveTime(ticks: 0) == "0 s")
     }
 
     @Test("Outcome metrics reuse the same lines")
     func outcomeReusesLines() {
-        let counters = PlayMetricCounters(
-            moveCount: 1,
-            pushCount: 0,
-            completedGoalCount: 0,
-            totalGoalCount: 1
-        )
-        let lines = PlayMetricsPresentation.outcomeMetricLines(
-            isCaveMode: false,
-            counters: counters
-        )
+        let metrics = PlayMetrics.sokoban(
+            SokobanMetrics(
+                moveCount: 1, pushCount: 0, completedGoalCount: 0, totalGoalCount: 1
+            ))
+        let lines = PlayMetricsPresentation.outcomeMetricLines(metrics: metrics)
         #expect(lines.map(\.id) == ["moves", "pushes", "goals"])
     }
 

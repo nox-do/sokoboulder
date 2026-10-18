@@ -10,11 +10,10 @@ final class CaveSession {
     static let maxCatchUpTicks = 5
 
     private let rules = CaveRules()
-    private let level: CaveLevel
     private let levelID: String
 
     private var state: CaveState
-    private var initialState: CaveState
+    private let initialState: CaveState
 
     private(set) var revision: UInt64 = 0
     private(set) var phase: SessionPhase = .created
@@ -23,7 +22,6 @@ final class CaveSession {
     private var lastAdvanceTime: TimeInterval?
     /// First intent waiting to leave Ready (consumed exactly once as Tick 1).
     private var readyIntent: CaveInput?
-    private var heldDirections: [Direction] = []
     private var pressLatch: Direction?
     private var pendingWait = false
 
@@ -32,7 +30,6 @@ final class CaveSession {
     var fixedStep: TimeInterval { CaveRules.fixedStepSeconds }
 
     init(level: CaveLevel, levelID: String = "cave.demo.001") throws {
-        self.level = level
         self.levelID = levelID
         let started = try CaveRules().start(level: level)
         self.state = started
@@ -73,16 +70,10 @@ final class CaveSession {
 
     func noteDirectionDown(_ direction: Direction) {
         guard canAcceptInput else { return }
-        heldDirections.removeAll { $0 == direction }
-        heldDirections.append(direction)
         pressLatch = direction
         if phase == .ready {
             readyIntent = .move(direction)
         }
-    }
-
-    func noteDirectionUp(_ direction: Direction) {
-        heldDirections.removeAll { $0 == direction }
     }
 
     func noteWait() {
@@ -94,7 +85,6 @@ final class CaveSession {
     }
 
     func clearInputState() {
-        heldDirections = []
         pressLatch = nil
         pendingWait = false
         readyIntent = nil
@@ -104,7 +94,21 @@ final class CaveSession {
     ///
     /// In Ready, returns an emission only when a first intent is pending (Tick 1).
     /// While playing, catches up at most ``maxCatchUpTicks`` and emits one update.
-    func advance(to now: TimeInterval) -> SessionEmission? {
+    func advance(to now: TimeInterval, heldDirection: Direction? = nil) throws(EngineFault) -> SessionEmission? {
+        do {
+            return try advanceSimulation(to: now, heldDirection: heldDirection)
+        } catch {
+            phase = .faulted
+            clearInputState()
+            accumulator = 0
+            lastAdvanceTime = nil
+            throw error
+        }
+    }
+
+    private func advanceSimulation(
+        to now: TimeInterval, heldDirection: Direction?
+    ) throws(EngineFault) -> SessionEmission? {
         switch phase {
         case .ready:
             guard let intent = readyIntent else { return nil }
@@ -114,7 +118,8 @@ final class CaveSession {
             accumulator = 0
             pressLatch = nil
             pendingWait = false
-            return runTick(input: intent)
+            let events = try runTick(input: intent)
+            return tickEmission(events: events)
         case .playing:
             break
         case .created, .paused, .outcomePresenting, .faulted:
@@ -129,26 +134,11 @@ final class CaveSession {
 
         var aggregatedEvents: [GameEvent] = []
         var ticksRun = 0
-        var reachedTerminal = false
-
         while accumulator >= fixedStep && ticksRun < Self.maxCatchUpTicks {
             accumulator -= fixedStep
-            let input = resolveTickInput()
-            do {
-                let transition = try rules.tick(input: input, state: state)
-                state = transition.state
-                aggregatedEvents.append(contentsOf: transition.events)
-                ticksRun += 1
-                if case .terminal = transition.outcome {
-                    reachedTerminal = true
-                    break
-                }
-            } catch {
-                phase = .faulted
-                clearInputState()
-                accumulator = 0
-                return nil
-            }
+            aggregatedEvents.append(contentsOf: try runTick(input: resolveTickInput(heldDirection: heldDirection)))
+            ticksRun += 1
+            if phase == .outcomePresenting { break }
         }
 
         if ticksRun == Self.maxCatchUpTicks, accumulator >= fixedStep {
@@ -158,24 +148,7 @@ final class CaveSession {
 
         guard ticksRun > 0 else { return nil }
 
-        if reachedTerminal {
-            phase = .outcomePresenting
-            clearInputState()
-            return makeEmission(
-                events: aggregatedEvents,
-                delivery: .hardResync,
-                // Play death / win / exit cues; music still stops via completed/failed status.
-                audioDelivery: .perform,
-                appTransition: .enterOutcomePresenting
-            )
-        }
-
-        return makeEmission(
-            events: aggregatedEvents,
-            delivery: .hardResync,
-            audioDelivery: .perform,
-            appTransition: nil
-        )
+        return tickEmission(events: aggregatedEvents)
     }
 
     func pause() {
@@ -212,39 +185,26 @@ final class CaveSession {
 
     // MARK: - Private
 
-    private func runTick(input: CaveInput) -> SessionEmission {
-        do {
-            let transition = try rules.tick(input: input, state: state)
-            state = transition.state
-            if case .terminal = transition.outcome {
-                phase = .outcomePresenting
-                clearInputState()
-                return makeEmission(
-                    events: transition.events,
-                    delivery: .hardResync,
-                    audioDelivery: .perform,
-                    appTransition: .enterOutcomePresenting
-                )
-            }
-            return makeEmission(
-                events: transition.events,
-                delivery: .hardResync,
-                audioDelivery: .perform,
-                appTransition: nil
-            )
-        } catch {
-            phase = .faulted
+    private func runTick(input: CaveInput) throws(EngineFault) -> [GameEvent] {
+        let transition = try rules.tick(input: input, state: state)
+        state = transition.state
+        if case .terminal = transition.outcome {
+            phase = .outcomePresenting
             clearInputState()
-            return makeEmission(
-                events: [],
-                delivery: .hardResync,
-                audioDelivery: .synchronize,
-                appTransition: nil
-            )
         }
+        return transition.events
     }
 
-    private func resolveTickInput() -> CaveInput {
+    private func tickEmission(events: [GameEvent]) -> SessionEmission {
+        makeEmission(
+            events: events,
+            delivery: .hardResync,
+            audioDelivery: .perform,
+            appTransition: phase == .outcomePresenting ? .enterOutcomePresenting : nil
+        )
+    }
+
+    private func resolveTickInput(heldDirection: Direction?) -> CaveInput {
         if pendingWait {
             pendingWait = false
             pressLatch = nil
@@ -254,8 +214,8 @@ final class CaveSession {
             pressLatch = nil
             return .move(latch)
         }
-        if let held = heldDirections.last {
-            return .move(held)
+        if let heldDirection {
+            return .move(heldDirection)
         }
         return .wait
     }

@@ -41,7 +41,7 @@ struct SokobanBoardSceneTests {
         #expect(
             scene.currentSnapshot?.cell(at: GridPosition(column: 3, row: 1))?.terrain == .goal
         )
-        #expect(scene.currentSnapshot?.completedGoalCount == 0)
+        #expect(scene.currentSnapshot?.metrics.sokoban?.completedGoalCount == 0)
         #expect(scene.currentSnapshot?.status == .playing)
     }
 
@@ -402,10 +402,7 @@ struct SokobanBoardSceneTests {
             cells: cells,
             entities: [],
             player: player,
-            moveCount: 0,
-            pushCount: 0,
-            completedGoalCount: 0,
-            totalGoalCount: 0,
+            metrics: .sokoban(SokobanMetrics(moveCount: 0, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)),
             status: .playing
         )
         let update = RenderUpdate(
@@ -447,10 +444,7 @@ struct SokobanBoardSceneTests {
             cells: cells,
             entities: [],
             player: RenderEntity(ref: playerRef, position: GridPosition(column: 1, row: 1)),
-            moveCount: 0,
-            pushCount: 0,
-            completedGoalCount: 0,
-            totalGoalCount: 0,
+            metrics: .sokoban(SokobanMetrics(moveCount: 0, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)),
             status: .playing
         )
         let scene = makeScene(size: CGSize(width: 320, height: 240))
@@ -476,10 +470,7 @@ struct SokobanBoardSceneTests {
             cells: cells,
             entities: [],
             player: RenderEntity(ref: playerRef, position: GridPosition(column: 2, row: 1)),
-            moveCount: 1,
-            pushCount: 0,
-            completedGoalCount: 0,
-            totalGoalCount: 0,
+            metrics: .sokoban(SokobanMetrics(moveCount: 1, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)),
             status: .playing
         )
         scene.apply(
@@ -522,10 +513,7 @@ struct SokobanBoardSceneTests {
                 ref: EntityRef(id: EntityID(1), kind: .player),
                 position: GridPosition(column: 1, row: 1)
             ),
-            moveCount: 0,
-            pushCount: 0,
-            completedGoalCount: 0,
-            totalGoalCount: 0,
+            metrics: .sokoban(SokobanMetrics(moveCount: 0, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)),
             status: .playing
         )
         let scene = makeScene(size: CGSize(width: 320, height: 240))

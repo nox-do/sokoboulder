@@ -4,7 +4,7 @@
 /// explosion drains after each phase → exit / time / terminal checks.
 /// Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
-    public static let ruleVersion: Int = 1
+    public static let ruleVersion: Int = 2
     public static let fixedStepSeconds: Double = 0.10
 
     /// BDCFF slow / fast amoeba random factors (`GetRandomNumber(0, factor) < 4`).
@@ -95,6 +95,7 @@ public struct CaveRules: Sendable {
         var explosions: [PendingExplosion] = []
 
         applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
+        explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
             working.tick += 1
@@ -114,6 +115,7 @@ public struct CaveRules: Sendable {
         // AI stays readable at 10 Hz without changing gravity/player cadence.
         if working.tick % 2 == 0 {
             applyEnemies(to: &working, events: &events, explosions: &explosions)
+            explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
             drainExplosions(&explosions, in: &working, events: &events)
             if working.status != .playing {
                 working.tick += 1
@@ -495,6 +497,21 @@ public struct CaveRules: Sendable {
     }
 
     // MARK: - Enemies
+
+    /// Contact is lethal from either side, including player moves on an enemy's idle tick.
+    private func explodeEnemiesNextToPlayer(
+        in state: inout CaveState,
+        explosions: inout [PendingExplosion]
+    ) {
+        guard case .alive(let position) = state.player else { return }
+        for direction in Direction.allCases {
+            let neighbor = position.neighbor(in: direction)
+            guard state.grid.contains(neighbor),
+                let enemy = state.grid[neighbor].occupant, enemy.isEnemy
+            else { continue }
+            triggerEnemyExplosion(enemy, at: neighbor, in: &state, explosions: &explosions)
+        }
+    }
 
     private struct EnemyIntent: Equatable {
         let from: GridPosition

@@ -20,10 +20,10 @@ struct RenderSnapshotTests {
         #expect(snapshot.width == 5)
         #expect(snapshot.height == 3)
         #expect(snapshot.cells.count == 15)
-        #expect(snapshot.moveCount == 0)
-        #expect(snapshot.pushCount == 0)
-        #expect(snapshot.completedGoalCount == 0)
-        #expect(snapshot.totalGoalCount == 1)
+        #expect(snapshot.metrics.sokoban?.moveCount == 0)
+        #expect(snapshot.metrics.sokoban?.pushCount == 0)
+        #expect(snapshot.metrics.sokoban?.completedGoalCount == 0)
+        #expect(snapshot.metrics.sokoban?.totalGoalCount == 1)
         #expect(snapshot.status == .playing)
 
         #expect(snapshot.player.ref == EntityRef(id: EntityID(1), kind: .player))
@@ -74,11 +74,24 @@ struct RenderSnapshotTests {
 
         #expect(snapshot.player.position == GridPosition(column: 2, row: 1))
         #expect(snapshot.entities[0].position == GridPosition(column: 3, row: 1))
-        #expect(snapshot.moveCount == 1)
-        #expect(snapshot.pushCount == 1)
-        #expect(snapshot.completedGoalCount == 1)
-        #expect(snapshot.totalGoalCount == 1)
+        #expect(snapshot.metrics.sokoban?.moveCount == 1)
+        #expect(snapshot.metrics.sokoban?.pushCount == 1)
+        #expect(snapshot.metrics.sokoban?.completedGoalCount == 1)
+        #expect(snapshot.metrics.sokoban?.totalGoalCount == 1)
         #expect(snapshot.status == .completed)
         #expect(snapshot.cell(at: GridPosition(column: 3, row: 1))?.terrain == .goal)
     }
+    @Test("Collecting extra diamonds preserves the level requirement", arguments: [0, 1])
+    func extraDiamondsKeepRequirement(required: Int) throws {
+        let level = try CaveLevelBuilder.level(
+            fromASCII: "#######\n#P** E#\n#######", requiredDiamonds: required
+        )
+        let rules = CaveRules()
+        var state = try rules.start(level: level)
+        for _ in 0..<2 { state = try rules.tick(input: .move(.right), state: state).state }
+        let metrics = try #require(RenderSnapshot.project(state).metrics.cave)
+        #expect(metrics.collectedDiamonds == 2)
+        #expect(metrics.requiredDiamonds == required)
+    }
+
 }
