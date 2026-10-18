@@ -30,9 +30,8 @@ struct GameplayInputRouterTests {
         let routed = router.route(down)
         #expect(routed == .gameplay(.move(.right)))
 
-        let results = session.submitMove(.right)
-        #expect(results.count == 1)
-        guard case .emitted(let emission) = results[0] else {
+        let result = session.submitMove(.right)
+        guard case .emitted(let emission) = result else {
             Issue.record("expected completion emission")
             return
         }

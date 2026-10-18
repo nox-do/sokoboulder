@@ -315,8 +315,11 @@ struct SokobanRunFileV1Tests {
         )
         _ = session.start()
         for index in 0..<1000 {
-            let results = session.submitMove(index.isMultiple(of: 2) ? .right : .left)
-            #expect(!results.isEmpty)
+            let result = session.submitMove(index.isMultiple(of: 2) ? .right : .left)
+            guard case .emitted = result else {
+                Issue.record("expected emission")
+                return
+            }
         }
         #expect(session.journalCommandCount == 1000)
         #expect(session.undoCount == 1000)

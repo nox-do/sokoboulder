@@ -3,7 +3,7 @@ import Testing
 @testable import GameCore
 @testable import MacGameApp
 
-@Suite("GameSession submitMove / pause / outcome drain")
+@Suite("GameSession submitMove / pause / outcome")
 @MainActor
 struct GameSessionSubmitMoveTests {
     private func started(_ ascii: String) throws -> GameSession {
@@ -23,19 +23,17 @@ struct GameSessionSubmitMoveTests {
             #####
             """
         )
-        let results = session.submitMove(.left)
-        #expect(results.count == 1)
-        guard case .emitted(let emission) = results[0] else {
+        let result = session.submitMove(.left)
+        guard case .emitted(let emission) = result else {
             Issue.record("expected emission")
             return
         }
         #expect(emission.render.targetRevision == 2)
         #expect(session.revision == 2)
-        #expect(session.pendingMoveCount == 0)
     }
 
-    @Test("two buffered moves emit ordered gapless revisions with intermediate snapshots")
-    func twoBufferedMovesOrdered() throws {
+    @Test("two consecutive moves emit ordered gapless revisions with intermediate snapshots")
+    func twoMovesOrdered() throws {
         let session = try started(
             """
             #######
@@ -44,9 +42,7 @@ struct GameSessionSubmitMoveTests {
             #######
             """
         )
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right))
-        let results = session.processPendingMoves()
+        let results = [session.submitMove(.right), session.submitMove(.right)]
         #expect(results.count == 2)
 
         guard case .emitted(let first) = results[0],
@@ -74,8 +70,8 @@ struct GameSessionSubmitMoveTests {
             #####
             """
         )
-        let results = session.submitMove(.right)
-        guard case .emitted(let emission) = results[0] else {
+        let result = session.submitMove(.right)
+        guard case .emitted(let emission) = result else {
             Issue.record("expected emission")
             return
         }
@@ -98,31 +94,6 @@ struct GameSessionSubmitMoveTests {
         #expect(session.bootstrapEmission != nil)
     }
 
-    @Test("terminal first move ends drain and discards second")
-    func terminalEndsDrain() throws {
-        let session = try started(
-            """
-            #####
-            #@$.#
-            #####
-            """
-        )
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.left))
-        #expect(session.pendingMoveCount == 2)
-
-        let results = session.processPendingMoves()
-        #expect(results.count == 1)
-        guard case .emitted(let emission) = results[0] else {
-            Issue.record("expected one emission")
-            return
-        }
-        #expect(emission.appTransition == .enterOutcomePresenting)
-        #expect(session.phase == .outcomePresenting)
-        #expect(session.pendingMoveCount == 0)
-        #expect(session.revision == 2)
-    }
-
     @Test("moves rejected in outcomePresenting")
     func movesRejectedInOutcome() throws {
         let session = try started(
@@ -135,8 +106,8 @@ struct GameSessionSubmitMoveTests {
         _ = session.submitMove(.right)
         #expect(session.phase == .outcomePresenting)
         #expect(session.canAcceptMove == false)
-        #expect(session.submitMove(.left).isEmpty)
-        #expect(session.enqueueMove(.up) == false)
+        #expect(session.submitMove(.left) == .ignored)
+        #expect(session.submitMove(.up) == .ignored)
     }
 
     @Test("undo redo restart remain allowed in outcomePresenting")
@@ -167,7 +138,7 @@ struct GameSessionSubmitMoveTests {
         #expect(session.phase == .playing)
     }
 
-    @Test("pause clears queue and rejects moves; resume restores")
+    @Test("pause rejects moves; resume restores")
     func pauseResume() throws {
         let session = try started(
             """
@@ -177,43 +148,25 @@ struct GameSessionSubmitMoveTests {
             #######
             """
         )
-        #expect(session.enqueueMove(.right))
-        #expect(session.pendingMoveCount == 1)
+        _ = session.submitMove(.right)
         session.pause()
         #expect(session.phase == .paused)
-        #expect(session.pendingMoveCount == 0)
         #expect(session.canAcceptMove == false)
-        #expect(session.submitMove(.right).isEmpty)
+        #expect(session.submitMove(.right) == .ignored)
         #expect(session.canAcceptSessionCommand == false)
         #expect(session.apply(.undo) == .ignored)
 
         session.resume()
         #expect(session.phase == .playing)
         #expect(session.canAcceptMove)
-        let results = session.submitMove(.right)
-        #expect(results.count == 1)
+        guard case .emitted = session.submitMove(.right) else {
+            Issue.record("expected move after resume")
+            return
+        }
     }
 
-    @Test("focus-loss interruption path clears the queue")
-    func focusLossClearsQueue() throws {
-        let session = try started(
-            """
-            #######
-            # @   #
-            # .$  #
-            #######
-            """
-        )
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right))
-        // Focus loss uses the same interruption mechanism as pause.
-        session.pause()
-        #expect(session.pendingMoveCount == 0)
-        #expect(session.phase == .paused)
-    }
-
-    @Test("fault ends a batch without a new revision")
-    func faultEndsBatch() throws {
+    @Test("fault rejects moves without a new revision")
+    func faultRejectsMoves() throws {
         let session = try started(
             """
             #####
@@ -223,16 +176,12 @@ struct GameSessionSubmitMoveTests {
         )
         let revision = session.revision
         session.replaceStateForTesting(makeCorruptStateOnWall())
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.left))
-        let results = session.processPendingMoves()
-        #expect(results.count == 1)
-        guard case .faulted = results[0] else {
+        let result = session.submitMove(.right)
+        guard case .faulted = result else {
             Issue.record("expected fault")
             return
         }
         #expect(session.revision == revision)
-        #expect(session.pendingMoveCount == 0)
         #expect(session.phase == .faulted)
     }
 

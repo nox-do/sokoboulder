@@ -58,8 +58,8 @@ struct SokobanBoardSceneTests {
         let scene = makeScene()
         scene.apply(session.bootstrapEmission!.render)
 
-        let results = session.submitMove(.left)
-        guard case .emitted(let emission) = results[0] else {
+        let result = session.submitMove(.left)
+        guard case .emitted(let emission) = result else {
             Issue.record("expected move emission")
             return
         }
@@ -81,7 +81,7 @@ struct SokobanBoardSceneTests {
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
 
-        guard case .emitted(let emission) = session.submitMove(.left)[0] else {
+        guard case .emitted(let emission) = session.submitMove(.left) else {
             Issue.record("expected blocked event emission")
             return
         }
@@ -107,7 +107,7 @@ struct SokobanBoardSceneTests {
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
 
-        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+        guard case .emitted(let emission) = session.submitMove(.right) else {
             Issue.record("expected terminal push")
             return
         }
@@ -132,8 +132,8 @@ struct SokobanBoardSceneTests {
 
         let first = session.submitMove(.right)
         let second = session.submitMove(.right)
-        guard case .emitted(let a) = first[0],
-            case .emitted(let b) = second[0]
+        guard case .emitted(let a) = first,
+            case .emitted(let b) = second
         else {
             Issue.record("expected emissions")
             return
@@ -161,7 +161,7 @@ struct SokobanBoardSceneTests {
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
 
-        guard case .emitted(let moveEmission) = session.submitMove(.right)[0] else {
+        guard case .emitted(let moveEmission) = session.submitMove(.right) else {
             Issue.record("expected move")
             return
         }
@@ -192,9 +192,7 @@ struct SokobanBoardSceneTests {
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
 
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right))
-        let results = session.processPendingMoves()
+        let results = [session.submitMove(.right), session.submitMove(.right)]
         let emissions = results.compactMap { result -> SessionEmission? in
             if case .emitted(let emission) = result { return emission }
             return nil
@@ -229,7 +227,7 @@ struct SokobanBoardSceneTests {
         let scene = makeScene()
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
-        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+        guard case .emitted(let emission) = session.submitMove(.right) else {
             Issue.record("expected move")
             return
         }
@@ -258,8 +256,8 @@ struct SokobanBoardSceneTests {
 
         var lastEmission: SessionEmission?
         for _ in 0..<SokobanBoardScene.animationBudget {
-            let results = session.submitMove(.right)
-            guard case .emitted(let emission) = results[0] else {
+            let result = session.submitMove(.right)
+            guard case .emitted(let emission) = result else {
                 Issue.record("expected emission")
                 return
             }
@@ -269,7 +267,7 @@ struct SokobanBoardSceneTests {
         #expect(scene.pendingAnimationCount == SokobanBoardScene.animationBudget)
 
         let overflow = session.submitMove(.right)
-        guard case .emitted(let overflowEmission) = overflow[0] else {
+        guard case .emitted(let overflowEmission) = overflow else {
             Issue.record("expected overflow emission")
             return
         }
@@ -297,7 +295,7 @@ struct SokobanBoardSceneTests {
         scene.apply(session.bootstrapEmission!.render)
 
         var settled = false
-        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+        guard case .emitted(let emission) = session.submitMove(.right) else {
             Issue.record("expected move")
             return
         }
@@ -323,7 +321,7 @@ struct SokobanBoardSceneTests {
         let scene = makeScene()
         scene.holdAnimationsForTesting = true
         scene.apply(session.bootstrapEmission!.render)
-        guard case .emitted(let emission) = session.submitMove(.right)[0] else {
+        guard case .emitted(let emission) = session.submitMove(.right) else {
             Issue.record("expected move")
             return
         }

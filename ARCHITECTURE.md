@@ -637,10 +637,9 @@ Explosionen fressen Amöbe. Phase nach Gegnern; Regeln `amoebaSlowGrowthTicks`,
 ### 8.1 Sokoban
 
 Sokoban ist ereignisgetrieben. Eine gültige oder blockierte Eingabe erzeugt genau
-einen Regelaufruf. Die Session akzeptiert normalisierte Bewegungsbefehle nach einer
-rein logischen FIFO-Regel mit festem Limit; für den ersten Prototyp beträgt dieses
-Limit zwei noch nicht verarbeitete Befehle. Da ein Kernschritt synchron ist, wird
-die Queue normalerweise sofort geleert.
+einen Regelaufruf. `GameSession.submitMove` verarbeitet jeden normalisierten
+Bewegungsbefehl sofort synchron und liefert ein einzelnes Ergebnis. Eine zusätzliche
+Eingabewarteschlange ist dafür nicht nötig.
 
 Der Renderer darf die Eingabeannahme niemals freigeben, sperren oder
 zurückbestätigen. Falls Animationen nicht nachkommen, darf er Zwischenanimationen
@@ -671,8 +670,8 @@ hingegen schon.
 ```text
 frameDelta begrenzen
 Eingaben bis zur Tickgrenze deterministisch übernehmen
-bis zu maxCatchUpTicks ausführen
-gegebenenfalls übrige Wandzeit verwerfen und Timing-Epoche neu verankern
+alle vollständigen 0,10-s-Schritte aus dem Accumulator ausführen
+Restzeit unter 0,10 s für den nächsten Aufruf behalten
 genau ein RenderUpdate erzeugen
 ```
 
@@ -692,13 +691,9 @@ eine nicht persistierte `TimingEpoch` aus monotonem Startzeitpunkt und dem zu
 diesem Zeitpunkt bereits abgeschlossenen `simulationTick`. Für jeden späteren
 Tick berechnet sie daraus dessen aktuelle Wandzeitgrenze.
 
-Wenn nach `maxCatchUpTicks` noch Rückstand verbleibt, werden keine unsichtbaren
-Simulationsticks übersprungen. Die Session verwirft nur die restliche Wandzeit,
-leert den Accumulator und verankert eine neue `TimingEpoch` am aktuellen
-Uhrzeitpunkt und am zuletzt tatsächlich ausgeführten `simulationTick`. Noch nicht
-aufgelöste Eingabe-Envelopes bleiben zeitlich geordnet; Ereignisse, deren alte
-Grenze dadurch in der Vergangenheit liegt, werden nach der Verspätungsregel dem
-nächsten offenen Simulationstick zugeordnet. Der Vorgang wird diagnostiziert.
+Pro Aufruf wird die verstrichene Wandzeit auf höchstens 0,25 s begrenzt.
+Mit weniger als 0,10 s Restzeit sind damit höchstens drei Simulationsticks
+möglich; eine zweite Tick-Begrenzung ist nicht erforderlich.
 Replays speichern ausschließlich globale Simulationsticknummern und benötigen
 keine Timing-Epochen.
 
@@ -1764,7 +1759,7 @@ Fassung enthält deshalb außerdem:
 - `nextEntityID` als deterministischen Bestandteil des Höhlenzustands,
 - exakte Regeln für Revisionssteigerung und Catch-up-Aggregation,
 - monotone Input-Zeitstempel, Tick-Epochen und Grenzgleichheit,
-- eine rendererunabhängige Sokoban-Eingabequeue,
+- eine sofortige, rendererunabhängige Sokoban-Zugverarbeitung,
 - werfende, validierte Regelübergänge mit ausführbarer Release-Fehlerbehandlung,
 - bereinigte Aussagen zu Engine-Protokoll, Undo-Zuständigkeit und
   Persistenz-Roundtrips.

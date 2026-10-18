@@ -4,7 +4,7 @@
 /// explosion drains after each phase → exit / time / terminal checks.
 /// Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
-    public static let ruleVersion: Int = 2
+    public static let ruleVersion: Int = 3
     public static let fixedStepSeconds: Double = 0.10
 
     /// BDCFF slow / fast amoeba random factors (`GetRandomNumber(0, factor) < 4`).
@@ -94,7 +94,7 @@ public struct CaveRules: Sendable {
         var events: [GameEvent] = []
         var explosions: [PendingExplosion] = []
 
-        applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
+        let pushedEntity = applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
         explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
@@ -103,7 +103,7 @@ public struct CaveRules: Sendable {
             return Transition(state: working, events: events, outcome: .terminal(working.status))
         }
 
-        applyGravity(to: &working, events: &events, explosions: &explosions)
+        applyGravity(to: &working, skipping: pushedEntity, events: &events, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
             working.tick += 1
@@ -168,19 +168,20 @@ public struct CaveRules: Sendable {
 
     // MARK: - Player
 
+    /// Returns the pushed boulder so gravity does not give it a second action.
     private func applyPlayer(
         input: CaveInput,
         to state: inout CaveState,
         events: inout [GameEvent],
         explosions: inout [PendingExplosion]
-    ) {
-        guard case .alive(let from) = state.player else { return }
-        guard case .move(let direction) = input else { return }
+    ) -> EntityID? {
+        guard case .alive(let from) = state.player else { return nil }
+        guard case .move(let direction) = input else { return nil }
 
         let to = from.neighbor(in: direction)
         guard state.grid.contains(to) else {
             events.append(.movementBlocked(at: from))
-            return
+            return nil
         }
 
         let destination = state.grid[to]
@@ -191,10 +192,10 @@ public struct CaveRules: Sendable {
                 break
             default:
                 events.append(.movementBlocked(at: to))
-                return
+                return nil
             }
         case .player:
-            return
+            return nil
         case .occupant(let occupant):
             switch occupant {
             case .boulder(_, let motion):
@@ -206,34 +207,34 @@ public struct CaveRules: Sendable {
                     } else {
                         events.append(.movementBlocked(at: to))
                     }
-                    return
+                    return nil
                 }
                 let beyond = to.neighbor(in: direction)
                 guard CaveWorldQuery.presence(in: state, at: beyond) == .empty else {
                     events.append(.movementBlocked(at: to))
-                    return
+                    return nil
                 }
                 let ref = EntityRef(id: occupant.id, kind: .boulder)
                 state.grid[beyond].occupant = .boulder(occupant.id, motion: .resting)
                 state.grid[to].occupant = nil
                 events.append(.objectPushed(ref, from: to, to: beyond))
                 movePlayer(from: from, to: to, digging: false, in: &state, events: &events)
-                return
+                return occupant.id
             case .diamond(let id, let motion):
                 guard motion == .resting else {
                     killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
-                    return
+                    return nil
                 }
                 collectDiamond(id: id, at: to, in: &state, events: &events)
                 movePlayer(from: from, to: to, digging: false, in: &state, events: &events)
-                return
+                return nil
             case .firefly, .butterfly:
                 triggerEnemyExplosion(occupant, at: to, in: &state, explosions: &explosions)
                 killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
-                return
+                return nil
             case .amoeba:
                 killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
-                return
+                return nil
             }
         case .empty:
             break
@@ -247,6 +248,7 @@ public struct CaveRules: Sendable {
         case .exit(.closed), .wall, .steelWall, .magicWall, .void:
             events.append(.movementBlocked(at: to))
         }
+        return nil
     }
 
     private func movePlayer(
@@ -303,6 +305,7 @@ public struct CaveRules: Sendable {
 
     private func applyGravity(
         to state: inout CaveState,
+        skipping pushedEntity: EntityID?,
         events: inout [GameEvent],
         explosions: inout [PendingExplosion]
     ) {
@@ -312,7 +315,7 @@ public struct CaveRules: Sendable {
         for row in 0..<state.grid.height {
             for column in 0..<state.grid.width {
                 let from = GridPosition(column: column, row: row)
-                guard let occupant = state.grid[from].occupant else { continue }
+                guard let occupant = state.grid[from].occupant, occupant.id != pushedEntity else { continue }
                 guard let intent = gravityIntent(for: occupant, at: from, in: state) else {
                     continue
                 }

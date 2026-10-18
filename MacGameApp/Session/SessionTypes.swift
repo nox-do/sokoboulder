@@ -2,8 +2,7 @@ import GameCore
 
 /// Session commands that are not core rule inputs.
 ///
-/// Moves use ``GameSession/submitMove(_:)`` (or the test-facing enqueue/process
-/// helpers) — not this enum.
+/// Moves use ``GameSession/submitMove(_:)``.
 enum SessionCommand: Equatable, Sendable {
     case undo
     case redo

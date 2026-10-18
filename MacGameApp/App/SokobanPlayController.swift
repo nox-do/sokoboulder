@@ -24,7 +24,7 @@ final class SokobanPlayController: ObservableObject {
     let settingsStore: AppSettingsStore
     let reduceMotionProvider: ReduceMotionProvider
 
-    private(set) var activePlay: ActivePlaySession?
+    @Published private(set) var activePlay: ActivePlaySession?
     private let clock: any MonotonicClock = SystemUptimeClock()
 
     /// Sokoban session when ``activePlay`` is `.sokoban`; otherwise `nil`.
@@ -35,7 +35,7 @@ final class SokobanPlayController: ObservableObject {
     @Published private(set) var presentationPhase: GamePresentationPhase = .playing
     @Published private(set) var levelTitle = ""
     @Published private(set) var tutorialHintText = ""
-    @Published private(set) var isCaveMode = false
+    var isCaveMode: Bool { activePlay?.isCave ?? false }
     /// Which campaign the launch / level-selection menus currently operate on.
     @Published private(set) var shellCampaign: ShellCampaign = .sokoban
     @Published private(set) var metrics: PlayMetrics = .sokoban(
@@ -252,11 +252,6 @@ final class SokobanPlayController: ObservableObject {
         bindSettingsSideEffects()
     }
 
-    private func setActivePlay(_ play: ActivePlaySession?) {
-        activePlay = play
-        isCaveMode = play?.isCave ?? false
-    }
-
     // MARK: - Presentation models
 
     var levelIntroPresentation: LevelIntroPresentation {
@@ -360,7 +355,7 @@ final class SokobanPlayController: ObservableObject {
 
         let levelID = id ?? currentLevelID
         guard let descriptor = catalog.descriptor(id: levelID) else {
-            setActivePlay(nil)
+            activePlay = nil
             presentationPhase = .faulted
             faultMessage = "Unknown level: \(levelID)"
             router.enterModalBlocked()
@@ -380,7 +375,7 @@ final class SokobanPlayController: ObservableObject {
             let resolvedShowIntro = shouldShowIntro(for: descriptor, override: showIntro)
             bootstrapSession(newSession, descriptor: descriptor, showIntro: resolvedShowIntro)
         } catch {
-            setActivePlay(nil)
+            activePlay = nil
             presentationPhase = .faulted
             faultMessage = "Failed to load level: \(error)"
             router.enterModalBlocked()
@@ -412,8 +407,7 @@ final class SokobanPlayController: ObservableObject {
         if !isCaveMode {
             markCurrentIntroHintSeen()
         }
-        presentationPhase = .playing
-        router.enterGameplay()
+        enterPlayingPresentation()
         // Focus may have been lost during intro; ensure playback is audible again.
         if appIsActive {
             audioDirector.resumePlayback()
@@ -470,9 +464,9 @@ final class SokobanPlayController: ObservableObject {
             guard let emission = try caveSession.advance(to: clock.now(), heldDirection: router.heldDirection) else {
                 return
             }
-            applyResults([.emitted(emission)])
+            applyResult(.emitted(emission))
         } catch {
-            applyResults([.faulted(message: String(describing: error))])
+            applyResult(.faulted(message: String(describing: error)))
         }
     }
 
@@ -493,8 +487,7 @@ final class SokobanPlayController: ObservableObject {
             clearMoveHold()
             return
         }
-        let results = session.submitMove(direction)
-        applyResults(results)
+        applyResult(session.submitMove(direction))
         gameplayNotice =
             session.preventedStaticDeadlockOnLastMove
             ? AppStrings.text(.uiDeadlockPrevented)
@@ -807,8 +800,7 @@ final class SokobanPlayController: ObservableObject {
         cancelShowOutcome()
         let emission = caveSession.restart()
         emissions.apply(emission)
-        presentationPhase = .playing
-        router.enterGameplay()
+        enterPlayingPresentation()
         if appIsActive {
             audioDirector.resumePlayback()
         }
@@ -909,7 +901,7 @@ final class SokobanPlayController: ObservableObject {
     func selectSokobanFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
         shellCampaign = .sokoban
-        setActivePlay(nil)
+        activePlay = nil
         if progressPersistence.file.isFreshCampaign {
             startLevel(id: catalog.first.id, showIntro: true)
         } else {
@@ -921,7 +913,7 @@ final class SokobanPlayController: ObservableObject {
     func selectCaveFromGameSelection() {
         guard presentationPhase == .gameSelection else { return }
         shellCampaign = .cave
-        setActivePlay(nil)
+        activePlay = nil
         if progressPersistence.isFreshCaveCampaign {
             startCaveLevel(id: caveCatalog.first.id)
         } else {
@@ -931,7 +923,7 @@ final class SokobanPlayController: ObservableObject {
 
     private func startCaveLevel(id: String) {
         guard let descriptor = caveCatalog.descriptor(id: id) else {
-            setActivePlay(nil)
+            activePlay = nil
             faultMessage = "Unknown cave level: \(id)"
             presentationPhase = .faulted
             router.enterModalBlocked()
@@ -951,7 +943,7 @@ final class SokobanPlayController: ObservableObject {
             applyAudioSettingsFromStore()
 
             let emission = newSession.start()
-            setActivePlay(.cave(newSession))
+            activePlay = .cave(newSession)
             shellCampaign = .cave
             currentLevelID = descriptor.id
             levelTitle = caveCatalog.title(for: descriptor)
@@ -966,7 +958,7 @@ final class SokobanPlayController: ObservableObject {
             enterLevelIntro()
             refreshPublishedState()
         } catch {
-            setActivePlay(nil)
+            activePlay = nil
             faultMessage = "Höhle konnte nicht geladen werden: \(error)"
             presentationPhase = .faulted
             router.enterModalBlocked()
@@ -1345,7 +1337,7 @@ final class SokobanPlayController: ObservableObject {
         showIntro: Bool
     ) {
         let emission = newSession.start()
-        setActivePlay(.sokoban(newSession))
+        activePlay = .sokoban(newSession)
         scene.presentsCaveContent = false
         clearCompletionRecordingState()
         currentLevelID = descriptor.id
@@ -1364,8 +1356,7 @@ final class SokobanPlayController: ObservableObject {
         } else if showIntro {
             enterLevelIntro()
         } else {
-            presentationPhase = .playing
-            router.enterGameplay()
+            enterPlayingPresentation()
         }
         refreshPublishedState()
     }
@@ -1412,7 +1403,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func enterRunRecovery(message: String) {
-        setActivePlay(nil)
+        activePlay = nil
         presentationPhase = .runRecovery
         recoveryMessage = message
         faultMessage = nil
@@ -1425,7 +1416,7 @@ final class SokobanPlayController: ObservableObject {
     private func teardownSessionForNavigation(phase: GamePresentationPhase) {
         clearMoveHold()
         cancelShowOutcome()
-        setActivePlay(nil)
+        activePlay = nil
         scene.prepareForNewSession()
         audioDirector.reset()
         applyAudioSettingsFromStore()
@@ -1505,6 +1496,11 @@ final class SokobanPlayController: ObservableObject {
         performFocusedOutcomeAction()
     }
 
+    private func enterPlayingPresentation() {
+        presentationPhase = .playing
+        router.enterGameplay()
+    }
+
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
         guard let play = activePlay, play.canEnterPauseFromPlaying else { return }
         clearMoveHold()
@@ -1526,8 +1522,7 @@ final class SokobanPlayController: ObservableObject {
         guard let play = activePlay, play.isPaused else { return }
         play.resume()
         audioDirector.resumePlayback()
-        router.enterGameplay()
-        presentationPhase = .playing
+        enterPlayingPresentation()
         refreshPublishedState()
     }
 
@@ -1541,31 +1536,25 @@ final class SokobanPlayController: ObservableObject {
         guard let session else { return }
         gameplayNotice = nil
         let result = session.apply(command)
-        applyResults([result])
+        applyResult(result)
     }
 
-    private func applyResults(_ results: [SessionApplyResult]) {
-        for result in results {
-            switch result {
-            case .ignored:
-                continue
-
-            case .emitted(let emission):
-                emissions.apply(emission)
-                applyEmissionSideEffects(emission)
-
-            case .faulted(let message):
-                clearMoveHold()
-                cancelShowOutcome()
-                presentationPhase = .faulted
-                faultMessage = message
-                router.enterModalBlocked()
-                scene.discardPendingPresentation()
-                audioDirector.reset()
-                setActivePlay(nil)
-                refreshPublishedState()
-                return
-            }
+    private func applyResult(_ result: SessionApplyResult) {
+        switch result {
+        case .ignored:
+            break
+        case .emitted(let emission):
+            emissions.apply(emission)
+            applyEmissionSideEffects(emission)
+        case .faulted(let message):
+            clearMoveHold()
+            cancelShowOutcome()
+            presentationPhase = .faulted
+            faultMessage = message
+            router.enterModalBlocked()
+            scene.discardPendingPresentation()
+            audioDirector.reset()
+            activePlay = nil
         }
         refreshPublishedState()
     }
@@ -1594,27 +1583,15 @@ final class SokobanPlayController: ObservableObject {
             clearMoveHold()
             clearCompletionRecordingState()
             cancelShowOutcome()
-            presentationPhase = .playing
-            router.enterGameplay()
+            enterPlayingPresentation()
         case nil:
             guard let play = activePlay else { return }
-            switch play {
-            case .cave:
-                if play.phase == .playing || play.phase == .ready {
-                    presentationPhase = .playing
-                    if router.mode != .gameplay {
-                        router.enterGameplay()
-                    }
-                }
-            case .sokoban:
-                guard play.phase == .playing else { return }
-                // Keep intro until the player dismisses it; restart from intro dismisses first.
-                if presentationPhase != .levelIntro {
-                    presentationPhase = .playing
-                    if router.mode != .gameplay {
-                        router.enterGameplay()
-                    }
-                }
+            guard play.phase == .playing || play.phase == .ready else { return }
+            // Keep the level hint until dismissed; ordinary moves preserve held keys.
+            guard presentationPhase != .levelIntro else { return }
+            presentationPhase = .playing
+            if router.mode != .gameplay {
+                router.enterGameplay()
             }
         }
     }

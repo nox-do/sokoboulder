@@ -128,6 +128,25 @@ struct CaveGoldenTests {
             })
     }
 
+    @Test("pushed boulder rolls only on the following tick")
+    func pushedBoulderActsOnce() throws {
+        let state = try start(
+            """
+            #######
+            #PO   #
+            #  O  #
+            #XXXXX#
+            # E   #
+            #######
+            """)
+        let pushed = try rules.tick(input: .move(.right), state: state).state
+        let destination = GridPosition(column: 3, row: 1)
+        #expect(pushed.grid[destination].occupant == state.grid[GridPosition(column: 2, row: 1)].occupant)
+        let next = try rules.tick(input: .wait, state: pushed).state
+        #expect(next.grid[destination].occupant == nil)
+        #expect(next.grid[GridPosition(column: 4, row: 2)].occupant?.id == pushed.grid[destination].occupant?.id)
+    }
+
     @Test("boulder cannot be pushed vertically")
     func boulderNoVerticalPush() throws {
         let state = try start(

@@ -6,14 +6,13 @@ protocol SokobanRunSaveSink: AnyObject {
     func scheduleSave(_ file: SokobanRunFileV1)
 }
 
-/// `@MainActor` owner of Sokoban run state, history, input queue, and revision.
+/// `@MainActor` owner of Sokoban run state, history, and revision.
 ///
 /// The renderer and audio director never call ``SokobanRules`` directly.
-/// Productive movement entry is ``submitMove(_:)``, which owns enqueue + drain.
+/// Productive movement entry is ``submitMove(_:)``, which applies one move immediately.
 /// Persistable journal lives here; the controller must not infer saves from render.
 @MainActor
 final class GameSession {
-    static let moveQueueLimit = 2
     static let historyLimit = SokobanRunRestorer.commandLimit
 
     private let rules = SokobanRules()
@@ -31,7 +30,6 @@ final class GameSession {
     private var checkpoint: SokobanCheckpoint { rules.checkpoint(from: history[0]) }
     /// True level start — restart returns here even after checkpoint compaction.
     private let initialState: SokobanState
-    private var pendingMoves: [Direction] = []
 
     private(set) var revision: UInt64 = 0
     private(set) var phase: SessionPhase = .created
@@ -98,7 +96,6 @@ final class GameSession {
 
     var undoCount: Int { journalCursor }
     var redoCount: Int { journalCommands.count - journalCursor }
-    var pendingMoveCount: Int { pendingMoves.count }
     var journalCommandCount: Int { journalCommands.count }
     var journalCursorValue: Int { journalCursor }
 
@@ -128,62 +125,16 @@ final class GameSession {
         )
     }
 
-    /// Productive movement facade: enqueue then drain the Sokoban queue immediately.
-    ///
-    /// Rejects when ``canAcceptMove`` is false. Returns every ordered apply result
-    /// from the drain. Does not wait on animation or render frames.
+    /// Applies one move immediately, independently of animation or render frames.
     @discardableResult
-    func submitMove(_ direction: Direction) -> [SessionApplyResult] {
-        guard enqueueMove(direction) else { return [] }
-        return processPendingMoves()
+    func submitMove(_ direction: Direction) -> SessionApplyResult {
+        guard canAcceptMove else { return .ignored }
+        return applyMove(direction)
     }
 
-    /// Enqueues a move when under the FIFO limit. Does not process it.
-    ///
-    /// Prefer ``submitMove(_:)`` in production. Visible for tests and internal use.
-    @discardableResult
-    func enqueueMove(_ direction: Direction) -> Bool {
-        guard canAcceptMove else { return false }
-        guard pendingMoves.count < Self.moveQueueLimit else { return false }
-        pendingMoves.append(direction)
-        return true
-    }
-
-    /// Processes pending moves in FIFO order.
-    ///
-    /// Stops and discards the remainder after a fault or after entering
-    /// ``SessionPhase/outcomePresenting``. Prefer ``submitMove(_:)`` in production.
-    func processPendingMoves() -> [SessionApplyResult] {
-        var results: [SessionApplyResult] = []
-        while !pendingMoves.isEmpty {
-            guard phase == .playing else {
-                pendingMoves.removeAll(keepingCapacity: true)
-                break
-            }
-
-            let direction = pendingMoves.removeFirst()
-            let result = applyMove(direction)
-            results.append(result)
-
-            switch result {
-            case .faulted:
-                pendingMoves.removeAll(keepingCapacity: true)
-                return results
-            case .emitted, .ignored:
-                if phase != .playing {
-                    pendingMoves.removeAll(keepingCapacity: true)
-                    return results
-                }
-            }
-        }
-        return results
-    }
-
-    /// Applies undo / redo / restart. Clears any pending move queue first.
+    /// Applies undo / redo / restart.
     func apply(_ command: SessionCommand) -> SessionApplyResult {
         guard canAcceptSessionCommand else { return .ignored }
-
-        pendingMoves.removeAll(keepingCapacity: true)
 
         switch command {
         case .undo:
@@ -195,12 +146,11 @@ final class GameSession {
         }
     }
 
-    /// Shell interruption: clear the move queue and reject further moves.
+    /// Shell interruption: reject further moves.
     ///
     /// Does not mutate the authoritative Sokoban core state. Focus loss uses the
     /// same path. Only transitions ``playing`` → ``paused``.
     func pause() {
-        pendingMoves.removeAll(keepingCapacity: true)
         guard phase == .playing else { return }
         phase = .paused
     }
@@ -216,7 +166,6 @@ final class GameSession {
     /// Marks the session faulted without emitting render/audio updates (§16).
     private func fail(_ fault: EngineFault) -> SessionApplyResult {
         phase = .faulted
-        pendingMoves.removeAll(keepingCapacity: true)
         let message: String
         switch fault {
         case .invariantViolated(let detail):

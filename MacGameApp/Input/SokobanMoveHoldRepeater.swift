@@ -34,9 +34,9 @@ final class SokobanMoveHoldRepeater {
 
     /// Drops a released key; continues repeating the last remaining hold.
     func noteKeyUp(keyCode: UInt16) {
-        let wasHolding = !heldKeys.isEmpty
+        let previousDirection = activeDirection
         heldKeys.removeAll { $0.keyCode == keyCode }
-        guard wasHolding else { return }
+        guard activeDirection != previousDirection else { return }
         if heldKeys.isEmpty {
             cancel()
         } else {

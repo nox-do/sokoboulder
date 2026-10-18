@@ -7,8 +7,6 @@ import GameCore
 /// hard-resync emissions, no run persistence.
 @MainActor
 final class CaveSession {
-    static let maxCatchUpTicks = 5
-
     private let rules = CaveRules()
     private let levelID: String
 
@@ -93,7 +91,7 @@ final class CaveSession {
     /// Advances simulation using the shared monotonic clock reading `now`.
     ///
     /// In Ready, returns an emission only when a first intent is pending (Tick 1).
-    /// While playing, catches up at most ``maxCatchUpTicks`` and emits one update.
+    /// While playing, accepts at most 0.25 seconds of elapsed time and emits one update.
     func advance(to now: TimeInterval, heldDirection: Direction? = nil) throws(EngineFault) -> SessionEmission? {
         do {
             return try advanceSimulation(to: now, heldDirection: heldDirection)
@@ -134,16 +132,11 @@ final class CaveSession {
 
         var aggregatedEvents: [GameEvent] = []
         var ticksRun = 0
-        while accumulator >= fixedStep && ticksRun < Self.maxCatchUpTicks {
+        while accumulator >= fixedStep {
             accumulator -= fixedStep
             aggregatedEvents.append(contentsOf: try runTick(input: resolveTickInput(heldDirection: heldDirection)))
             ticksRun += 1
             if phase == .outcomePresenting { break }
-        }
-
-        if ticksRun == Self.maxCatchUpTicks, accumulator >= fixedStep {
-            // Discard leftover wall time; keep global simulation tick (state.tick).
-            accumulator = 0
         }
 
         guard ticksRun > 0 else { return nil }

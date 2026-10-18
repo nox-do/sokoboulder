@@ -25,6 +25,8 @@ Zwei klassische Ansätze:
    parallel abstrahieren.
 2. **Update-once:** Jede zu Tickbeginn vorhandene bewegliche Entität höchstens
    eine Aktion; neu erzeugte Entitäten handeln erst ab dem **nächsten** Tick.
+   Seit Regelversion 3 überspringt die Gravitation bereits in der Spielerphase
+   geschobene Felsen; sie fallen oder rollen frühestens im nächsten Tick.
 3. **Intent-Berechnungsreihenfolge:** Zeilen oben→unten, Spalten links→rechts.
 4. **Rollen:** links vor rechts; nach Roll = `falling`.
 5. **Freilegen→Fall:** Im Tick ohne Unterstützung wird `falling` gesetzt; die

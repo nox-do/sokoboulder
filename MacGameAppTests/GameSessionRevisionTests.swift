@@ -21,13 +21,8 @@ struct GameSessionRevisionTests {
         return session
     }
 
-    /// Enqueue one move and process the queue; returns the single result.
-    /// Prefer ``GameSession/submitMove(_:)`` in production code.
     private func move(_ session: GameSession, _ direction: Direction) -> SessionApplyResult {
-        #expect(session.enqueueMove(direction))
-        let results = session.processPendingMoves()
-        #expect(results.count == 1)
-        return results[0]
+        session.submitMove(direction)
     }
 
     @Test("start emits hardResync and bumps revision once")
@@ -71,11 +66,10 @@ struct GameSessionRevisionTests {
             """
         )
         #expect(session.phase == .created)
-        #expect(session.enqueueMove(.right) == false)
+        #expect(session.submitMove(.right) == .ignored)
         #expect(session.apply(.undo) == .ignored)
         #expect(session.apply(.redo) == .ignored)
         #expect(session.apply(.restart) == .ignored)
-        #expect(session.processPendingMoves().isEmpty)
         #expect(session.revision == 0)
     }
 
@@ -190,9 +184,7 @@ struct GameSessionRevisionTests {
         _ = session.start()
         #expect(session.phase == .outcomePresenting)
         let revision = session.revision
-        #expect(session.enqueueMove(.up) == false)
-        #expect(session.submitMove(.up).isEmpty)
-        #expect(session.processPendingMoves().isEmpty)
+        #expect(session.submitMove(.up) == .ignored)
         #expect(session.revision == revision)
     }
 
@@ -283,42 +275,6 @@ struct GameSessionRevisionTests {
         #expect(session.revision == revision)
     }
 
-    @Test("undo clears pending move queue")
-    func undoClearsPendingQueue() throws {
-        let session = try started(
-            """
-            #######
-            # @   #
-            # .$  #
-            #######
-            """
-        )
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right))
-        #expect(session.pendingMoveCount == 2)
-        _ = session.apply(.undo)
-        #expect(session.pendingMoveCount == 0)
-    }
-
-    @Test("move queue accepts two and drops the third")
-    func moveQueueLimit() throws {
-        let session = try started(
-            """
-            #######
-            # @   #
-            # .$  #
-            #######
-            """
-        )
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right))
-        #expect(session.enqueueMove(.right) == false)
-        #expect(session.pendingMoveCount == 2)
-        let results = session.processPendingMoves()
-        #expect(results.count == 2)
-        #expect(session.pendingMoveCount == 0)
-    }
-
     @Test("every emission pairs render and audio on the same target revision")
     func pairedUpdates() throws {
         let session = try started(
@@ -348,17 +304,15 @@ struct GameSessionRevisionTests {
         let revision = session.revision
         session.replaceStateForTesting(makeCorruptStateOnWall())
 
-        #expect(session.enqueueMove(.right))
-        let results = session.processPendingMoves()
-        #expect(results.count == 1)
-        guard case .faulted(let message) = results[0] else {
+        let result = session.submitMove(.right)
+        guard case .faulted(let message) = result else {
             Issue.record("expected faulted result")
             return
         }
         #expect(!message.isEmpty)
         #expect(session.phase == .faulted)
         #expect(session.revision == revision)
-        #expect(session.enqueueMove(.left) == false)
+        #expect(session.submitMove(.left) == .ignored)
         #expect(session.apply(.restart) == .ignored)
     }
 
