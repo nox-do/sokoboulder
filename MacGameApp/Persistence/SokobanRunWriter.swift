@@ -8,7 +8,8 @@ import Foundation
 actor SokobanRunWriter {
     private let fileURL: URL
 
-    private var pending: (generation: UInt64, file: SokobanRunFileV1)?
+    private var pending: (generation: UInt64, file: SokobanRunFileV1?)?
+    private var latestGeneration: UInt64 = 0
     private var lastCommittedGeneration: UInt64 = 0
     private var drainTask: Task<Void, Never>?
     private var lastErrorMessage: String?
@@ -20,25 +21,17 @@ actor SokobanRunWriter {
     var lastError: String? { lastErrorMessage }
 
     /// Records a write job without waiting for disk I/O.
-    func enqueue(generation: UInt64, file: SokobanRunFileV1) {
-        if let pending, pending.generation > generation {
-            return
-        }
+    func enqueue(generation: UInt64, file: SokobanRunFileV1?) {
+        guard generation >= latestGeneration, generation > lastCommittedGeneration else { return }
+        latestGeneration = generation
         pending = (generation, file)
         ensureDrainRunning()
     }
 
     /// Waits until every coalesced job has finished (or failed).
     func flush() async {
-        ensureDrainRunning()
-        while drainTask != nil || pending != nil {
-            if let drainTask {
-                await drainTask.value
-            } else if pending != nil {
-                ensureDrainRunning()
-            } else {
-                break
-            }
+        while let task = drainTask {
+            await task.value
         }
     }
 
@@ -53,13 +46,7 @@ actor SokobanRunWriter {
     }
 
     private func drainLoop() async {
-        defer {
-            drainTask = nil
-            // An enqueue may have raced with our empty-pending exit.
-            if pending != nil {
-                ensureDrainRunning()
-            }
-        }
+        defer { drainTask = nil }
 
         while true {
             // Let concurrent enqueue calls replace `pending` before we snapshot.
@@ -90,10 +77,17 @@ actor SokobanRunWriter {
     }
 
     static func atomicWrite(
-        file: SokobanRunFileV1,
+        file: SokobanRunFileV1?,
         to fileURL: URL
     ) throws {
         let fileManager = FileManager.default
+        // A nil payload is an ordered deletion, protected by the same generations.
+        guard let file else {
+            if fileManager.fileExists(atPath: fileURL.path) {
+                try fileManager.removeItem(at: fileURL)
+            }
+            return
+        }
         let data: Data
         do {
             data = try SokobanRunFileCodec.encode(file)

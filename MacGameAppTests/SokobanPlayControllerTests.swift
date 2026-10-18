@@ -196,11 +196,12 @@ struct SokobanPlayControllerTests {
         #expect(progress.file.completedLevelIDs.isEmpty)
         #expect(controller.currentLevelID == catalog.first.id)
         #expect(controller.presentationPhase == .levelIntro)
-        if case .absent = runPersistence.load() {
-            // expected: run file removed
-        } else {
-            Issue.record("expected run file to be absent after reset")
+        guard case .loaded(let run) = runPersistence.load() else {
+            Issue.record("expected the fresh tutorial run after reset")
+            return
         }
+        #expect(run.levelID == catalog.first.id)
+        #expect(run.commands.isEmpty && run.cursor == 0)
     }
 
     @Test("non-fresh campaign with a saved run still opens game selection")

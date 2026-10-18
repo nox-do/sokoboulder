@@ -92,31 +92,35 @@ public struct CaveRules: Sendable {
 
         var working = state
         var events: [GameEvent] = []
+        advanceTick(input: input ?? .wait, state: &working, events: &events)
+        working.tick += 1
+        try working.validateEssentials()
+        return Transition(
+            state: working, events: events,
+            outcome: working.status == .playing ? .changed : .terminal(working.status)
+        )
+    }
+
+    private func advanceTick(input: CaveInput, state working: inout CaveState, events: inout [GameEvent]) {
         var explosions: [PendingExplosion] = []
 
         // An already expired clock never grants another player action.
         if working.remainingTicks == 0 {
             expireTime(in: &working, events: &events)
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(.failed))
+            return
         }
 
-        let pushedEntity = applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
+        let pushedEntity = applyPlayer(input: input, to: &working, events: &events, explosions: &explosions)
         explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(working.status))
+            return
         }
 
         applyGravity(to: &working, skipping: pushedEntity, events: &events, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(working.status))
+            return
         }
 
         // Half-rate enemies: act on even ticks (0, 2, 4, …) so classic fly
@@ -126,18 +130,14 @@ public struct CaveRules: Sendable {
             explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
             drainExplosions(&explosions, in: &working, events: &events)
             if working.status != .playing {
-                working.tick += 1
-                try working.validateEssentials()
-                return Transition(state: working, events: events, outcome: .terminal(working.status))
+                return
             }
         }
 
         applyAmoeba(to: &working, events: &events, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(working.status))
+            return
         }
 
         openExitsIfNeeded(in: &working, events: &events)
@@ -147,24 +147,16 @@ public struct CaveRules: Sendable {
         {
             working.status = .completed
             events.append(.levelCompleted)
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(.completed))
+            return
         }
 
         // The last available tick may still win; otherwise its end expires time.
         if working.remainingTicks == 1 {
             expireTime(in: &working, events: &events)
-            working.tick += 1
-            try working.validateEssentials()
-            return Transition(state: working, events: events, outcome: .terminal(.failed))
+            return
         }
         working.remainingTicks -= 1
         tickMagicWallTimer(in: &working)
-
-        working.tick += 1
-        try working.validateEssentials()
-        return Transition(state: working, events: events, outcome: .changed)
     }
 
     // MARK: - Player

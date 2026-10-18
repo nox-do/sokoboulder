@@ -82,13 +82,6 @@ final class SokobanBoardScene: SKScene {
     /// Last revision whose presentation has visually settled (or hard-synced).
     private(set) var settledRevision: UInt64 = 0
 
-    private struct SettlementWaiter {
-        let revision: UInt64
-        let action: @MainActor () -> Void
-    }
-
-    private var settlementWaiters: [SettlementWaiter] = []
-
     /// Queued animate steps plus the one currently running, if any.
     var pendingAnimationCount: Int {
         animationQueue.count + (isAnimating ? 1 : 0)
@@ -97,25 +90,8 @@ final class SokobanBoardScene: SKScene {
     /// Last accepted snapshot (authoritative target, may still be animating toward).
     var currentSnapshot: RenderSnapshot? { appliedSnapshot }
 
-    /// Runs `action` once presentation has settled at least through `revision`.
-    ///
-    /// Fires immediately when already settled. Hard-resync and aborted presentation
-    /// also settle to the accepted revision.
-    func whenSettled(revision: UInt64, perform action: @escaping @MainActor () -> Void) {
-        if settledRevision >= revision {
-            action()
-            return
-        }
-        settlementWaiters.append(SettlementWaiter(revision: revision, action: action))
-    }
-
     private func markSettled(_ revision: UInt64) {
         settledRevision = max(settledRevision, revision)
-        let due = settlementWaiters.filter { $0.revision <= settledRevision }
-        settlementWaiters.removeAll { $0.revision <= settledRevision }
-        for waiter in due {
-            waiter.action()
-        }
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -156,6 +132,7 @@ final class SokobanBoardScene: SKScene {
 
     /// Applies a visual theme. Rebuilds from the last snapshot when one exists.
     func apply(theme: VisualTheme) {
+        guard self.theme != theme else { return }
         self.theme = theme
         textureCache.removeAll(keepingCapacity: true)
         syncGeometryProfile()
@@ -226,13 +203,12 @@ final class SokobanBoardScene: SKScene {
         markSettled(appliedRevision)
     }
 
-    /// Resets revision stream, waiters, and presentation nodes for a **new** session.
+    /// Resets revision stream and presentation nodes for a **new** session.
     ///
     /// Call before bootstrapping a replacement ``GameSession``. Do **not** call for
     /// in-session restart / undo / redo — those continue the same revision stream.
     func prepareForNewSession() {
         cancelAnimationsAndPending()
-        settlementWaiters.removeAll(keepingCapacity: true)
         appliedRevision = 0
         settledRevision = 0
         appliedSnapshot = nil
@@ -350,7 +326,7 @@ final class SokobanBoardScene: SKScene {
         } else {
             boardCamera.lastMoveDirection = nil
         }
-        rebuild(from: update.snapshot)
+        rebuild(from: update.snapshot, reuseNodes: presentsCaveContent)
         appliedRevision = update.targetRevision
         appliedSnapshot = update.snapshot
         // Hard-resync never replays historical celebration effects and must match
@@ -450,57 +426,40 @@ final class SokobanBoardScene: SKScene {
 
     // MARK: - Node build / layout
 
-    private func rebuild(from snapshot: RenderSnapshot) {
-        terrainLayer.removeAllChildren()
-        entityLayer.removeAllChildren()
-        // effectLayer keeps explosionAnim nodes across hard-resync ticks.
-        terrainNodes.removeAll(keepingCapacity: true)
-        entityNodes.removeAll(keepingCapacity: true)
-        playerNode = nil
-
+    private func rebuild(from snapshot: RenderSnapshot, reuseNodes: Bool = false) {
+        let reuse =
+            reuseNodes && appliedSnapshot?.width == snapshot.width
+            && appliedSnapshot?.height == snapshot.height && terrainNodes.count == snapshot.cells.count
+        if !reuse {
+            terrainLayer.removeAllChildren()
+            entityLayer.removeAllChildren()
+            terrainNodes.removeAll(keepingCapacity: true)
+            entityNodes.removeAll(keepingCapacity: true)
+            playerNode = nil
+        }
+        // effectLayer keeps explosionAnim nodes across cave ticks.
         syncGeometryProfile()
         geometry.gridWidth = snapshot.width
         geometry.gridHeight = snapshot.height
-        if geometry.availableSize == .zero {
-            geometry.availableSize = size
-        }
+        if geometry.availableSize == .zero { geometry.availableSize = size }
 
-        terrainNodes.reserveCapacity(snapshot.cells.count)
-        for row in 0..<snapshot.height {
-            for column in 0..<snapshot.width {
-                let position = GridPosition(column: column, row: row)
-                guard let cell = snapshot.cell(at: position) else { continue }
-                let node = makeTerrainNode(cell.terrain)
-                node.position = geometry.center(for: position)
-                node.size = CGSize(width: geometry.tileSize, height: geometry.tileSize)
-                updateStroke(for: node, tileSize: geometry.tileSize)
-                resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
-                terrainLayer.addChild(node)
+        for (index, cell) in snapshot.cells.enumerated() {
+            if reuse, appliedSnapshot?.cells[index].terrain == cell.terrain { continue }
+            let node = makeTerrainNode(cell.terrain)
+            terrainLayer.addChild(node)
+            if reuse {
+                terrainNodes[index].removeFromParent()
+                terrainNodes[index] = node
+            } else {
                 terrainNodes.append(node)
             }
         }
-
-        for entity in snapshot.entities {
-            let node = makeEntityNode(kind: entity.ref.kind)
-            node.position = geometry.center(for: entity.position)
-            node.size = entitySize()
-            updateStroke(for: node, tileSize: geometry.tileSize)
-            resizeSemanticMarkers(in: node, tileSize: geometry.tileSize)
-            entityLayer.addChild(node)
-            entityNodes[entity.ref.id] = node
+        if playerNode == nil {
+            let player = makeEntityNode(kind: .player)
+            entityLayer.addChild(player)
+            playerNode = player
         }
-
-        let player = makeEntityNode(kind: .player)
-        player.position = geometry.center(for: snapshot.player.position)
-        player.size = entitySize()
-        updateStroke(for: player, tileSize: geometry.tileSize)
-        resizeSemanticMarkers(in: player, tileSize: geometry.tileSize)
-        entityLayer.addChild(player)
-        playerNode = player
-        updateGoalStateMarkers(using: snapshot)
-        applyGoalBookmarks(using: snapshot)
-        layoutCompletionFrame()
-        snapCamera(to: snapshot)
+        relayoutExistingNodes(using: snapshot)
     }
 
     private func relayoutExistingNodes(using snapshot: RenderSnapshot) {
@@ -563,26 +522,16 @@ final class SokobanBoardScene: SKScene {
         }
         for entity in snapshot.entities {
             let expectedName = "entity.\(entity.ref.kind)"
-            if let existing = entityNodes[entity.ref.id] {
-                if existing.name == expectedName { continue }
-                let position = existing.position
-                existing.removeFromParent()
-                let fresh = makeEntityNode(kind: entity.ref.kind)
-                fresh.position = position
-                fresh.size = entitySize()
-                updateStroke(for: fresh, tileSize: geometry.tileSize)
-                resizeSemanticMarkers(in: fresh, tileSize: geometry.tileSize)
-                entityLayer.addChild(fresh)
-                entityNodes[entity.ref.id] = fresh
-            } else {
-                let fresh = makeEntityNode(kind: entity.ref.kind)
-                fresh.position = geometry.center(for: entity.position)
-                fresh.size = entitySize()
-                updateStroke(for: fresh, tileSize: geometry.tileSize)
-                resizeSemanticMarkers(in: fresh, tileSize: geometry.tileSize)
-                entityLayer.addChild(fresh)
-                entityNodes[entity.ref.id] = fresh
-            }
+            let existing = entityNodes[entity.ref.id]
+            if existing?.name == expectedName { continue }
+            let fresh = makeEntityNode(kind: entity.ref.kind)
+            fresh.position = existing?.position ?? geometry.center(for: entity.position)
+            fresh.size = entitySize()
+            updateStroke(for: fresh, tileSize: geometry.tileSize)
+            resizeSemanticMarkers(in: fresh, tileSize: geometry.tileSize)
+            existing?.removeFromParent()
+            entityLayer.addChild(fresh)
+            entityNodes[entity.ref.id] = fresh
         }
     }
 

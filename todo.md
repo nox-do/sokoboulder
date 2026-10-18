@@ -114,7 +114,6 @@ Audio-Mixer/Settings und CC0-Assets später.
 - HUD: Level, Züge, Schübe, Goals, Undo/Redo-Verfügbarkeit; Goal-Zähler in `RenderSnapshot`
 - Pause-Overlay fokussierbar; Fokusverlust pausiert nur aus `.playing`
 - Outcome: 1.5s Delay, dann `outcomeAwaitingChoice` (kein Zwischen-Banner)
-- `SokobanBoardScene.whenSettled(revision:)` + festes Timeout (0.45s)
 - Skip-Return bestätigt nicht die Ergebnisaktion (`releaseOutcomeLocksPreservingPressedKeys`)
 - SwiftUI Commands via `FocusedValues` → dieselben Controller-Methoden
 - Fokus: SKView nur initial und beim Wechsel nach `.playing`; Overlay-Keys via Local-Monitor
@@ -290,8 +289,8 @@ Vertragsentscheidungen (Spielerentscheidung 2026-08-02):
   - Blockiert: kurzes × / Ablehnung
   - Schub: mechanischer Impuls am Stein (~180 ms)
   - Ziel betreten/verlassen: semantische Symbole
-  - Abschluss: kurze Feier (~500 ms; Ziele pulsieren, Erfolgsrahmen) Teil von
-    `whenSettled`; nach Settle/Hard-Resync/Undo Zielsnapshot ohne Feier-Reste;
+  - Abschluss: kurze Feier (~500 ms; Ziele pulsieren, Erfolgsrahmen);
+    nach Settle/Hard-Resync/Undo Zielsnapshot ohne Feier-Reste;
     Outcome-Timeout 1.5 s; Skip → sofort Outcome
   - Keine Eingabeverzögerung bei normalen Zügen
   - Reduce Motion → sofortige Farb-/Kontur-/Symbolzustände

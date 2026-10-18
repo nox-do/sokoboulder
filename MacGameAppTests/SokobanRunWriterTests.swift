@@ -203,32 +203,6 @@ struct SokobanRunWriterTests {
         #expect(await writer.committedGeneration() == 3)
     }
 
-    @Test("cached synchronous write persists without actor flush")
-    func cachedSyncWrite() throws {
-        let persistence = try SokobanRunPersistence.ephemeral()
-        let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.001"))
-        let checkpoint = try SokobanCheckpointV1(
-            semantic: SokobanRules().checkpoint(
-                from: try SokobanRules().start(level: descriptor.makeLevel())
-            )
-        )
-        let file = SokobanRunFileV1(
-            schemaVersion: 1,
-            levelID: descriptor.id,
-            contentHash: descriptor.contentHash,
-            ruleVersion: 1,
-            checkpoint: checkpoint,
-            commands: [.right],
-            cursor: 1
-        )
-        persistence.scheduleSave(file)
-        persistence.writeCachedRunSynchronously()
-
-        let url = try #require(persistence.configuration).fileURL
-        let loaded = try SokobanRunFileCodec.decode(try Data(contentsOf: url))
-        #expect(loaded.commands == [.right])
-    }
-
     @Test("flush enqueues the cached generation before waiting on the writer")
     func flushEnqueuesCachedGeneration() async throws {
         let persistence = try SokobanRunPersistence.ephemeral()
@@ -254,7 +228,9 @@ struct SokobanRunWriterTests {
         // Older generation may start writing; newest stays in the cache while its
         // fire-and-forget enqueue Task has not necessarily reached the actor yet.
         persistence.scheduleSave(makeFile(commands: [.left]))
-        persistence.scheduleSave(makeFile(commands: [.left, .right]))
+        let newest = makeFile(commands: [.left, .right])
+        persistence.scheduleSave(newest)
+        #expect(persistence.load() == .loaded(newest))
 
         await persistence.flush()
 
@@ -262,6 +238,12 @@ struct SokobanRunWriterTests {
         let loaded = try SokobanRunFileCodec.decode(try Data(contentsOf: url))
         #expect(loaded.commands == [.left, .right])
         #expect(loaded.cursor == 2)
+
+        persistence.scheduleSave(newest)
+        persistence.removeRunFile()
+        #expect(persistence.load() == .absent)
+        await persistence.flush()
+        #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
     @Test("disabled persistence does not write and reports a reason")

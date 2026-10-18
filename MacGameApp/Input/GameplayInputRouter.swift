@@ -56,44 +56,17 @@ final class GameplayInputRouter {
         pressedKeyCodes.removeAll(keepingCapacity: true)
         movementKeys.removeAll(keepingCapacity: true)
         lockedKeyCodes.removeAll(keepingCapacity: true)
-        if mode != .outcomePresenting {
-            outcomeGateOpen = false
-        } else {
-            outcomeGateOpen = true
-        }
+        outcomeGateOpen = mode == .outcomePresenting
     }
 
-    func enterGameplay() {
-        mode = .gameplay
-        pressedKeyCodes.removeAll(keepingCapacity: true)
-        movementKeys.removeAll(keepingCapacity: true)
-        lockedKeyCodes.removeAll(keepingCapacity: true)
-        outcomeGateOpen = false
-    }
+    func enterGameplay() { enter(.gameplay) }
+    func enterPaused() { enter(.paused) }
+    func enterModalBlocked() { enter(.modalBlocked) }
+    func enterLevelIntro() { enter(.levelIntro) }
 
-    func enterPaused() {
-        mode = .paused
-        pressedKeyCodes.removeAll(keepingCapacity: true)
-        movementKeys.removeAll(keepingCapacity: true)
-        lockedKeyCodes.removeAll(keepingCapacity: true)
-        outcomeGateOpen = false
-    }
-
-    func enterModalBlocked() {
-        mode = .modalBlocked
-        pressedKeyCodes.removeAll(keepingCapacity: true)
-        movementKeys.removeAll(keepingCapacity: true)
-        lockedKeyCodes.removeAll(keepingCapacity: true)
-        outcomeGateOpen = false
-    }
-
-    /// Blocks gameplay while a skippable level hint is visible.
-    func enterLevelIntro() {
-        mode = .levelIntro
-        pressedKeyCodes.removeAll(keepingCapacity: true)
-        movementKeys.removeAll(keepingCapacity: true)
-        lockedKeyCodes.removeAll(keepingCapacity: true)
-        outcomeGateOpen = false
+    private func enter(_ mode: Mode) {
+        self.mode = mode
+        clearPendingInputs()
     }
 
     /// Locks currently pressed keys; only a later key-down after their matching

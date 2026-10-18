@@ -281,35 +281,7 @@ struct SokobanBoardSceneTests {
         #expect(lastEmission != nil)
     }
 
-    @Test("whenSettled fires after hard-resync and after forced settle")
-    func whenSettledContract() throws {
-        let session = try startedSession(
-            """
-            #####
-            #@$.#
-            #####
-            """
-        )
-        let scene = makeScene()
-        scene.holdAnimationsForTesting = true
-        scene.apply(session.bootstrapEmission!.render)
-
-        var settled = false
-        guard case .emitted(let emission) = session.submitMove(.right) else {
-            Issue.record("expected move")
-            return
-        }
-        scene.apply(emission.render)
-        scene.whenSettled(revision: emission.render.targetRevision) {
-            settled = true
-        }
-        #expect(settled == false)
-        scene.settleAnimationsForTesting()
-        #expect(settled)
-        #expect(scene.settledRevision == emission.render.targetRevision)
-    }
-
-    @Test("prepareForNewSession clears revision stream and waiters")
+    @Test("prepareForNewSession clears revision stream and animations")
     func prepareForNewSessionResets() throws {
         let session = try startedSession(
             """
@@ -327,8 +299,6 @@ struct SokobanBoardSceneTests {
         }
         scene.apply(emission.render)
 
-        var fired = false
-        scene.whenSettled(revision: 99) { fired = true }
         #expect(scene.appliedRevision >= 2)
         #expect(scene.pendingAnimationCount > 0)
 
@@ -337,7 +307,6 @@ struct SokobanBoardSceneTests {
         #expect(scene.settledRevision == 0)
         #expect(scene.pendingAnimationCount == 0)
         #expect(scene.currentSnapshot == nil)
-        #expect(fired == false)
 
         let level = try SokobanLevelValidator.level(
             fromASCII:

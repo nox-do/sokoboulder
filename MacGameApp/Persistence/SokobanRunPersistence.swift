@@ -68,10 +68,13 @@ final class SokobanRunPersistence: SokobanRunSaveSink {
     }
 
     func scheduleSave(_ file: SokobanRunFileV1) {
-        latestCachedFile = file
-        guard let writer else { return }
+        scheduleMutation(file)
+    }
 
+    private func scheduleMutation(_ file: SokobanRunFileV1?) {
+        latestCachedFile = file
         writeGeneration &+= 1
+        guard let writer else { return }
         let generation = writeGeneration
         Task {
             await writer.enqueue(generation: generation, file: file)
@@ -84,8 +87,8 @@ final class SokobanRunPersistence: SokobanRunSaveSink {
         // The fire-and-forget Task from ``scheduleSave`` may not have reached the
         // actor yet while an older generation is still writing. Enqueue the cached
         // DTO here so flush waits for generation N after any in-flight N−1 write.
-        if let file = latestCachedFile, writeGeneration > 0 {
-            await writer.enqueue(generation: writeGeneration, file: file)
+        if writeGeneration > 0 {
+            await writer.enqueue(generation: writeGeneration, file: latestCachedFile)
         }
 
         await writer.flush()
@@ -94,22 +97,10 @@ final class SokobanRunPersistence: SokobanRunSaveSink {
         }
     }
 
-    /// Synchronously persists the latest cached DTO without hopping through Tasks.
-    ///
-    /// Safe to call only after the writer is idle (for example after ``flush()``),
-    /// or as a best-effort path when no older write can still be in flight.
-    func writeCachedRunSynchronously() {
-        guard isEnabled else { return }
-        guard let file = latestCachedFile else { return }
-        guard let url = configuration?.fileURL else { return }
-        do {
-            try SokobanRunWriter.atomicWrite(file: file, to: url)
-        } catch {
-            onSaveFailure?("Could not save progress: \(error)")
-        }
-    }
-
     func load() -> SokobanRunLoadOutcome {
+        if writeGeneration > 0 {
+            return latestCachedFile.map(SokobanRunLoadOutcome.loaded) ?? .absent
+        }
         guard let configuration else {
             return .absent
         }
@@ -168,9 +159,7 @@ final class SokobanRunPersistence: SokobanRunSaveSink {
 
     /// Removes the active run file after the player chooses a fresh start.
     func removeRunFile() {
-        guard let url = configuration?.fileURL else { return }
-        try? fileManager.removeItem(at: url)
-        latestCachedFile = nil
+        scheduleMutation(nil)
     }
 
     /// Copies the current file aside as `.invalid-<timestamp>.json`.

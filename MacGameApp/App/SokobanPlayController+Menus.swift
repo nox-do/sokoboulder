@@ -16,7 +16,7 @@ extension SokobanPlayController {
             command: command,
             isRepeat: event.isARepeat,
             focus: menuFocus,
-            context: overlayNavigationContext
+            context: overlayNavigationContext(for: presentationPhase)
         )
         return applyOverlayNavigationResult(result)
     }
@@ -56,14 +56,15 @@ extension SokobanPlayController {
         refreshPublishedState()
     }
 
-    private var overlayNavigationContext: OverlayNavigationContext {
+    private func overlayNavigationContext(for phase: GamePresentationPhase) -> OverlayNavigationContext {
         OverlayNavigationContext(
-            levelSelectionOrder: levelSelectionFocusOrder,
-            settingsOrder: settingsFocusOrder,
-            outcomeOrder: outcomeFocusOrder,
-            musicTrackFocusGames: Dictionary(
-                uniqueKeysWithValues: settings.presentation.musicTrackGroups.map { ($0.id, $0.game) }
-            ),
+            levelSelectionOrder: phase == .levelSelection ? levelSelectionFocusOrder : [],
+            settingsOrder: phase == .settings ? settingsFocusOrder : [],
+            outcomeOrder: phase == .outcomeAwaitingChoice ? outcomeFocusOrder : [],
+            musicTrackFocusGames: phase == .settings
+                ? Dictionary(
+                    uniqueKeysWithValues: settings.presentation.musicTrackGroups.map { ($0.id, $0.game) }
+                ) : [:],
             levelSelectionBackID: Self.levelSelectionBackID
         )
     }
@@ -205,7 +206,7 @@ extension SokobanPlayController {
             OverlayMenuNavigator.resetFocus(
                 for: phase,
                 focus: menuFocus,
-                context: overlayNavigationContext
+                context: overlayNavigationContext(for: phase)
             )
         )
     }

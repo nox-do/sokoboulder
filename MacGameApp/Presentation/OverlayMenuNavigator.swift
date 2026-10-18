@@ -58,13 +58,25 @@ enum OverlayMenuNavigator {
     ) -> OverlayNavigationResult {
         switch phase {
         case .gameSelection:
-            return resolveGameSelection(command, isRepeat: isRepeat, focus: focus)
+            return resolveMenu(
+                command, isRepeat: isRepeat, focus: focus, key: \.gameSelection,
+                order: GameSelectionAction.focusOrder, fallback: .sokoban,
+                activate: .activateGameSelection, cancel: nil)
         case .launchMenu:
-            return resolveLaunch(command, isRepeat: isRepeat, focus: focus)
+            return resolveMenu(
+                command, isRepeat: isRepeat, focus: focus, key: \.launch,
+                order: LaunchMenuAction.allCases, fallback: .continueCampaign,
+                activate: .activateLaunch, cancel: .cancelLaunchToGameSelection)
         case .paused:
-            return resolvePause(command, isRepeat: isRepeat, focus: focus)
+            return resolveMenu(
+                command, isRepeat: isRepeat, focus: focus, key: \.pause,
+                order: PauseMenuAction.allCases, fallback: .resume,
+                activate: .activatePause, cancel: .cancelPauseToGameSelection)
         case .levelSelection:
-            return resolveLevelSelection(command, isRepeat: isRepeat, focus: focus, context: context)
+            return resolveMenu(
+                command, isRepeat: isRepeat, focus: focus, key: \.levelSelectionID,
+                order: context.levelSelectionOrder, fallback: context.levelSelectionBackID,
+                activate: .activateLevelSelection, cancel: .cancelLevelSelectionToLaunch)
         case .settings:
             return resolveSettings(command, isRepeat: isRepeat, focus: focus, context: context)
         case .help:
@@ -105,132 +117,29 @@ enum OverlayMenuNavigator {
 
     // MARK: - Per-phase
 
-    private static func resolveGameSelection(
-        _ command: OverlayMenuCommand,
-        isRepeat: Bool,
-        focus: OverlayFocusState
-    ) -> OverlayNavigationResult {
-        var next = focus
-        switch command {
-        case .moveUp, .moveLeft:
-            next.gameSelection =
-                KeyboardFocusCycle.move(
-                    from: focus.gameSelection,
-                    in: GameSelectionAction.focusOrder,
-                    offset: -1
-                ) ?? .sokoban
-            return .updateFocus(next)
-        case .moveDown, .moveRight:
-            next.gameSelection =
-                KeyboardFocusCycle.move(
-                    from: focus.gameSelection,
-                    in: GameSelectionAction.focusOrder,
-                    offset: 1
-                ) ?? .sokoban
-            return .updateFocus(next)
-        case .activate:
-            guard !isRepeat else { return .consumed }
-            return .action(.activateGameSelection)
-        case .cancel:
-            return .unhandled
-        }
-    }
-
-    private static func resolveLaunch(
-        _ command: OverlayMenuCommand,
-        isRepeat: Bool,
-        focus: OverlayFocusState
-    ) -> OverlayNavigationResult {
-        var next = focus
-        switch command {
-        case .moveUp, .moveLeft:
-            next.launch =
-                KeyboardFocusCycle.move(
-                    from: focus.launch,
-                    in: LaunchMenuAction.allCases,
-                    offset: -1
-                ) ?? .continueCampaign
-            return .updateFocus(next)
-        case .moveDown, .moveRight:
-            next.launch =
-                KeyboardFocusCycle.move(
-                    from: focus.launch,
-                    in: LaunchMenuAction.allCases,
-                    offset: 1
-                ) ?? .continueCampaign
-            return .updateFocus(next)
-        case .activate:
-            guard !isRepeat else { return .consumed }
-            return .action(.activateLaunch)
-        case .cancel:
-            guard !isRepeat else { return .consumed }
-            return .action(.cancelLaunchToGameSelection)
-        }
-    }
-
-    private static func resolvePause(
-        _ command: OverlayMenuCommand,
-        isRepeat: Bool,
-        focus: OverlayFocusState
-    ) -> OverlayNavigationResult {
-        var next = focus
-        switch command {
-        case .moveUp, .moveLeft:
-            next.pause =
-                KeyboardFocusCycle.move(
-                    from: focus.pause,
-                    in: PauseMenuAction.allCases,
-                    offset: -1
-                ) ?? .resume
-            return .updateFocus(next)
-        case .moveDown, .moveRight:
-            next.pause =
-                KeyboardFocusCycle.move(
-                    from: focus.pause,
-                    in: PauseMenuAction.allCases,
-                    offset: 1
-                ) ?? .resume
-            return .updateFocus(next)
-        case .activate:
-            guard !isRepeat else { return .consumed }
-            return .action(.activatePause)
-        case .cancel:
-            guard !isRepeat else { return .consumed }
-            return .action(.cancelPauseToGameSelection)
-        }
-    }
-
-    private static func resolveLevelSelection(
+    private static func resolveMenu<Item: Equatable>(
         _ command: OverlayMenuCommand,
         isRepeat: Bool,
         focus: OverlayFocusState,
-        context: OverlayNavigationContext
+        key: WritableKeyPath<OverlayFocusState, Item>,
+        order: [Item],
+        fallback: Item,
+        activate: OverlayNavigationAction,
+        cancel: OverlayNavigationAction?
     ) -> OverlayNavigationResult {
-        let order = context.levelSelectionOrder
-        var next = focus
         switch command {
-        case .moveUp, .moveLeft:
-            next.levelSelectionID =
-                KeyboardFocusCycle.move(
-                    from: focus.levelSelectionID,
-                    in: order,
-                    offset: -1
-                ) ?? order.first ?? context.levelSelectionBackID
-            return .updateFocus(next)
-        case .moveDown, .moveRight:
-            next.levelSelectionID =
-                KeyboardFocusCycle.move(
-                    from: focus.levelSelectionID,
-                    in: order,
-                    offset: 1
-                ) ?? order.first ?? context.levelSelectionBackID
+        case .moveUp, .moveLeft, .moveDown, .moveRight:
+            var next = focus
+            let offset = command == .moveUp || command == .moveLeft ? -1 : 1
+            next[keyPath: key] =
+                KeyboardFocusCycle.move(from: focus[keyPath: key], in: order, offset: offset)
+                ?? fallback
             return .updateFocus(next)
         case .activate:
-            guard !isRepeat else { return .consumed }
-            return .action(.activateLevelSelection)
+            return isRepeat ? .consumed : .action(activate)
         case .cancel:
-            guard !isRepeat else { return .consumed }
-            return .action(.cancelLevelSelectionToLaunch)
+            guard let cancel else { return .unhandled }
+            return isRepeat ? .consumed : .action(cancel)
         }
     }
 
