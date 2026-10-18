@@ -36,7 +36,7 @@ Drittanbieter-Lizenzen liegen innerhalb der App unter
 `Contents/Resources/Legal/THIRD_PARTY_NOTICES.md`; die MIT-Projektlizenz liegt
 daneben als `LICENSE`. Beide bleiben beim Kopieren erhalten.
 Das DMG zeigt nur die App und die Programme-Verknüpfung: Ein Hintergrund erklärt
-den direkten Start per Doppelklick und das optionale Installieren per Ziehen.
+das Installieren per Ziehen und weist auf die notwendige Erststart-Freigabe hin.
 Fenstergröße, Symbolansicht und Positionen werden als `.DS_Store` direkt im Image
 gespeichert; der Build steuert dafür keine Finder-Fenster. Das Spielsymbol nutzt
 den bereits im Spiel enthaltenen, attribuierten Saphir. Die eingecheckten
@@ -78,21 +78,10 @@ vorliegen; ein lokaler Build löst keinen Upload aus.
 
 ## Signierung und erster Start
 
-Die App wird ausschließlich lokal **ad-hoc signiert**. Damit lässt sich ein Universal-Bundle
-ohne Apple-Zertifikat bauen und seine Integrität prüfen. Es bestätigt keine
-Entwickleridentität und ersetzt keine Notarisierung.
-
-macOS kann heruntergeladene Apps beim ersten Start blockieren. Bei einer
-vertrauenswürdigen Quelle nach dem ersten Startversuch unter
-**Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen** freigeben.
-Siehe [Apples Hinweise zum sicheren Öffnen von Apps](https://support.apple.com/de-de/102445).
-Das DMG umgeht Gatekeeper nicht.
-
-Developer-ID-Signierung, Apple-Notarisierung und Stapling sind auf Entscheidung
-des Maintainers vom 2026-10-18 bewusst nicht vorgesehen. Es werden weder ein
-Apple-Developer-Konto noch Zertifikate oder Apple-Zugangsdaten eingerichtet.
-Die lokale Ad-hoc-Signatur benötigt nichts davon; die manuelle Freigabe beim
-ersten Download wird als Teil dieses Distributionswegs akzeptiert.
+Die App wird lokal **ad-hoc signiert**. Für die quelloffene, selbst baubare Demo
+verzichten wir bewusst auf ein kostenpflichtiges Apple-Entwicklerkonto und die
+Notarisierung. Die kurze Anleitung zur Erststart-Freigabe steht in der
+[README](../README.md#erster-start-macos-freigabe).
 
 Vor Veröffentlichung: ZIP und DMG auf einem frischen Mac testen, beide Spiele
 mit Audio öffnen und macOS 14 sowie Intel separat prüfen. Der Universal-Build

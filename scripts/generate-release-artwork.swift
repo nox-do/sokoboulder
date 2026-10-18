@@ -43,15 +43,21 @@ try png(width: 720, height: 460, to: "scripts/dmg/background.png") {
             xRadius: 18, yRadius: 18
         ).fill()
     }
-    text("Direkt spielen", x: 66, top: 132, size: 20, weight: .semibold)
-    text("Doppelklick auf die App", x: 66, top: 161, size: 14, ink: 0x607086)
+    text("SokoBoulder", x: 66, top: 132, size: 20, weight: .semibold)
+    text("Nach rechts ziehen →", x: 66, top: 161, size: 14, ink: 0x607086)
     text("Installieren", x: 406, top: 132, size: 20, weight: .semibold)
     text("App nach Programme ziehen", x: 406, top: 161, size: 14, ink: 0x607086)
     text("→", x: 344, top: 221, size: 29, weight: .medium, ink: 0x71839c)
-    text("Du kannst sofort losspielen.", x: 44, top: 369, size: 17, weight: .semibold)
+    text("Ein Hinweis zum ersten Start", x: 44, top: 359, size: 17, weight: .semibold)
     text(
-        "Zum Behalten: App in „Programme“ ziehen und von dort starten.",
-        x: 44, top: 399, size: 14, ink: 0x607086)
+        "SokoBoulder ist quelloffen. Diese Version ist nicht von Apple notarisiert.",
+        x: 44, top: 385, size: 13, ink: 0x607086)
+    text(
+        "Falls macOS den Start blockiert: Systemeinstellungen → Datenschutz & Sicherheit",
+        x: 44, top: 407, size: 13, ink: 0x263347)
+    text(
+        "Unter „Sicherheit“ auf „Dennoch öffnen“ klicken und mit „Öffnen“ bestätigen.",
+        x: 44, top: 429, size: 13, ink: 0x263347)
 }
 
 // Use the game's existing, credited sapphire sprite for a recognisable app icon.

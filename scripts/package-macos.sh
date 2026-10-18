@@ -52,15 +52,19 @@ ln -s /Applications "$stage/Programme"
 cat > "$artifacts/START-HERE.txt" <<'NOTES'
 SokoBoulder — macOS 14 oder neuer; Apple Silicon und Intel
 
-Direkt spielen: DMG öffnen und SokoBoulder.app doppelklicken.
-Installation: SokoBoulder.app in den Ordner Programme ziehen.
-ZIP: Entpacken und SokoBoulder.app starten; Xcode wird nicht benötigt.
+DMG: öffnen und SokoBoulder.app nach Programme ziehen; von dort starten.
+ZIP: entpacken, SokoBoulder.app nach Programme verschieben und dort starten.
+Xcode wird nicht benötigt.
 
-Diese Version ist ad-hoc signiert, nicht mit einer Apple Developer ID
-signiert und nicht notarisiert. macOS kann den ersten Start blockieren.
-Bei einer vertrauenswürdigen Quelle nach dem ersten Startversuch unter
-Systemeinstellungen > Datenschutz & Sicherheit > Dennoch öffnen freigeben.
-Siehe https://support.apple.com/de-de/102445
+SokoBoulder ist eine quelloffene Demo, die du selbst bauen kannst. Für dieses
+Projekt verzichten wir auf ein kostenpflichtiges Apple-Entwicklerkonto und damit
+auf die Notarisierung.
+
+Falls macOS beim ersten Start „Apple konnte nicht überprüfen …“ meldet:
+
+1. Fertig klicken.
+2. Systemeinstellungen → Datenschutz & Sicherheit → Sicherheit → Dennoch öffnen wählen.
+3. Mit Öffnen bestätigen.
 
 Drittanbieter-Lizenzen:
 SokoBoulder.app/Contents/Resources/Legal/THIRD_PARTY_NOTICES.md.

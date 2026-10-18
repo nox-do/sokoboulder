@@ -14,14 +14,21 @@ Zwei Rasterspiele in einer nativen macOS-App:
 Für **macOS 14 oder neuer**, auf **Apple Silicon und Intel**. Xcode wird zum
 Spielen nicht benötigt.
 
-- **DMG:** öffnen und auf **SokoBoulder** doppelklicken, um direkt zu spielen.
-  Zum Installieren die App auf **Programme** ziehen.
-- **ZIP:** entpacken und `SokoBoulder.app` starten.
+- **DMG:** öffnen und **SokoBoulder** auf **Programme** ziehen. Danach die App
+  aus „Programme“ starten.
+- **ZIP:** entpacken, `SokoBoulder.app` nach „Programme“ verschieben und dort starten.
 
-Die App wird ohne Apple Developer ID und Notarisierung verteilt. Falls macOS
-den ersten Start blockiert, lässt sie sich nach dem Startversuch unter
-**Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen** freigeben.
-[Apples Anleitung](https://support.apple.com/de-de/102445)
+### Erster Start: macOS-Freigabe
+
+SokoBoulder ist eine quelloffene Demo, die du selbst bauen kannst. Für dieses
+Projekt verzichten wir auf ein kostenpflichtiges Apple-Entwicklerkonto und damit
+auf die Notarisierung.
+
+Falls macOS beim ersten Start „Apple konnte nicht überprüfen …“ meldet:
+
+1. **Fertig** klicken.
+2. **Systemeinstellungen → Datenschutz & Sicherheit → Sicherheit → Dennoch öffnen** wählen.
+3. Mit **Öffnen** bestätigen.
 
 ## Screenshots
 

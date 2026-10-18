@@ -79,13 +79,16 @@ jobs:
           cat > release-notes.md <<'NOTES'
           Native macOS-App für macOS 14+, Apple Silicon und Intel.
 
-          - DMG öffnen und SokoBoulder.app zum direkten Spielen doppelklicken.
-          - Zum Installieren die App nach Programme ziehen.
-          - Alternativ ZIP entpacken und die App direkt starten.
+          - DMG öffnen und SokoBoulder.app nach Programme ziehen; von dort starten.
+          - Beim ersten Start kann macOS die App wegen fehlender Notarisierung blockieren.
+          - Alternativ ZIP entpacken und die App nach Programme verschieben.
           - Prüfsummen stehen in SHA256SUMS.txt.
 
           Diese Version ist lokal ad-hoc signiert und nicht Apple-notarisiert.
-          macOS kann eine manuelle Freigabe unter Datenschutz & Sicherheit benötigen.
+          Bei „Apple konnte nicht überprüfen …“ zunächst „Fertig“ wählen, dann unter
+          Systemeinstellungen → Datenschutz & Sicherheit → Sicherheit auf „Dennoch öffnen“
+          klicken und die nächste Rückfrage mit „Öffnen“ bestätigen.
+          Details: https://github.com/nox-do/sokoboulder#erster-start-macos-freigabe
           Hinweise und Lizenzen liegen den Downloads bei.
           NOTES
           if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > is-draft.txt 2> release-error.txt; then
