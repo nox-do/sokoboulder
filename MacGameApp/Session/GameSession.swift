@@ -280,7 +280,6 @@ final class GameSession {
     }
 
     private func applyRestart() -> SessionApplyResult {
-        let wasOutcome = phase == .outcomePresenting
         history = [initialState]
         journalCommands.removeAll(keepingCapacity: true)
         journalCursor = 0
@@ -292,7 +291,7 @@ final class GameSession {
             transition = .enterOutcomePresenting
         } else {
             phase = .playing
-            transition = wasOutcome ? .returnToPlaying : nil
+            transition = .returnToPlaying
         }
 
         return .emitted(

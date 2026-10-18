@@ -93,16 +93,16 @@ struct SokobanPlayControllerAudioTests {
         #expect(spy.musicStates.last == .stopped)
     }
 
-    @Test("focus loss during outcome interrupts; activation resumes without cues")
-    func focusLossDuringOutcomeInterruptsAudio() throws {
+    @Test("focus loss during outcome interrupts; activation resumes without cues", arguments: [false, true])
+    func focusLossDuringOutcomeInterruptsAudio(overlayVisible: Bool) throws {
         let (controller, spy) = makeController()
         completeFirstLevel(controller)
-        controller.showOutcomeOverlayNowForTesting()
-        #expect(controller.presentationPhase == .outcomeAwaitingChoice)
+        if overlayVisible { controller.showOutcomeOverlayNowForTesting() }
+        let phase = controller.presentationPhase
         spy.resetCalls()
 
         controller.handleAppDeactivation()
-        #expect(controller.presentationPhase == .outcomeAwaitingChoice)
+        #expect(controller.presentationPhase == phase)
         #expect(spy.calls.contains(.stopAllEffects))
         #expect(spy.musicStates.last == .stopped)
 
@@ -111,6 +111,9 @@ struct SokobanPlayControllerAudioTests {
         #expect(spy.playedEffects.isEmpty)
         // Completed context keeps music stopped; resume only clears interrupt.
         #expect(!spy.calls.contains(.playEffect(.objectiveCompleted)))
+        spy.resetCalls()
+        controller.undo()
+        #expect(spy.musicStates.contains(.themeLoop))
     }
 
     @Test("bundled Sokoban music is present and natively decodable")

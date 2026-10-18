@@ -45,6 +45,27 @@ struct SokobanBoardSceneTests {
         #expect(scene.currentSnapshot?.status == .playing)
     }
 
+    @Test("simulation snapshots preserve effects; hard resync clears them")
+    func transientEffectLifetime() throws {
+        let session = try startedSession("#####\n#@$.#\n#####")
+        let scene = makeScene()
+        let snapshot = session.bootstrapEmission!.render.snapshot
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 0, targetRevision: 1, snapshot: snapshot,
+                events: [.explosion(center: GridPosition(column: 2, row: 1), changes: [])],
+                delivery: .snapshot))
+        #expect(scene.childNode(withName: "//explosionAnim") != nil)
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 1, targetRevision: 2, snapshot: snapshot, events: [], delivery: .snapshot))
+        #expect(scene.childNode(withName: "//explosionAnim") != nil)
+        scene.apply(
+            RenderUpdate(
+                baseRevision: 2, targetRevision: 3, snapshot: snapshot, events: [], delivery: .hardResync))
+        #expect(scene.childNode(withName: "//explosionAnim") == nil)
+    }
+
     @Test("gapless animate updates revision")
     func gaplessAnimate() throws {
         let session = try startedSession(

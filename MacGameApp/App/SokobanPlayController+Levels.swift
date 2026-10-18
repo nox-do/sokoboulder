@@ -21,9 +21,8 @@ extension SokobanPlayController {
         let levelID = id ?? currentLevelID
         guard let descriptor = catalog.descriptor(id: levelID) else {
             activePlay = nil
-            presentationPhase = .faulted
+            enterPresentation(.faulted)
             faultMessage = "Unknown level: \(levelID)"
-            router.enterModalBlocked()
             audioDirector.reset()
             refreshPublishedState()
             return
@@ -41,9 +40,8 @@ extension SokobanPlayController {
             bootstrapSession(newSession, descriptor: descriptor, showIntro: resolvedShowIntro)
         } catch {
             activePlay = nil
-            presentationPhase = .faulted
+            enterPresentation(.faulted)
             faultMessage = "Failed to load level: \(error)"
-            router.enterModalBlocked()
             audioDirector.reset()
             refreshPublishedState()
         }
@@ -54,9 +52,8 @@ extension SokobanPlayController {
         runPersistence.removeRunFile()
         recoveryMessage = nil
         guard let first = catalog.levels.first else {
-            presentationPhase = .faulted
+            enterPresentation(.faulted)
             faultMessage = "No levels available."
-            router.enterModalBlocked()
             return
         }
         currentLevelID = first.id
@@ -73,10 +70,6 @@ extension SokobanPlayController {
             markCurrentIntroHintSeen()
         }
         enterPlayingPresentation()
-        // Focus may have been lost during intro; ensure playback is audible again.
-        if appIsActive {
-            audioDirector.resumePlayback()
-        }
         refreshPublishedState()
     }
 
@@ -108,8 +101,7 @@ extension SokobanPlayController {
         guard let descriptor = caveCatalog.descriptor(id: id) else {
             activePlay = nil
             faultMessage = "Unknown cave level: \(id)"
-            presentationPhase = .faulted
-            router.enterModalBlocked()
+            enterPresentation(.faulted)
             refreshPublishedState()
             return
         }
@@ -137,14 +129,13 @@ extension SokobanPlayController {
             progressPersistence.selectCaveLevel(descriptor.id)
             outcome.configure(game: .cave, nextLevelID: caveCatalog.descriptor(after: descriptor.id)?.id)
 
-            emissions.apply(emission)
+            applyEmission(emission)
             enterLevelIntro()
             refreshPublishedState()
         } catch {
             activePlay = nil
             faultMessage = "Höhle konnte nicht geladen werden: \(error)"
-            presentationPhase = .faulted
-            router.enterModalBlocked()
+            enterPresentation(.faulted)
             refreshPublishedState()
         }
     }
@@ -302,7 +293,7 @@ extension SokobanPlayController {
         levelTitle = catalog.title(for: descriptor)
         tutorialHintText = catalog.tutorialHint(for: descriptor)
         outcome.configure(game: .sokoban, nextLevelID: catalog.descriptor(after: descriptor.id)?.id)
-        emissions.apply(emission)
+        applyEmission(emission)
         applyEmissionSideEffects(emission)
         // Restored/completed runs use synchronize (no completion jingle).
         if newSession.phase == .outcomePresenting {
@@ -324,11 +315,10 @@ extension SokobanPlayController {
 
     private func enterRunRecovery(message: String) {
         activePlay = nil
-        presentationPhase = .runRecovery
+        enterPresentation(.runRecovery)
         recoveryMessage = message
         faultMessage = nil
         overlayReturnOrigin = nil
-        router.enterModalBlocked()
         audioDirector.reset()
         refreshPublishedState()
     }

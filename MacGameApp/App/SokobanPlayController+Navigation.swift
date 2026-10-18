@@ -52,17 +52,11 @@ extension SokobanPlayController {
         overlayReturnOrigin = nil
         switch origin {
         case .gameSelection:
-            presentationPhase = .gameSelection
-            router.enterModalBlocked()
-            resetOverlayFocus(for: .gameSelection)
+            enterPresentation(.gameSelection)
         case .launchMenu:
-            presentationPhase = .launchMenu
-            router.enterModalBlocked()
-            resetOverlayFocus(for: .launchMenu)
+            enterPresentation(.launchMenu)
         case .paused:
-            presentationPhase = .paused
-            router.enterPaused()
-            requestPauseOverlayFocus()
+            enterPresentation(.paused)
         }
         refreshPublishedState()
     }
@@ -86,30 +80,23 @@ extension SokobanPlayController {
 
     func returnToLaunchMenu() {
         guard presentationPhase == .levelSelection else { return }
-        presentationPhase = .launchMenu
-        router.enterModalBlocked()
-        resetOverlayFocus(for: .launchMenu)
+        enterPresentation(.launchMenu)
         refreshPublishedState()
     }
 
     func enterLevelIntro() {
-        clearMoveHold()
-        presentationPhase = .levelIntro
-        router.enterLevelIntro()
+        enterPresentation(.levelIntro)
     }
 
     private func openHelp(returningTo origin: OverlayReturnOrigin) {
         overlayReturnOrigin = origin
-        presentationPhase = .help
-        router.enterModalBlocked()
+        enterPresentation(.help)
         refreshPublishedState()
     }
 
     private func openSettings(returningTo origin: OverlayReturnOrigin) {
         overlayReturnOrigin = origin
-        presentationPhase = .settings
-        router.enterModalBlocked()
-        resetOverlayFocus(for: .settings)
+        enterPresentation(.settings)
         refreshPublishedState()
     }
 
@@ -120,10 +107,8 @@ extension SokobanPlayController {
         scene.prepareForNewSession()
         audioDirector.reset()
         settings.applyAudio()
-        presentationPhase = phase
+        enterPresentation(phase)
         overlayReturnOrigin = nil
-        router.enterModalBlocked()
-        resetOverlayFocus(for: phase)
         refreshPublishedState()
     }
 }

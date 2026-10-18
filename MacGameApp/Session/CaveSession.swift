@@ -4,7 +4,7 @@ import GameCore
 /// Tick-driven cave session: Ready → first intent = Tick 1, then fixed-step catch-up.
 ///
 /// Follows ADR 0005 / ARCHITECTURE §8.2 in a playable form: accumulator + catch-up,
-/// hard-resync emissions, no run persistence.
+/// snapshot emissions, no run persistence.
 @MainActor
 final class CaveSession {
     private let rules = CaveRules()
@@ -178,7 +178,7 @@ final class CaveSession {
     private func tickEmission(events: [GameEvent]) -> SessionEmission {
         makeEmission(
             events: events,
-            delivery: .hardResync,
+            delivery: .snapshot,
             audioDelivery: .perform,
             appTransition: phase == .outcomePresenting ? .enterOutcomePresenting : nil
         )
@@ -204,7 +204,7 @@ final class CaveSession {
         let base = revision
         revision += 1
         let snap = RenderSnapshot.project(state)
-        // Cave always hard-resyncs tiles, but still forwards events so the scene
+        // Cave snaps tiles, but still forwards events so the scene
         // can play one-shot VFX (explosions). Audio uses the same event list.
         let renderEvents = events
         let audioEvents = audioDelivery == .perform ? events : []

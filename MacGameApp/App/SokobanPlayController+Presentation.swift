@@ -142,17 +142,10 @@ extension SokobanPlayController {
 
     func enterOutcomeAwaitingChoice() {
         cancelShowOutcome()
-        presentationPhase = .outcomeAwaitingChoice
-        if router.mode != .outcomePresenting {
-            router.enterOutcomePresenting()
-        }
-        // Open confirm gate; still-held keys stay in pressedKeyCodes so they are
-        // not treated as a fresh Return/Space confirm.
-        router.releaseOutcomeLocksPreservingPressedKeys()
+        enterPresentation(.outcomeAwaitingChoice)
         if !isCaveMode {
             outcome.configure(game: .sokoban, nextLevelID: catalog.descriptor(after: currentLevelID)?.id)
         }
-        resetOverlayFocus(for: .outcomeAwaitingChoice)
         refreshPublishedState()
     }
 }

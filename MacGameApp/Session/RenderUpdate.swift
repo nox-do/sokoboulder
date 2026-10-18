@@ -3,6 +3,9 @@ import GameCore
 /// How the renderer should apply a ``RenderUpdate``.
 enum RenderDelivery: Equatable, Sendable {
     case animate
+    /// Snap a simulation tick while existing transient effects finish.
+    case snapshot
+    /// Reset presentation, including effects from the previous attempt.
     case hardResync
 }
 

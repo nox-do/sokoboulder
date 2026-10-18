@@ -233,7 +233,10 @@ final class SokobanBoardScene: SKScene {
     /// Applies one ordered ``RenderUpdate`` according to the revision contract.
     func apply(_ update: RenderUpdate) {
         switch update.delivery {
+        case .snapshot:
+            hardResync(to: update)
         case .hardResync:
+            effectLayer.removeAllChildren()
             hardResync(to: update)
         case .animate:
             applyAnimate(update)

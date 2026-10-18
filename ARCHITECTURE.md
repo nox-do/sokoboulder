@@ -780,6 +780,7 @@ struct RenderUpdate: Sendable {
 
 enum RenderDelivery: Sendable {
     case animate
+    case snapshot
     case hardResync
 }
 ```
@@ -800,6 +801,9 @@ enum RenderDelivery: Sendable {
   die Session `hardResync` mit leerer Ereignisliste und dem finalen Snapshot.
 - Events beschreiben den Übergang `baseRevision → targetRevision`.
 - Der Snapshot ist immer der autoritative Zielzustand.
+- Cave-Ticks verwenden `snapshot`: Zellen werden direkt aktualisiert, laufende
+  Explosionseffekte dürfen enden. `hardResync` (Start, Undo/Redo, Neustart)
+  entfernt dagegen auch alte Explosionseffekte.
 - Der Renderer animiert Events nur bei `delivery == .animate` und wenn sein
   aktueller Stand `baseRevision` entspricht.
 - Bei einer Revisionslücke verwirft er die Animationen und baut direkt aus dem

@@ -32,11 +32,14 @@ final class SokobanPlayController: ObservableObject {
     @Published var metrics: PlayMetrics = .sokoban(
         SokobanMetrics(moveCount: 0, pushCount: 0, completedGoalCount: 0, totalGoalCount: 0)
     )
-    @Published var canUndo = false
-    @Published var canRedo = false
-    @Published var canPause = false
-    @Published var canResume = false
-    @Published var canRestart = false
+    private var capabilities: PlaySessionPublishedCapabilities? {
+        activePlay?.publishedCapabilities(presentationPhase: presentationPhase)
+    }
+    var canUndo: Bool { capabilities?.canUndo ?? false }
+    var canRedo: Bool { capabilities?.canRedo ?? false }
+    var canPause: Bool { capabilities?.canPause ?? false }
+    var canResume: Bool { capabilities?.canResume ?? false }
+    var canRestart: Bool { capabilities?.canRestart ?? (presentationPhase == .runRecovery) }
     @Published var faultMessage: String?
     /// Blocking recovery copy when a run file cannot be restored.
     @Published var recoveryMessage: String?
@@ -50,7 +53,6 @@ final class SokobanPlayController: ObservableObject {
     var showOutcomeWorkItem: DispatchWorkItem?
     var appIsActive = true
     let moveHoldRepeater = SokobanMoveHoldRepeater()
-    let emissions: EmissionApplicator
 
     var currentLevelID: String
 
@@ -69,7 +71,6 @@ final class SokobanPlayController: ObservableObject {
         self.audioDirector = audioDirector
         let boardScene = SokobanBoardScene(size: CGSize(width: 640, height: 480))
         self.scene = boardScene
-        self.emissions = EmissionApplicator(scene: boardScene, audioDirector: audioDirector)
         self.runPersistence = runPersistence
         self.progressPersistence = progressPersistence
         self.catalog = catalog
@@ -91,9 +92,8 @@ final class SokobanPlayController: ObservableObject {
         refreshPersistenceDiagnostic()
         settings.onChange = { [weak self] in self?.objectWillChange.send() }
         if let contentLoadFailureMessage {
-            presentationPhase = .faulted
+            enterPresentation(.faulted)
             faultMessage = contentLoadFailureMessage
-            router.enterModalBlocked()
             audioDirector.reset()
         } else {
             bootstrapFromPersistence()
@@ -208,39 +208,27 @@ final class SokobanPlayController: ObservableObject {
     /// overlay reclaims keyboard focus so Return can activate „Fortsetzen“.
     func handleAppActivation() {
         appIsActive = true
-        switch presentationPhase {
-        case .outcomeAwaitingChoice:
-            audioDirector.resumePlayback()
-        case .levelIntro:
-            audioDirector.resumePlayback()
-        case .paused:
+        if activePlay?.isPaused == true {
             requestPauseOverlayFocus()
-        case .help, .settings:
-            if overlayReturnOrigin == .paused {
-                requestPauseOverlayFocus()
-            }
-        case .playing, .gameSelection, .launchMenu, .levelSelection, .faulted, .runRecovery:
-            break
+        } else {
+            audioDirector.resumePlayback()
         }
     }
 
     func undo() {
         guard canUndo else { return }
-        guard presentationPhase != .help, presentationPhase != .settings else { return }
         resumeFromShell()
         applySessionCommand(.undo)
     }
 
     func redo() {
         guard canRedo else { return }
-        guard presentationPhase != .help, presentationPhase != .settings else { return }
         resumeFromShell()
         applySessionCommand(.redo)
     }
 
     func restart() {
         guard canRestart else { return }
-        guard presentationPhase != .help, presentationPhase != .settings else { return }
         if isCaveMode {
             restartCave()
             return
@@ -257,16 +245,7 @@ final class SokobanPlayController: ObservableObject {
 
     func restartCave() {
         guard let caveSession else { return }
-        clearMoveHold()
-        outcome.reset()
-        cancelShowOutcome()
-        let emission = caveSession.restart()
-        emissions.apply(emission)
-        enterPlayingPresentation()
-        if appIsActive {
-            audioDirector.resumePlayback()
-        }
-        refreshPublishedState()
+        applyResult(.emitted(caveSession.restart()))
     }
 
     func togglePause() {
@@ -303,20 +282,17 @@ final class SokobanPlayController: ObservableObject {
     #endif
 
     func enterPlayingPresentation() {
-        presentationPhase = .playing
-        router.enterGameplay()
+        enterPresentation(.playing)
+        if appIsActive { audioDirector.resumePlayback() }
     }
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
         guard let play = activePlay, play.canEnterPauseFromPlaying else { return }
-        clearMoveHold()
         play.pause()
         if !alreadyInterrupted {
             audioDirector.interrupt()
         }
-        router.enterPaused()
-        presentationPhase = .paused
-        requestPauseOverlayFocus()
+        enterPresentation(.paused)
         refreshPublishedState()
     }
 
@@ -327,7 +303,6 @@ final class SokobanPlayController: ObservableObject {
     private func resumeFromShell() {
         guard let play = activePlay, play.isPaused else { return }
         play.resume()
-        audioDirector.resumePlayback()
         enterPlayingPresentation()
         refreshPublishedState()
     }
@@ -344,14 +319,12 @@ final class SokobanPlayController: ObservableObject {
         case .ignored:
             break
         case .emitted(let emission):
-            emissions.apply(emission)
+            applyEmission(emission)
             applyEmissionSideEffects(emission)
         case .faulted(let message):
-            clearMoveHold()
             cancelShowOutcome()
-            presentationPhase = .faulted
+            enterPresentation(.faulted)
             faultMessage = message
-            router.enterModalBlocked()
             scene.discardPendingPresentation()
             audioDirector.reset()
             activePlay = nil
@@ -362,7 +335,6 @@ final class SokobanPlayController: ObservableObject {
     func applyEmissionSideEffects(_ emission: SessionEmission) {
         switch emission.appTransition {
         case .enterOutcomePresenting:
-            clearMoveHold()
             if isCaveMode {
                 let failed = emission.render.snapshot.status == .failed
                 if failed {
@@ -378,42 +350,49 @@ final class SokobanPlayController: ObservableObject {
                     snapshot: emission.render.snapshot, levelID: currentLevelID, catalog: catalog,
                     progress: progressPersistence)
             }
-            router.enterOutcomePresenting()
+            enterPresentation(.playing)
             scheduleShowOutcome()
         case .returnToPlaying:
-            clearMoveHold()
             outcome.reset()
             cancelShowOutcome()
             enterPlayingPresentation()
         case nil:
-            guard let play = activePlay else { return }
-            guard play.phase == .playing || play.phase == .ready else { return }
-            // Keep the level hint until dismissed; ordinary moves preserve held keys.
-            guard presentationPhase != .levelIntro else { return }
-            presentationPhase = .playing
-            if router.mode != .gameplay {
-                router.enterGameplay()
-            }
+            break
         }
     }
 
-    func refreshPublishedState() {
-        guard let play = activePlay else {
-            canUndo = false
-            canRedo = false
-            canPause = false
-            canResume = false
-            canRestart = presentationPhase == .runRecovery
-            return
+    /// Render and audio consume the same revision before shell side effects.
+    func applyEmission(_ emission: SessionEmission) {
+        scene.apply(emission.render)
+        audioDirector.apply(emission.audio)
+    }
+
+    /// One place assigns keyboard ownership and focus for each visible screen.
+    /// During the result delay the board remains visible, but the session owns
+    /// the terminal input gate already.
+    func enterPresentation(_ phase: GamePresentationPhase) {
+        clearMoveHold()
+        presentationPhase = phase
+        switch phase {
+        case .playing where activePlay?.isOutcomePresenting != true:
+            router.enterGameplay()
+        case .playing, .outcomeAwaitingChoice:
+            if router.mode != .outcomePresenting { router.enterOutcomePresenting() }
+            if phase == .outcomeAwaitingChoice {
+                router.releaseOutcomeLocksPreservingPressedKeys()
+            }
+        case .paused:
+            router.enterPaused()
+        case .levelIntro:
+            router.enterLevelIntro()
+        default:
+            router.enterModalBlocked()
         }
+        resetOverlayFocus(for: phase)
+    }
 
-        let caps = play.publishedCapabilities(presentationPhase: presentationPhase)
-        canUndo = caps.canUndo
-        canRedo = caps.canRedo
-        canRestart = caps.canRestart
-        canPause = caps.canPause
-        canResume = caps.canResume
-
+    func refreshPublishedState() {
+        guard activePlay != nil else { return }
         if let snapshot = scene.currentSnapshot {
             metrics = snapshot.metrics
         }
