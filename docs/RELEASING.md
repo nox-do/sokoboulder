@@ -99,3 +99,14 @@ mit Audio öffnen und macOS 14 sowie Intel separat prüfen. Der Universal-Build
 prüft die Intel-Binärdatei, führt sie auf dem ARM-Runner aber nicht aus.
 Eigener Quellcode und eigene Dokumentation stehen unter der [MIT-Lizenz](../LICENSE).
 Asset-Lizenzen bleiben davon unberührt und stehen in `THIRD_PARTY_NOTICES.md`.
+
+## Aufbewahrung von Releases
+
+Der Workflow **Keep latest two releases** behält die zwei zuletzt veröffentlichten
+Releases (nach Veröffentlichungszeit, einschließlich Vorabversionen). Ältere
+veröffentlichte Releases werden samt Download-Assets gelöscht. Git-Tags und
+Commits sowie unveröffentlichte Entwürfe bleiben erhalten.
+
+Die Bereinigung läuft bei Veröffentlichung, täglich als Absicherung und bei Bedarf
+manuell. So greift sie auch, wenn eine Veröffentlichung mit `GITHUB_TOKEN` keinen
+weiteren Workflow auslöst. Die 30-Tage-Aufbewahrung der Build-Artefakte bleibt separat.
