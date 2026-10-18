@@ -24,7 +24,7 @@ struct GameplayInputRouterTests {
     func terminalKeyOutcomeGate() throws {
         let session = try startedSession()
         let router = GameplayInputRouter()
-        router.enterGameplay()
+        router.enter(.gameplay)
 
         let down = TestKeyEvent.keyDown(KeyCode.rightArrow)
         let routed = router.route(down)
@@ -38,7 +38,7 @@ struct GameplayInputRouterTests {
         #expect(emission.appTransition == .enterOutcomePresenting)
         #expect(session.phase == .outcomePresenting)
 
-        router.enterOutcomePresenting()
+        router.enter(.outcomePresenting)
         #expect(router.lockedKeyCodes.contains(KeyCode.rightArrow))
         #expect(router.outcomeGateOpen == false)
 
@@ -62,8 +62,8 @@ struct GameplayInputRouterTests {
     @Test("outcome confirm ignores key-repeat")
     func outcomeRejectsRepeat() throws {
         let router = GameplayInputRouter()
-        router.enterGameplay()
-        router.enterOutcomePresenting()
+        router.enter(.gameplay)
+        router.enter(.outcomePresenting)
         #expect(router.outcomeGateOpen)
 
         #expect(
@@ -81,8 +81,8 @@ struct GameplayInputRouterTests {
     @Test("outcome distinguishes suppressed confirm from unrelated key")
     func outcomeRoutingDecision() {
         let router = GameplayInputRouter()
-        router.enterGameplay()
-        router.enterOutcomePresenting()
+        router.enter(.gameplay)
+        router.enter(.outcomePresenting)
 
         #expect(
             router.routeDecision(TestKeyEvent.keyDown(KeyCode.return))
@@ -99,11 +99,11 @@ struct GameplayInputRouterTests {
     @Test("Return held during gameplay cannot confirm after entering outcome")
     func heldReturnDuringGameplayBlocked() {
         let router = GameplayInputRouter()
-        router.enterGameplay()
+        router.enter(.gameplay)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.return)) == nil)
         #expect(router.pressedKeyCodes.contains(KeyCode.return))
 
-        router.enterOutcomePresenting()
+        router.enter(.outcomePresenting)
         #expect(router.lockedKeyCodes.contains(KeyCode.return))
         #expect(router.outcomeGateOpen == false)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.return)) == nil)
@@ -116,8 +116,8 @@ struct GameplayInputRouterTests {
     @Test("gameplay input disabled during modal UI")
     func modalBlocksGameplay() {
         let router = GameplayInputRouter()
-        router.enterGameplay()
-        router.enterModalBlocked()
+        router.enter(.gameplay)
+        router.enter(.modalBlocked)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.rightArrow)) == nil)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.z, characters: "z")) == nil)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.escape)) == nil)
@@ -127,11 +127,11 @@ struct GameplayInputRouterTests {
     func undoAfterOutcomeGate() throws {
         let session = try startedSession()
         let router = GameplayInputRouter()
-        router.enterGameplay()
+        router.enter(.gameplay)
 
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.rightArrow)) == .gameplay(.move(.right)))
         _ = session.submitMove(.right)
-        router.enterOutcomePresenting()
+        router.enter(.outcomePresenting)
         _ = router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
 
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.z, characters: "z")) == .gameplay(.undo))
@@ -145,9 +145,9 @@ struct GameplayInputRouterTests {
     @Test("clearPendingInputs during outcome opens the gate without a key-up")
     func clearPendingInputsOpensOutcomeGate() {
         let router = GameplayInputRouter()
-        router.enterGameplay()
+        router.enter(.gameplay)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.rightArrow)) == .gameplay(.move(.right)))
-        router.enterOutcomePresenting()
+        router.enter(.outcomePresenting)
         #expect(router.lockedKeyCodes.contains(KeyCode.rightArrow))
         #expect(router.outcomeGateOpen == false)
 
@@ -163,14 +163,14 @@ struct GameplayInputRouterTests {
     @Test("level intro dismisses on Return Space or Escape")
     func levelIntroDismissKeys() {
         let router = GameplayInputRouter()
-        router.enterLevelIntro()
+        router.enter(.levelIntro)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.rightArrow)) == nil)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.return)) == .dismissIntro)
 
-        router.enterLevelIntro()
+        router.enter(.levelIntro)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.space)) == .dismissIntro)
 
-        router.enterLevelIntro()
+        router.enter(.levelIntro)
         #expect(router.route(TestKeyEvent.keyDown(KeyCode.escape)) == .dismissIntro)
     }
 }

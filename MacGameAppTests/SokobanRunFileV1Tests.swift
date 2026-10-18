@@ -49,11 +49,11 @@ struct SokobanRunFileV1Tests {
         let data = try Data(contentsOf: fixtureURL)
         let file = try SokobanRunFileCodec.decode(data)
         let restored = try SokobanRunRestorer.restore(file)
-        #expect(restored.currentState.status == .completed)
+        #expect(restored.history[restored.cursor].status == .completed)
         #expect(restored.cursor == 3)
         #expect(restored.commands == [.right, .right, .right])
-        #expect(restored.undoStack.count == 3)
-        #expect(restored.redoStack.isEmpty)
+        #expect(restored.cursor == 3)
+        #expect(restored.cursor == restored.history.count - 1)
 
         let reencoded = try SokobanRunFileCodec.encode(file)
         #expect(reencoded == data)
@@ -282,8 +282,8 @@ struct SokobanRunFileV1Tests {
                 tutorialHintID: "hint.long"
             )
         }
-        #expect(restored.currentState.moveCount == 1001)
-        #expect(restored.undoStack.count == 1000)
+        #expect(restored.history[restored.cursor].moveCount == 1001)
+        #expect(restored.cursor == 1000)
     }
 
     @Test("invalid cursor and too many commands are rejected")

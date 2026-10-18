@@ -33,7 +33,7 @@ extension SokobanPlayController {
         case .launchMenu, .levelSelection:
             unlockAllLevelsForShellCampaign()
             return true
-        case .playing, .paused, .levelIntro, .outcomeAwaitingChoice:
+        case .playing, .paused, .levelIntro, .outcomePresenting, .outcomeAwaitingChoice:
             unlockAllLevelsForShellCampaign()
             return true
         default:

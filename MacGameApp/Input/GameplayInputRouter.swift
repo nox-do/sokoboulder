@@ -59,22 +59,18 @@ final class GameplayInputRouter {
         outcomeGateOpen = mode == .outcomePresenting
     }
 
-    func enterGameplay() { enter(.gameplay) }
-    func enterPaused() { enter(.paused) }
-    func enterModalBlocked() { enter(.modalBlocked) }
-    func enterLevelIntro() { enter(.levelIntro) }
-
-    private func enter(_ mode: Mode) {
-        self.mode = mode
-        clearPendingInputs()
-    }
-
-    /// Locks currently pressed keys; only a later key-down after their matching
-    /// key-ups may produce ``RoutedInput/outcomeAction``.
-    func enterOutcomePresenting() {
-        mode = .outcomePresenting
-        lockedKeyCodes = pressedKeyCodes
-        outcomeGateOpen = lockedKeyCodes.isEmpty
+    /// Screen changes clear gameplay input. Entering the result locks held keys
+    /// until key-up; advancing from its animation to the menu preserves that latch.
+    func enter(_ mode: Mode) {
+        if mode == .outcomePresenting {
+            guard self.mode != mode else { return }
+            self.mode = mode
+            lockedKeyCodes = pressedKeyCodes
+            outcomeGateOpen = lockedKeyCodes.isEmpty
+        } else {
+            self.mode = mode
+            clearPendingInputs()
+        }
     }
 
     /// Opens the outcome confirm gate while keeping currently held keys blocked

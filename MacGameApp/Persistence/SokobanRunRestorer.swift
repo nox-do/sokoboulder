@@ -22,12 +22,9 @@ struct SokobanRunRestoreResult: Equatable, Sendable {
     let levelID: String
     let contentHash: String
     let initialState: SokobanState
-    let currentState: SokobanState
-    let checkpoint: SokobanCheckpoint
+    let history: [SokobanState]
     let commands: [Direction]
     let cursor: Int
-    let undoStack: [SokobanState]
-    let redoStack: [SokobanState]
 }
 
 /// Validates a V1 run file and rebuilds state + undo/redo exclusively by replay.
@@ -118,21 +115,14 @@ enum SokobanRunRestorer {
             states.append(state)
         }
 
-        let cursor = file.cursor
-        let undoStack = Array(states[..<cursor])
-        let redoStack = Array(states[(cursor + 1)...].reversed())
-
         return SokobanRunRestoreResult(
             level: level,
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             initialState: initialState,
-            currentState: states[cursor],
-            checkpoint: semanticCheckpoint,
+            history: states,
             commands: directions,
-            cursor: cursor,
-            undoStack: undoStack,
-            redoStack: redoStack
+            cursor: file.cursor
         )
     }
 

@@ -17,9 +17,21 @@ enum GamePresentationPhase: Equatable, Sendable {
     case help
     /// Shared settings overlay (returns to ``OverlayReturnOrigin``).
     case settings
+    /// Board remains visible while the result animation and audio finish.
+    case outcomePresenting
     /// Result overlay is interactive.
     case outcomeAwaitingChoice
     /// Blocking recovery when a run file exists but cannot be restored.
     case runRecovery
     case faulted
+
+    var inputMode: GameplayInputRouter.Mode {
+        switch self {
+        case .playing: .gameplay
+        case .paused: .paused
+        case .levelIntro: .levelIntro
+        case .outcomePresenting, .outcomeAwaitingChoice: .outcomePresenting
+        default: .modalBlocked
+        }
+    }
 }

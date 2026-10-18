@@ -263,6 +263,7 @@ struct SokobanPlayControllerTests {
         #expect(relaunch.session != nil)
         #expect(
             relaunch.presentationPhase == .playing
+                || relaunch.presentationPhase == .outcomePresenting
                 || relaunch.presentationPhase == .outcomeAwaitingChoice
                 || relaunch.presentationPhase == .levelIntro
         )
@@ -499,7 +500,7 @@ struct SokobanPlayControllerTests {
         let controller = makeController(holdAnimations: true)
 
         completeDemoLevel(controller)
-        #expect(controller.presentationPhase == .playing)
+        #expect(controller.presentationPhase == .outcomePresenting)
         #expect(controller.session?.phase == .outcomePresenting)
         let target = try #require(controller.session).revision
         #expect(controller.scene.appliedRevision == target)
@@ -647,7 +648,7 @@ struct SokobanPlayControllerTests {
 
         controller.handleAppDeactivation()
         #expect(controller.session?.phase == .outcomePresenting)
-        #expect(controller.presentationPhase == .playing)
+        #expect(controller.presentationPhase == .outcomePresenting)
         #expect(controller.router.lockedKeyCodes.isEmpty)
         #expect(controller.router.outcomeGateOpen)
     }

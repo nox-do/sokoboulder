@@ -4,7 +4,7 @@
 /// explosion drains after each phase → exit / time / terminal checks.
 /// Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
-    public static let ruleVersion: Int = 4
+    public static let ruleVersion: Int = 5
     public static let fixedStepSeconds: Double = 0.10
 
     /// BDCFF slow / fast amoeba random factors (`GetRandomNumber(0, factor) < 4`).
@@ -135,7 +135,6 @@ public struct CaveRules: Sendable {
         }
 
         applyAmoeba(to: &working, events: &events, explosions: &explosions)
-        drainExplosions(&explosions, in: &working, events: &events)
         if working.status != .playing {
             return
         }
@@ -196,7 +195,7 @@ public struct CaveRules: Sendable {
                     direction == .left || direction == .right
                 else {
                     if motion == .falling {
-                        killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
+                        killPlayer(at: to, in: &state, events: &events)
                     } else {
                         events.append(.movementBlocked(at: to))
                     }
@@ -215,7 +214,7 @@ public struct CaveRules: Sendable {
                 return occupant.id
             case .diamond(let id, let motion):
                 guard motion == .resting else {
-                    killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
+                    killPlayer(at: to, in: &state, events: &events)
                     return nil
                 }
                 collectDiamond(id: id, at: to, in: &state, events: &events)
@@ -223,10 +222,10 @@ public struct CaveRules: Sendable {
                 return nil
             case .firefly, .butterfly:
                 triggerEnemyExplosion(occupant, at: to, in: &state, explosions: &explosions)
-                killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
+                killPlayer(at: to, in: &state, events: &events)
                 return nil
             case .amoeba:
-                killPlayer(at: to, causingOccupant: occupant, in: &state, events: &events)
+                killPlayer(at: to, in: &state, events: &events)
                 return nil
             }
         case .empty:
@@ -468,7 +467,7 @@ public struct CaveRules: Sendable {
             case .player:
                 state.grid[to].occupant = moved
                 events.append(.entityMoved(ref, from: intent.from, to: to))
-                killPlayer(at: to, causingOccupant: moved, in: &state, events: &events)
+                killPlayer(at: to, in: &state, events: &events)
             case .occupant(let target):
                 if target.isEnemy {
                     state.grid[to].occupant = moved
@@ -500,6 +499,14 @@ public struct CaveRules: Sendable {
         explosions: inout [PendingExplosion]
     ) {
         guard case .alive(let position) = state.player else { return }
+        explodeEnemiesNextTo(position, in: &state, explosions: &explosions)
+    }
+
+    private func explodeEnemiesNextTo(
+        _ position: GridPosition,
+        in state: inout CaveState,
+        explosions: inout [PendingExplosion]
+    ) {
         for direction in Direction.allCases {
             let neighbor = position.neighbor(in: direction)
             guard state.grid.contains(neighbor),
@@ -655,12 +662,15 @@ public struct CaveRules: Sendable {
             state.grid[intent.from].occupant = nil
             state.grid[destination].occupant = updated
             events.append(.entityMoved(updated.entityRef, from: intent.from, to: destination))
+            if isOrthogonallyAdjacentToAmoeba(destination, in: state) {
+                triggerEnemyExplosion(updated, at: destination, in: &state, explosions: &explosions)
+            }
         case .player:
             state.grid[intent.from].occupant = nil
             state.grid[destination].occupant = updated
             events.append(.entityMoved(updated.entityRef, from: intent.from, to: destination))
             triggerEnemyExplosion(updated, at: destination, in: &state, explosions: &explosions)
-            killPlayer(at: destination, causingOccupant: updated, in: &state, events: &events)
+            killPlayer(at: destination, in: &state, events: &events)
         case .occupant, .blocked:
             // Destination filled since intent scan; keep heading update only.
             state.grid[intent.from].occupant = updated
@@ -680,7 +690,6 @@ public struct CaveRules: Sendable {
         events: inout [GameEvent],
         explosions: inout [PendingExplosion]
     ) {
-        _ = explosions
         let snapshot = state
         var positions: [GridPosition] = []
         var canGrowAny = false
@@ -731,8 +740,11 @@ public struct CaveRules: Sendable {
         }
 
         for intent in intents {
-            applyAmoebaIntent(intent, to: &state, events: &events)
+            applyAmoebaIntent(intent, to: &state, events: &events, explosions: &explosions)
         }
+
+        // Contact explosions can destroy amoeba; count the surviving population.
+        drainExplosions(&explosions, in: &state, events: &events)
 
         // Lag-1 flags for the next tick (BDCFF).
         var nextCount = 0
@@ -791,7 +803,8 @@ public struct CaveRules: Sendable {
     private func applyAmoebaIntent(
         _ intent: AmoebaIntent,
         to state: inout CaveState,
-        events: inout [GameEvent]
+        events: inout [GameEvent],
+        explosions: inout [PendingExplosion]
     ) {
         switch intent {
         case .convertToBoulder(at: let position, let id):
@@ -814,6 +827,7 @@ public struct CaveRules: Sendable {
             state.nextEntityID += 1
             state.grid[to].occupant = .amoeba(id)
             events.append(.entityMoved(EntityRef(id: id, kind: .amoeba), from: from, to: to))
+            explodeEnemiesNextTo(to, in: &state, explosions: &explosions)
         }
     }
 
@@ -868,7 +882,7 @@ public struct CaveRules: Sendable {
                 guard state.grid.contains(position) else { continue }
 
                 if case .alive(let playerPosition) = state.player, playerPosition == position {
-                    killPlayer(at: position, causingOccupant: nil, in: &state, events: &events)
+                    killPlayer(at: position, in: &state, events: &events)
                 }
 
                 let cell = state.grid[position]
@@ -924,11 +938,9 @@ public struct CaveRules: Sendable {
 
     private func killPlayer(
         at position: GridPosition,
-        causingOccupant: CaveOccupant?,
         in state: inout CaveState,
         events: inout [GameEvent]
     ) {
-        _ = causingOccupant
         guard case .alive = state.player else { return }
         state.player = .dead(at: position)
         state.status = .failed
@@ -939,7 +951,7 @@ public struct CaveRules: Sendable {
         state.remainingTicks = 0
         events.append(.timeExpired)
         if case .alive(let position) = state.player {
-            killPlayer(at: position, causingOccupant: nil, in: &state, events: &events)
+            killPlayer(at: position, in: &state, events: &events)
         }
     }
 

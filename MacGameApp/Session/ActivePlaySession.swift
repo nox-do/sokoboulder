@@ -36,15 +36,8 @@ enum ActivePlaySession {
         }
     }
 
-    /// Whether Esc / focus-loss may open pause from an active play shell.
-    var canEnterPauseFromPlaying: Bool {
-        switch self {
-        case .sokoban(let session):
-            session.phase == .playing
-        case .cave(let session):
-            session.phase == .playing || session.phase == .ready
-        }
-    }
+    /// Ready cave runs and playing sessions accept interaction and may be paused.
+    var isInteractive: Bool { phase == .ready || phase == .playing }
 
     var isPaused: Bool { phase == .paused }
 
@@ -55,16 +48,6 @@ enum ActivePlaySession {
         switch self {
         case .cave: 1.2
         case .sokoban: 1.5
-        }
-    }
-
-    /// Whether the SpriteKit board should claim keyboard first-responder while playing.
-    var claimsBoardKeyboardFocus: Bool {
-        switch self {
-        case .sokoban(let session):
-            session.phase == .playing
-        case .cave(let session):
-            session.phase == .playing || session.phase == .ready
         }
     }
 
@@ -89,36 +72,16 @@ enum ActivePlaySession {
         let sessionCommandsAllowed =
             presentationPhase != .help && presentationPhase != .settings
 
-        switch self {
-        case .sokoban(let session):
-            return PlaySessionPublishedCapabilities(
-                canUndo: sessionCommandsAllowed
-                    && session.undoCount > 0
-                    && (session.canAcceptSessionCommand || session.phase == .paused),
-                canRedo: sessionCommandsAllowed
-                    && session.redoCount > 0
-                    && (session.canAcceptSessionCommand || session.phase == .paused),
-                canRestart: sessionCommandsAllowed
-                    && (session.phase == .playing
-                        || session.phase == .paused
-                        || session.phase == .outcomePresenting),
-                canPause: presentationPhase == .playing && session.phase == .playing,
-                canResume: presentationPhase == .paused
-            )
-        case .cave(let session):
-            return PlaySessionPublishedCapabilities(
-                canUndo: false,
-                canRedo: false,
-                canRestart: sessionCommandsAllowed
-                    && (session.phase == .ready
-                        || session.phase == .playing
-                        || session.phase == .paused
-                        || session.phase == .outcomePresenting),
-                canPause: presentationPhase == .playing
-                    && (session.phase == .playing || session.phase == .ready),
-                canResume: presentationPhase == .paused
-            )
-        }
+        let canUseHistory =
+            sessionCommandsAllowed
+            && (phase == .playing || isPaused || isOutcomePresenting)
+        return PlaySessionPublishedCapabilities(
+            canUndo: canUseHistory && (sokoban?.undoCount ?? 0) > 0,
+            canRedo: canUseHistory && (sokoban?.redoCount ?? 0) > 0,
+            canRestart: sessionCommandsAllowed && (isInteractive || isPaused || isOutcomePresenting),
+            canPause: presentationPhase == .playing && isInteractive,
+            canResume: presentationPhase == .paused
+        )
     }
 }
 

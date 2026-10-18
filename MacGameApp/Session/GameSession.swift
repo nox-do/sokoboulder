@@ -63,7 +63,7 @@ final class GameSession {
         self.contentHash = restored.contentHash
         self.staticDeadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: restored.level)
         self.saveSink = saveSink
-        self.history = restored.undoStack + [restored.currentState] + restored.redoStack.reversed()
+        self.history = restored.history
         self.initialState = restored.initialState
         self.journalCommands = restored.commands
         self.journalCursor = restored.cursor

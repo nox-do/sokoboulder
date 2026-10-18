@@ -53,6 +53,10 @@ Zwei klassische Ansätze:
 13. **Gegnerkontakt (Regelversion 2):** Orthogonale Nachbarschaft löst nach
     Spielerbewegung und nach Gegnerbewegung eine Explosion aus. Spielerbewegungen
     bleiben auch auf den Ruhe-Ticks der Gegner tödlich, wenn sie Kontakt herstellen.
+14. **Amöbenkontakt (Regelversion 5):** Fliegen explodieren auch unmittelbar nach
+    einer Bewegung neben eine Amöbe oder wenn Amöbenwachstum den Kontakt herstellt.
+    Die Explosionen werden am Ende der jeweiligen Phase aufgelöst; die
+    Amöbenzahl für den Folgetick zählt die überlebenden Zellen.
 
 Weltmodell bleibt ARCHITECTURE §6.2 — kein flaches `Tile`-Enum mit Spieler in
 der Zelle.

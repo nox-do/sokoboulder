@@ -44,14 +44,14 @@ struct ContentView: View {
 
     private var boardClaimsKeyboardFocus: Bool {
         controller.presentationPhase == .playing
-            && (controller.activePlay?.claimsBoardKeyboardFocus == true)
+            && (controller.activePlay?.isInteractive == true)
     }
 
     private var showsHUD: Bool {
         switch controller.presentationPhase {
         case .gameSelection, .launchMenu, .levelSelection, .help, .settings, .faulted, .runRecovery:
             false
-        case .levelIntro, .playing, .paused, .outcomeAwaitingChoice:
+        case .levelIntro, .playing, .paused, .outcomePresenting, .outcomeAwaitingChoice:
             true
         }
     }
@@ -133,7 +133,7 @@ struct ContentView: View {
                 SokobanLevelSelectionOverlay(controller: controller)
             case .faulted:
                 faultOverlay
-            case .playing:
+            case .playing, .outcomePresenting:
                 EmptyView()
             }
 

@@ -196,7 +196,7 @@ final class SokobanPlayController: ObservableObject {
 
         guard let play = activePlay, presentationPhase == .playing else { return }
         // Only pause when the player is actively playing — not during intro.
-        if play.canEnterPauseFromPlaying {
+        if play.isInteractive {
             pauseFromShell(alreadyInterrupted: true)
         }
     }
@@ -287,7 +287,7 @@ final class SokobanPlayController: ObservableObject {
     }
 
     private func pauseFromShell(alreadyInterrupted: Bool = false) {
-        guard let play = activePlay, play.canEnterPauseFromPlaying else { return }
+        guard let play = activePlay, play.isInteractive else { return }
         play.pause()
         if !alreadyInterrupted {
             audioDirector.interrupt()
@@ -350,7 +350,7 @@ final class SokobanPlayController: ObservableObject {
                     snapshot: emission.render.snapshot, levelID: currentLevelID, catalog: catalog,
                     progress: progressPersistence)
             }
-            enterPresentation(.playing)
+            enterPresentation(.outcomePresenting)
             scheduleShowOutcome()
         case .returnToPlaying:
             outcome.reset()
@@ -368,25 +368,12 @@ final class SokobanPlayController: ObservableObject {
     }
 
     /// One place assigns keyboard ownership and focus for each visible screen.
-    /// During the result delay the board remains visible, but the session owns
-    /// the terminal input gate already.
     func enterPresentation(_ phase: GamePresentationPhase) {
         clearMoveHold()
         presentationPhase = phase
-        switch phase {
-        case .playing where activePlay?.isOutcomePresenting != true:
-            router.enterGameplay()
-        case .playing, .outcomeAwaitingChoice:
-            if router.mode != .outcomePresenting { router.enterOutcomePresenting() }
-            if phase == .outcomeAwaitingChoice {
-                router.releaseOutcomeLocksPreservingPressedKeys()
-            }
-        case .paused:
-            router.enterPaused()
-        case .levelIntro:
-            router.enterLevelIntro()
-        default:
-            router.enterModalBlocked()
+        router.enter(phase.inputMode)
+        if phase == .outcomeAwaitingChoice {
+            router.releaseOutcomeLocksPreservingPressedKeys()
         }
         resetOverlayFocus(for: phase)
     }
