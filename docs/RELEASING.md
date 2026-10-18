@@ -55,7 +55,7 @@ Bundle heißt `SokoBoulder.app`.
 - Nur ein **Tag-Push** erzeugt zusätzlich einen **Release-Entwurf** mit allen
   vier Dateien. Der Entwurf wird anschließend in GitHub geprüft und veröffentlicht.
   Ein erneuter Lauf aktualisiert nur Entwürfe; bereits veröffentlichte Releases
-  werden nicht überschrieben. Der manuelle Workflow erzeugt weder Tag noch Release.
+  werden ohne Fehler übersprungen und nicht überschrieben. Der manuelle Workflow erzeugt weder Tag noch Release.
 
 Versionen folgen strikt `MAJOR.MINOR.PATCH` ohne führende Nullen; Vorabversionen
 mit Suffix werden derzeit nicht unterstützt. Die Tag-/Eingabeversion setzt die

@@ -93,8 +93,8 @@ jobs:
           NOTES
           if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > is-draft.txt 2> release-error.txt; then
             if [[ "$(cat is-draft.txt)" != true ]]; then
-              echo 'Refusing to replace assets on a published release.' >&2
-              exit 1
+              echo '::notice::Release already published; keeping its existing assets.'
+              exit 0
             fi
             gh release upload "$RELEASE_TAG" release-assets/* --clobber
           else
