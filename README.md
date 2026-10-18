@@ -1,16 +1,27 @@
 # SokoBoulder
 
-SokoBoulder ist eine native macOS-App mit zwei Rasterspielen auf einer
-gemeinsamen, deterministischen Swift-Engine:
+Zwei Rasterspiele in einer nativen macOS-App:
 
-- **Sokoban:** rundenbasierte Schiebepuzzles mit Undo/Redo, automatischer
-  Wiederaufnahme und einer Kampagne aus drei Tutorials plus 90 Leveln.
-- **Höhle:** ein Boulder-Dash-artiges Echtzeitspiel mit Gravitation, Diamanten,
-  Kamera, Gegnern, Explosionen, magischer Wand und Amöbe.
+- **Sokoban:** drei Tutorials und 90 Kampagnenlevel, mit Undo/Redo und automatischer
+  Wiederaufnahme.
+- **Höhle:** ein Boulder-Dash-artiges Echtzeitspiel mit Felsen, Diamanten, Gegnern,
+  Explosionen, magischer Wand und Amöbe.
 
-SwiftUI bildet App-Shell und Overlays, SpriteKit rendert die Spielfelder und
-AVFAudio spielt Musik und Effekte. Die Regeln liegen unabhängig von UI und
-Rendering im lokalen Swift-Package `GameCore`.
+## Herunterladen und spielen
+
+**[Aktuellen Release herunterladen](https://github.com/nox-do/sokoboulder/releases/latest)**
+
+Für **macOS 14 oder neuer**, auf **Apple Silicon und Intel**. Xcode wird zum
+Spielen nicht benötigt.
+
+- **DMG:** öffnen und auf **SokoBoulder** doppelklicken, um direkt zu spielen.
+  Zum Installieren die App auf **Programme** ziehen.
+- **ZIP:** entpacken und `SokoBoulder.app` starten.
+
+Die App wird ohne Apple Developer ID und Notarisierung verteilt. Falls macOS
+den ersten Start blockiert, lässt sie sich nach dem Startversuch unter
+**Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen** freigeben.
+[Apples Anleitung](https://support.apple.com/de-de/102445)
 
 ## Screenshots
 
@@ -22,84 +33,6 @@ Rendering im lokalen Swift-Package `GameCore`.
 
 ![Höhlen-Level mit Erde, Felsen und Diamanten](docs/images/sokoboulder-cave.png)
 
-## Projektstand
-
-Sokoban und der Höhlen-Demopfad sind spielbar. Die gemeinsame Plattform für
-Level-Manifeste, Fortschritt, Einstellungen, Themes, Audio und Replay-Grundlagen
-ist umgesetzt. Aktuell offen sind vor allem Playtests, Cave-Sand, weiteres
-Polishing. Universal-App, ZIP-/DMG-Packaging und GitHub-Workflows sind
-eingerichtet.
-
-Die detaillierte Änderungs- und Aufgabenübersicht steht in [todo.md](todo.md).
-
-## Voraussetzungen
-
-- macOS 14.0 oder neuer
-- Xcode 26.6
-- Swift 6.3.3
-
-## Bauen und testen
-
-Das UI-freie `GameCore`-Package testen:
-
-```bash
-cd Packages/GameCore
-swift test
-```
-
-Die macOS-App samt Integrationstests testen:
-
-```bash
-xcodebuild \
-  -project MacGameApp.xcodeproj \
-  -scheme MacGameApp \
-  -destination 'platform=macOS,arch=arm64' \
-  -configuration Debug \
-  test
-```
-
-Nur die App bauen:
-
-```bash
-xcodebuild \
-  -project MacGameApp.xcodeproj \
-  -scheme MacGameApp \
-  -destination 'platform=macOS,arch=arm64' \
-  -configuration Debug \
-  build
-```
-
-Stilprüfung und beide Tests gemeinsam: `./scripts/test.sh`. GitHub Actions führt
-sie bei Pull Requests und Pushes auf `main` ebenfalls aus.
-
-Swift-Code formatieren beziehungsweise nur prüfen:
-
-```bash
-./scripts/format.sh
-./scripts/lint.sh
-```
-
-Dafür verwenden wir das in Xcode enthaltene `swift-format`, konfiguriert über
-`.swift-format` (vier Leerzeichen, 120 Zeichen Zeilenlänge). Es ist keine weitere
-Installation nötig. Die Skripte prüfen App, Tests, GameCore und das Swift-Skript
-für Release-Grafiken; Build-Verzeichnisse und lokale Experimente bleiben außen vor.
-Der Stilcheck läuft auch vor Tests und Release-Builds in CI.
-Details und Xcode-Bedienung: [Entwicklung](docs/DEVELOPMENT.md).
-
-Release-Pakete für Apple Silicon und Intel bauen:
-
-```bash
-./scripts/package-macos.sh 0.1.0
-```
-
-ZIP mit direkt startbarer `SokoBoulder.app`, DMG und Prüfsummen liegen danach
-unter `dist/0.1.0/`. Ein Push von `v0.1.0` erzeugt nach erfolgreichen Tests einen
-GitHub-Release-Entwurf mit diesen Dateien; manuelle Workflow-Läufe liefern
-Downloads als Actions-Artefakte. Details: [Release-Anleitung](docs/RELEASING.md).
-
-Bundle-Identifier: `com.sokoboulder.app` (Tests:
-`com.sokoboulder.app.tests`).
-
 ## Steuerung
 
 | Taste | Aktion |
@@ -108,31 +41,55 @@ Bundle-Identifier: `com.sokoboulder.app` (Tests:
 | Leertaste | In der Höhle einen Tick warten; in Menüs bestätigen |
 | ⌘Z oder Z | Sokoban: Undo |
 | ⇧⌘Z | Sokoban: Redo |
-| M | Sokoban: Ziel unter dem Spieler orange markieren/Markierung entfernen |
+| M | Sokoban: Zielmarkierung setzen oder entfernen |
 | R oder ⌘R | Level neu starten |
 | Escape | Pause beziehungsweise zurück |
 | Return oder Leertaste | Markierte Menüaktion ausführen |
 
-Der Zielmarker ist eine reine Darstellungshilfe: Er verändert weder Regeln noch
-Spielstand und wird beim Levelwechsel zurückgesetzt.
+## Entwickeln
+
+Die App nutzt SwiftUI, SpriteKit und AVFAudio. Die deterministischen Spielregeln
+liegen im lokalen Swift-Package `GameCore`, unabhängig von UI und Rendering.
+
+Voraussetzungen: **Xcode 26.6 / Swift 6.3.3**; für DMG-Packaging zusätzlich
+Python 3 mit `venv` und `pip`.
+
+```bash
+open MacGameApp.xcodeproj  # In Xcode bauen und starten
+./scripts/test.sh         # Stilcheck, GameCore- und App-Tests
+./scripts/format.sh       # Swift-Code formatieren
+./scripts/lint.sh         # Swift-Stil nur prüfen
+```
+
+Universal-App, ZIP und DMG bauen, beispielsweise für Version `0.1.1`:
+
+```bash
+./scripts/package-macos.sh 0.1.1
+```
+
+Die Pakete landen unter `dist/0.1.1/`. GitHub Actions prüft Pull Requests und
+`main`; Release-Tags erzeugen nach Tests einen Release-Entwurf mit Downloads.
+Details: [Entwicklung](docs/DEVELOPMENT.md) und [Release-Anleitung](docs/RELEASING.md).
+
+Sokoban und die Höhlen-Demos sind spielbar. Weitere Playtests, Cave-Sand und
+Polishing stehen auf der [Aufgabenliste](todo.md).
 
 ## Dokumentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md): Module, Zustands- und Simulationsverträge
-- [GAMEPLAY.md](GAMEPLAY.md): Bedienung, Spielfluss und Barrierefreiheit
-- [AUDIO.md](AUDIO.md): Musik, Effekte, Audio-Mapping und Lizenzstrategie
-- [docs/adr](docs/adr): Architekturentscheidungen
-- [docs/plans](docs/plans): Feature- und Regelpläne
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Herkunft und Lizenzen
-  eingebundener Assets
+- [GAMEPLAY.md](GAMEPLAY.md): Bedienung und Spielregeln
+- [ARCHITECTURE.md](ARCHITECTURE.md): Module und Simulationsverträge
+- [AUDIO.md](AUDIO.md): Musik und Effekte
+- [Architekturentscheidungen](docs/adr) und [Feature-Pläne](docs/plans)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Herkunft und Lizenzen der Assets
 
-## Verteilung und Lizenz
+## Lizenz
 
-Auslieferungsformate sind eine Universal-App im ZIP und eine DMG für macOS 14+.
-Die App ist lokal ad-hoc signiert. Apple-Developer-Signierung und
-Notarisierung sind bewusst nicht vorgesehen. Beim ersten Download kann macOS eine manuelle
-Freigabe verlangen. Installation und Release-Ablauf: [docs/RELEASING.md](docs/RELEASING.md).
+Der eigene Quellcode und die eigene Dokumentation stehen unter der
+**[MIT-Lizenz](LICENSE)**. Du darfst sie verwenden, verändern, weitergeben und
+verkaufen, auch in geschlossenen oder kommerziellen Projekten. Lizenz- und
+Urheberhinweis müssen erhalten bleiben; die Nutzung erfolgt ohne Gewährleistung.
 
-Für den eigenen Quellcode ist noch keine Projektlizenz festgelegt. Die
-Drittanbieter-Assets unterliegen den jeweils in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dokumentierten Lizenzen.
+**Drittanbieter-Assets** wie Grafiken, App-Symbol, Musik und Sounds behalten ihre
+eigenen Lizenzen, darunter CC0, CC-BY und CC-BY-SA. Sie werden durch die MIT-Lizenz
+nicht umgelizenziert. Maßgeblich sind die Hinweise in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) und die dort genannten Lizenztexte.

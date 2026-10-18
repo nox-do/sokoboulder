@@ -1,5 +1,10 @@
 # Third-Party Notices
 
+The project’s own source code and documentation are licensed under the
+[MIT License](LICENSE). Third-party assets listed below retain their original
+licenses; they are not relicensed under MIT. This also applies to derived
+assets, including the app icon, wherever indicated below.
+
 ## `audio.music.sokoban.puzzling`
 
 - Title: `Puzzling`

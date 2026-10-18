@@ -40,7 +40,7 @@ app="$stage/SokoBoulder.app"
 ditto "$work/DerivedData/Build/Products/Release/MacGameApp.app" "$app"
 # Keep credits inside the app so they travel with ZIP and DMG installations.
 mkdir -p "$app/Contents/Resources/Legal"
-cp THIRD_PARTY_NOTICES.md "$app/Contents/Resources/Legal/"
+cp LICENSE THIRD_PARTY_NOTICES.md "$app/Contents/Resources/Legal/"
 codesign --force --sign - \
   --entitlements MacGameApp/MacGameApp.entitlements "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
@@ -64,7 +64,9 @@ Siehe https://support.apple.com/de-de/102445
 
 Drittanbieter-Lizenzen:
 SokoBoulder.app/Contents/Resources/Legal/THIRD_PARTY_NOTICES.md.
-Für den eigenen Quellcode ist noch keine Projektlizenz festgelegt.
+Eigener Quellcode: MIT-Lizenz, siehe
+SokoBoulder.app/Contents/Resources/Legal/LICENSE.
+Drittanbieter-Assets behalten ihre jeweiligen Lizenzen.
 NOTES
 name="SokoBoulder-$version-macos-universal"
 # ditto preserves bundle metadata, permissions and symlinks.

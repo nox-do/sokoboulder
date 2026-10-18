@@ -33,7 +33,8 @@ Ergebnis in `dist/0.1.0/`:
 
 Prüfsummen im Ausgabeordner mit `shasum -a 256 -c SHA256SUMS.txt` prüfen.
 Drittanbieter-Lizenzen liegen innerhalb der App unter
-`Contents/Resources/Legal/THIRD_PARTY_NOTICES.md` und bleiben beim Kopieren erhalten.
+`Contents/Resources/Legal/THIRD_PARTY_NOTICES.md`; die MIT-Projektlizenz liegt
+daneben als `LICENSE`. Beide bleiben beim Kopieren erhalten.
 Das DMG zeigt nur die App und die Programme-Verknüpfung: Ein Hintergrund erklärt
 den direkten Start per Doppelklick und das optionale Installieren per Ziehen.
 Fenstergröße, Symbolansicht und Positionen werden als `.DS_Store` direkt im Image
@@ -96,5 +97,5 @@ ersten Download wird als Teil dieses Distributionswegs akzeptiert.
 Vor Veröffentlichung: ZIP und DMG auf einem frischen Mac testen, beide Spiele
 mit Audio öffnen und macOS 14 sowie Intel separat prüfen. Der Universal-Build
 prüft die Intel-Binärdatei, führt sie auf dem ARM-Runner aber nicht aus.
-Die Projektlizenz des eigenen Quellcodes ist weiterhin offen; Asset-Lizenzen
-stehen in `THIRD_PARTY_NOTICES.md`.
+Eigener Quellcode und eigene Dokumentation stehen unter der [MIT-Lizenz](../LICENSE).
+Asset-Lizenzen bleiben davon unberührt und stehen in `THIRD_PARTY_NOTICES.md`.
