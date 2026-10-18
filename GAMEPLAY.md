@@ -220,9 +220,9 @@ Content-Loader lehnt bereits beim Start statisch tote Kistenpositionen ab. Eine
 bekannte Lösung pro Kampagnenlevel bleibt zusätzlich Bestandteil der Tests.
 
 Ein Schub auf ein solches garantiert totes Feld wird als blockiert behandelt
-und mit einem kurzen Hinweis erklärt. Alte gespeicherte Läufe werden beim Laden
-bis vor den verursachenden Schub zurückgespult. Ist der Deadlock bereits in
-einen kompaktierten Checkpoint eingegangen, startet das Level neu.
+und mit einem kurzen Hinweis erklärt. Gespeicherte Läufe werden nach denselben Regeln geprüft. Inkompatible
+Spielstände werden nicht migriert; bei geänderten Leveln oder Regeln beginnt
+das Level neu.
 
 Unsichere oder strategische Sackgassen bleiben gültige Spielzustände und werden
 nicht als Fehler behauptet.

@@ -86,7 +86,7 @@ struct ContentView: View {
             case .paused:
                 PauseOverlay(
                     model: controller.pausePresentation,
-                    focusedAction: controller.focusedPauseAction,
+                    focusedAction: controller.menuFocus.pause,
                     onFocusChange: { controller.setFocusedPauseAction($0) },
                     onResume: { controller.resumeFromPauseOverlay() },
                     onRestart: { controller.restartFromPauseOverlay() },
@@ -100,23 +100,23 @@ struct ContentView: View {
                 }
             case .settings:
                 SettingsOverlay(
-                    model: controller.settingsPresentation,
-                    focusedID: controller.focusedSettingsID,
+                    model: controller.settings.presentation,
+                    focusedID: controller.menuFocus.settingsID,
                     onFocusChange: { controller.setFocusedSettingsID($0) },
-                    onThemeChange: { controller.updateThemeID($0) },
-                    onThemeCycle: { controller.cycleTheme(by: $0) },
-                    onMusicTrackChange: { controller.updateMusicTrackID($1, for: $0) },
-                    onMusicTrackCycle: { controller.cycleMusicTrack(for: $0, by: $1) },
-                    onReduceMotionChange: { controller.updateReduceMotionEnabled($0) },
-                    onMusicVolumeChange: { controller.updateMusicVolume($0) },
-                    onEffectsVolumeChange: { controller.updateEffectsVolume($0) },
-                    onMuteChange: { controller.updateMuted($0) },
+                    onThemeChange: { controller.settings.updateThemeID($0) },
+                    onThemeCycle: { controller.settings.cycleTheme(by: $0) },
+                    onMusicTrackChange: { controller.settings.updateMusicTrackID($1, for: $0) },
+                    onMusicTrackCycle: { controller.settings.cycleMusicTrack(for: $0, by: $1) },
+                    onReduceMotionChange: { controller.settings.updateReduceMotionEnabled($0) },
+                    onMusicVolumeChange: { controller.settings.updateMusicVolume($0) },
+                    onEffectsVolumeChange: { controller.settings.updateEffectsVolume($0) },
+                    onMuteChange: { controller.settings.updateMuted($0) },
                     onBack: { controller.dismissHelpOrSettings() }
                 )
             case .outcomeAwaitingChoice:
                 OutcomeOverlay(
                     model: controller.outcomePresentation,
-                    focusedAction: controller.focusedOutcomeAction,
+                    focusedAction: controller.menuFocus.outcome,
                     onFocusChange: { controller.setFocusedOutcomeAction($0) },
                     onPrimary: { controller.performOutcomePrimaryAction() },
                     onPlayAgain: { controller.restartFromOutcomeOverlay() },
@@ -153,7 +153,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 520, minHeight: 400)
-        .environment(\.visualTheme, controller.visualTheme)
+        .environment(\.visualTheme, controller.settings.visualTheme)
         .accessibilityIdentifier("app.root")
         // Scene-scoped so Edit/Game menu items can call into this window's controller
         // (keyboard ⌘Z/⇧⌘Z/⌘R are owned by the local monitor + InputMapper).
@@ -207,15 +207,15 @@ struct ContentView: View {
 
     private var faultOverlay: some View {
         ZStack {
-            controller.visualTheme.ui.overlayScrim.swiftUIColor.ignoresSafeArea()
+            controller.settings.visualTheme.ui.overlayScrim.swiftUIColor.ignoresSafeArea()
             VStack(spacing: 16) {
                 Text(AppStrings.text(.uiFaultTitle))
                     .font(.title.weight(.semibold))
-                    .foregroundStyle(controller.visualTheme.ui.panelForeground.swiftUIColor)
+                    .foregroundStyle(controller.settings.visualTheme.ui.panelForeground.swiftUIColor)
                 Text(controller.faultMessage ?? "Unknown fault")
                     .font(.callout)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(controller.visualTheme.ui.panelSecondary.swiftUIColor)
+                    .foregroundStyle(controller.settings.visualTheme.ui.panelSecondary.swiftUIColor)
                 Button(AppStrings.text(.uiFaultReload)) {
                     controller.startLevel(showIntro: true)
                 }
@@ -224,7 +224,7 @@ struct ContentView: View {
             }
             .padding(28)
             .background(
-                controller.visualTheme.ui.panelBackground.swiftUIColor,
+                controller.settings.visualTheme.ui.panelBackground.swiftUIColor,
                 in: RoundedRectangle(cornerRadius: 16)
             )
         }

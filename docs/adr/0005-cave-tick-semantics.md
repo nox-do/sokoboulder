@@ -28,7 +28,8 @@ Zwei klassische Ansätze:
    Seit Regelversion 3 überspringt die Gravitation bereits in der Spielerphase
    geschobene Felsen; sie fallen oder rollen frühestens im nächsten Tick.
 3. **Intent-Berechnungsreihenfolge:** Zeilen oben→unten, Spalten links→rechts.
-4. **Rollen:** links vor rechts; nach Roll = `falling`.
+4. **Rollen:** links vor rechts; nach Roll = `falling`. Seit Regelversion 4
+   müssen Seite und diagonales Zielfeld leer sein; Spieler und Gegner blockieren das Rollen.
 5. **Freilegen→Fall:** Im Tick ohne Unterstützung wird `falling` gesetzt; die
    Zellenbewegung folgt im **nächsten** Tick (1-Tick-Lag). Golden #1/#4.
 6. **Explosionen:** Queue; Typen `destructive` und `diamondGenerating`.
@@ -39,10 +40,14 @@ Zwei klassische Ansätze:
 7. **Zellkonflikte:** objektbezogen in Golden-Tests; Fallback:
    Explosion > Fall > Spieler > Gegner > Amöbe.
 8. **Terminal:** Tod vor Exit-Abschluss; Zeitablauf am Tickende; Tod+Exit → Tod.
+   Seit Regelversion 4 beendet bereits zu Tickbeginn abgelaufene Zeit die Partie
+   vor jeder Aktion. Der letzte noch verfügbare Tick darf zum Abschluss führen.
 9. **Tickrate:** `fixedStep = 0.10` (10 Hz).
 10. **Ready:** keine Ticks; erste Absicht → Epoche + Tick 1.
 11. **Eingabe Phase 4:** nur `move` und `wait`. Kein Snap, keine
     Schiebeverzögerung (erst nach Playtest + Freigabe).
+    Zwischen Ticks gilt die letzte explizite Eingabe (Bewegung oder Warten);
+    sie wird einmal verbraucht, danach gilt wieder die gehaltene Richtung.
 12. **Digest/Replay:** globale `simulationTick` + Absichten; keine Epochen.
     Seeded RNG-State (Amöbe) ist Teil des Digests.
 13. **Gegnerkontakt (Regelversion 2):** Orthogonale Nachbarschaft löst nach

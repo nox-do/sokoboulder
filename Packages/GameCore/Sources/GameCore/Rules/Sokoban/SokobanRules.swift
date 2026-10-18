@@ -128,6 +128,9 @@ public struct SokobanRules: Sendable {
 
     /// Applies one movement attempt.
     ///
+    /// Pass the level's precomputed static dead squares to enable deadlock assistance.
+    /// Without a set, standard Sokoban movement applies.
+    ///
     /// - Essential pre- and postconditions are checked in all builds.
     /// - Input while ``PlayStatus/completed`` returns the same state, no events,
     ///   and ``StepOutcome/blocked`` — not an ``EngineFault``.
@@ -137,7 +140,8 @@ public struct SokobanRules: Sendable {
     ///   ``GameEvent/movementBlocked``.
     public func move(
         _ direction: Direction,
-        in state: SokobanState
+        in state: SokobanState,
+        avoidingStaticDeadSquares deadSquares: Set<GridPosition> = []
     ) throws(EngineFault) -> Transition<SokobanState> {
         try state.validateEssentials()
 
@@ -161,7 +165,8 @@ public struct SokobanRules: Sendable {
                     from: from,
                     cratePosition: target,
                     direction: direction,
-                    in: state
+                    in: state,
+                    avoidingStaticDeadSquares: deadSquares
                 )
             } else {
                 transition = try movePlayer(
@@ -318,12 +323,14 @@ public struct SokobanRules: Sendable {
 
     private func blocked(
         _ state: SokobanState,
-        at position: GridPosition
+        at position: GridPosition,
+        reason: MovementBlockReason = .obstacle
     ) -> Transition<SokobanState> {
         Transition(
             state: state,
             events: [.movementBlocked(at: position)],
-            outcome: .blocked
+            outcome: .blocked,
+            blockReason: reason
         )
     }
 
@@ -332,7 +339,8 @@ public struct SokobanRules: Sendable {
         from: GridPosition,
         cratePosition: GridPosition,
         direction: Direction,
-        in state: SokobanState
+        in state: SokobanState,
+        avoidingStaticDeadSquares deadSquares: Set<GridPosition>
     ) throws(EngineFault) -> Transition<SokobanState> {
         let destination = cratePosition.neighbor(in: direction)
 
@@ -343,6 +351,10 @@ public struct SokobanRules: Sendable {
         let destinationCell = state.grid[destination]
         guard destinationCell.isWalkable, destinationCell.occupant == nil else {
             return blocked(state, at: cratePosition)
+        }
+
+        guard !deadSquares.contains(destination) else {
+            return blocked(state, at: cratePosition, reason: .staticDeadlock)
         }
 
         let crateRef = EntityRef(id: id, kind: .crate)

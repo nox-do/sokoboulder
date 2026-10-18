@@ -109,6 +109,48 @@ struct CaveSessionTimingTests {
         #expect(sawDeath)
     }
 
+    @Test("latest explicit input wins between ticks", arguments: [false, true])
+    func latestInputWins(waitLast: Bool) throws {
+        let level = try CaveLevelBuilder.level(
+            fromASCII: "#######\n#P   E#\n#######", requiredDiamonds: 0
+        )
+        let session = try CaveSession(level: level)
+        session.start()
+        session.noteWait()
+        _ = try session.advance(to: 0)
+
+        if waitLast {
+            session.noteDirectionDown(.right)
+            session.noteWait()
+        } else {
+            session.noteWait()
+            session.noteDirectionDown(.right)
+        }
+        _ = try session.advance(to: 0.11)
+        #expect(session.snapshot.player.position.column == (waitLast ? 1 : 2))
+        // A released tap is consumed once, never replayed in the following tick.
+        _ = try session.advance(to: 0.22)
+        #expect(session.snapshot.player.position.column == (waitLast ? 1 : 2))
+    }
+
+    @Test("pause clears pending input and resumes with a fresh clock")
+    func pauseClearsPendingInput() throws {
+        let level = try CaveLevelBuilder.level(
+            fromASCII: "#######\n#P   E#\n#######", requiredDiamonds: 0
+        )
+        let session = try CaveSession(level: level)
+        session.start()
+        session.noteWait()
+        _ = try session.advance(to: 0)
+        session.noteDirectionDown(.right)
+        session.pause()
+        session.resume()
+        #expect(try session.advance(to: 10) == nil)
+        _ = try session.advance(to: 10.11)
+        #expect(session.simulationTick == 2)
+        #expect(session.snapshot.player.position.column == 1)
+    }
+
     private func makeSession() throws -> CaveSession {
         let level = try CaveDemoLevel.makeLevel()
         return try CaveSession(level: level, levelID: CaveDemoLevel.id)

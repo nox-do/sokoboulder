@@ -178,7 +178,7 @@ final class GameSession {
         preventedStaticDeadlockOnLastMove = false
         let transition: Transition<SokobanState>
         do {
-            transition = try rules.move(direction, in: state)
+            transition = try rules.move(direction, in: state, avoidingStaticDeadSquares: staticDeadSquares)
         } catch {
             return fail(error)
         }
@@ -192,20 +192,7 @@ final class GameSession {
             return .ignored
         }
 
-        if events.contains(where: { event in
-            if case .objectPushed = event { return true }
-            return false
-        }), containsCrateOnStaticDeadSquare(in: next) {
-            preventedStaticDeadlockOnLastMove = true
-            return .emitted(
-                makeEmission(
-                    events: [.movementBlocked(at: previous.playerPosition)],
-                    delivery: .animate,
-                    audioDelivery: .perform,
-                    appTransition: nil
-                )
-            )
-        }
+        preventedStaticDeadlockOnLastMove = transition.blockReason == .staticDeadlock
 
         switch transition.outcome {
         case .changed, .terminal:
@@ -244,13 +231,6 @@ final class GameSession {
             journalCursor -= excess
         }
         persistRun()
-    }
-
-    private func containsCrateOnStaticDeadSquare(in candidate: SokobanState) -> Bool {
-        staticDeadSquares.contains { position in
-            if case .crate = candidate.grid[position].occupant { return true }
-            return false
-        }
     }
 
     private func applyUndo() -> SessionApplyResult {

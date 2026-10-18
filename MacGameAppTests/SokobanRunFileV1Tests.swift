@@ -197,85 +197,23 @@ struct SokobanRunFileV1Tests {
         #expect(again.phase == .playing)
     }
 
-    @Test("legacy deadlocked run rewinds before the irreversible push")
-    func deadlockedRunRewindsOnRestore() throws {
-        let descriptor = try #require(
-            SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002")
-        )
-        let started = try SokobanRules().start(level: descriptor.makeLevel())
-        let commands: [SokobanDirectionV1] = [
-            .right, .up, .right, .up, .right, .down,
-        ]
+    @Test("saved moves use the same deadlock rules as live play", arguments: [1, 6])
+    func deadlockedRunIsRejected(cursor: Int) throws {
+        let descriptor = try #require(SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002"))
+        let rules = SokobanRules()
+        let started = try rules.start(level: descriptor.makeLevel())
         let file = SokobanRunFileV1(
             schemaVersion: SokobanRunFileV1.currentSchemaVersion,
             levelID: descriptor.id,
             contentHash: descriptor.contentHash,
             ruleVersion: SokobanRules.ruleVersion,
-            checkpoint: try SokobanCheckpointV1(
-                semantic: SokobanRules().checkpoint(from: started)
-            ),
-            commands: commands,
-            cursor: commands.count
+            checkpoint: try SokobanCheckpointV1(semantic: rules.checkpoint(from: started)),
+            commands: [.right, .up, .right, .up, .right, .down],
+            cursor: cursor
         )
-
-        let restored = try SokobanRunRestorer.restore(file)
-        #expect(restored.recoveredStaticDeadlock)
-        #expect(restored.cursor == 2)
-        #expect(restored.commands == commands.prefix(2).map(\.direction))
-        #expect(restored.redoStack.isEmpty)
-        #expect(restored.currentState.playerPosition == GridPosition(column: 3, row: 2))
-        #expect(
-            restored.currentState.grid[GridPosition(column: 4, row: 2)].occupant != nil
-        )
-        #expect(
-            restored.currentState.grid[GridPosition(column: 5, row: 2)].occupant == nil
-        )
-        #expect(
-            restored.currentState.grid[GridPosition(column: 5, row: 3)].occupant == nil
-        )
-    }
-
-    @Test("legacy deadlock is removed from redo history")
-    func deadlockedRedoHistoryIsTruncatedOnRestore() throws {
-        let descriptor = try #require(
-            SokobanLevelCatalog.descriptor(id: "sokoban.tutorial.002")
-        )
-        let started = try SokobanRules().start(level: descriptor.makeLevel())
-        let commands: [SokobanDirectionV1] = [
-            .right, .up, .right, .up, .right, .down,
-        ]
-        let file = SokobanRunFileV1(
-            schemaVersion: SokobanRunFileV1.currentSchemaVersion,
-            levelID: descriptor.id,
-            contentHash: descriptor.contentHash,
-            ruleVersion: SokobanRules.ruleVersion,
-            checkpoint: try SokobanCheckpointV1(
-                semantic: SokobanRules().checkpoint(from: started)
-            ),
-            commands: commands,
-            cursor: 1
-        )
-
-        let restored = try SokobanRunRestorer.restore(file)
-        #expect(restored.recoveredStaticDeadlock)
-        #expect(restored.cursor == 1)
-        #expect(restored.commands == commands.prefix(2).map(\.direction))
-        #expect(restored.currentState.playerPosition == GridPosition(column: 3, row: 3))
-        #expect(restored.redoStack.count == 1)
-
-        let session = GameSession(restored: restored)
-        _ = session.start()
-        guard case .emitted(let emission) = session.apply(.redo) else {
-            Issue.record("expected the remaining safe redo")
-            return
+        #expect(throws: SokobanRunRestoreFailure.commandBlockedDuringReplay(index: 2)) {
+            try SokobanRunRestorer.restore(file)
         }
-        #expect(session.redoCount == 0)
-        #expect(session.apply(.redo) == .ignored)
-        #expect(emission.render.snapshot.player.position == GridPosition(column: 3, row: 2))
-        #expect(
-            emission.render.snapshot.entities.first?.position
-                == GridPosition(column: 4, row: 2)
-        )
     }
 
     @Test("restart clears journal and resets checkpoint")

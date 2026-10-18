@@ -186,83 +186,20 @@ enum PresentationFactory {
     }
 
     struct OutcomeInput: Equatable, Sendable {
-        var isCaveMode: Bool
         var title: String
         var hint: String
         var primaryTitle: String
         var metrics: PlayMetrics
         var canRestart: Bool
         var canUndo: Bool
-        var bestMoveCount: Int?
-        var bestPushCount: Int?
-        var newBestMoves: Bool
-        var newBestPushes: Bool
+        var records: [OutcomeRecordLine]
     }
 
     static func outcome(_ input: OutcomeInput) -> OutcomePresentation {
-        let metrics = PlayMetricsPresentation.outcomeMetricLines(metrics: input.metrics)
-
-        if input.isCaveMode {
-            var records: [OutcomeRecordLine] = []
-            if let bestScore = input.bestPushCount {
-                records.append(
-                    OutcomeRecordLine(
-                        title: AppStrings.text(.uiOutcomeBestScore),
-                        value: String(bestScore),
-                        isNewRecord: input.newBestPushes,
-                        newRecordTitle: AppStrings.text(.uiOutcomeNewRecordScore)
-                    )
-                )
-            }
-            if let bestTime = input.bestMoveCount {
-                records.append(
-                    OutcomeRecordLine(
-                        title: AppStrings.text(.uiOutcomeBestTime),
-                        value: PlayMetricsPresentation.caveTime(ticks: bestTime),
-                        isNewRecord: input.newBestMoves,
-                        newRecordTitle: AppStrings.text(.uiOutcomeNewRecordTime)
-                    )
-                )
-            }
-            return OutcomePresentation(
-                title: input.title,
-                metrics: metrics,
-                records: records,
-                hint: input.hint,
-                primaryTitle: input.primaryTitle,
-                playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
-                playAgainEnabled: input.canRestart,
-                undoTitle: AppStrings.text(.uiOutcomeUndo),
-                undoEnabled: false,
-                levelSelectTitle: AppStrings.text(.uiOutcomeLevelSelect)
-            )
-        }
-
-        var records: [OutcomeRecordLine] = []
-        if let bestMoves = input.bestMoveCount {
-            records.append(
-                OutcomeRecordLine(
-                    title: AppStrings.text(.uiOutcomeBestMoves),
-                    value: String(bestMoves),
-                    isNewRecord: input.newBestMoves,
-                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordMoves)
-                )
-            )
-        }
-        if let bestPushes = input.bestPushCount {
-            records.append(
-                OutcomeRecordLine(
-                    title: AppStrings.text(.uiOutcomeBestPushes),
-                    value: String(bestPushes),
-                    isNewRecord: input.newBestPushes,
-                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordPushes)
-                )
-            )
-        }
-        return OutcomePresentation(
+        OutcomePresentation(
             title: input.title,
-            metrics: metrics,
-            records: records,
+            metrics: PlayMetricsPresentation.outcomeMetricLines(metrics: input.metrics),
+            records: input.records,
             hint: input.hint,
             primaryTitle: input.primaryTitle,
             playAgainTitle: AppStrings.text(.uiOutcomePlayAgain),
@@ -271,6 +208,52 @@ enum PresentationFactory {
             undoEnabled: input.canUndo,
             levelSelectTitle: AppStrings.text(.uiOutcomeLevelSelect)
         )
+    }
+
+    static func outcomeRecords(for delta: ProgressCompletionDelta) -> [OutcomeRecordLine] {
+        var records: [OutcomeRecordLine] = []
+        if let moves = delta.bestMoveCount {
+            records.append(
+                OutcomeRecordLine(
+                    title: AppStrings.text(.uiOutcomeBestMoves),
+                    value: String(moves),
+                    isNewRecord: delta.newBestMoves,
+                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordMoves)
+                ))
+        }
+        if let pushes = delta.bestPushCount {
+            records.append(
+                OutcomeRecordLine(
+                    title: AppStrings.text(.uiOutcomeBestPushes),
+                    value: String(pushes),
+                    isNewRecord: delta.newBestPushes,
+                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordPushes)
+                ))
+        }
+        return records
+    }
+
+    static func outcomeRecords(for delta: CaveProgressCompletionDelta) -> [OutcomeRecordLine] {
+        var records: [OutcomeRecordLine] = []
+        if let score = delta.bestScore {
+            records.append(
+                OutcomeRecordLine(
+                    title: AppStrings.text(.uiOutcomeBestScore),
+                    value: String(score),
+                    isNewRecord: delta.newBestScore,
+                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordScore)
+                ))
+        }
+        if let ticks = delta.bestRemainingTicks {
+            records.append(
+                OutcomeRecordLine(
+                    title: AppStrings.text(.uiOutcomeBestTime),
+                    value: PlayMetricsPresentation.caveTime(ticks: ticks),
+                    isNewRecord: delta.newBestRemainingTicks,
+                    newRecordTitle: AppStrings.text(.uiOutcomeNewRecordTime)
+                ))
+        }
+        return records
     }
 
     static func boardAccessibilityLabel(levelTitle: String) -> String {

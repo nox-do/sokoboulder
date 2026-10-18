@@ -43,7 +43,7 @@ enum TestPlayControllerFactory {
             reduceMotionSource: reduceMotion
         )
         reduceMotion.onChange = { [weak controller] in
-            controller?.reduceMotionProvider.refresh()
+            controller?.settings.reduceMotionProvider.refresh()
         }
         // Fresh boots land on game selection; most tests want the Sokoban session.
         if controller.presentationPhase == .gameSelection {

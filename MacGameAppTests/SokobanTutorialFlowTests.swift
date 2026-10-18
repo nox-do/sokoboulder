@@ -109,8 +109,8 @@ struct SokobanTutorialFlowTests {
         // Level 1 → next
         playMoves(controller, SokobanTutorialSolutions.level001)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
-        #expect(controller.outcomePrimaryTitle == AppStrings.text(.uiOutcomeNextLevel))
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+        #expect(controller.outcome.primaryTitle == AppStrings.text(.uiOutcomeNextLevel))
         controller.performOutcomePrimaryAction()
         #expect(controller.currentLevelID == "sokoban.tutorial.002")
         #expect(controller.presentationPhase == .levelIntro)
@@ -124,7 +124,7 @@ struct SokobanTutorialFlowTests {
         // Level 2 → next
         playMoves(controller, SokobanTutorialSolutions.level002)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.003"))
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.tutorial.003"))
         controller.performOutcomePrimaryAction()
         #expect(controller.currentLevelID == "sokoban.tutorial.003")
         controller.dismissLevelIntro()
@@ -132,9 +132,9 @@ struct SokobanTutorialFlowTests {
         // Level 3 → first campaign level
         playMoves(controller, SokobanTutorialSolutions.level003)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.campaign.001"))
-        #expect(controller.outcomeTitle == AppStrings.text(.uiOutcomeLevelComplete))
-        #expect(controller.outcomePrimaryTitle == AppStrings.text(.uiOutcomeNextLevel))
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.campaign.001"))
+        #expect(controller.outcome.title == AppStrings.text(.uiOutcomeLevelComplete))
+        #expect(controller.outcome.primaryTitle == AppStrings.text(.uiOutcomeNextLevel))
         controller.performOutcomePrimaryAction()
         #expect(controller.currentLevelID == "sokoban.campaign.001")
         #expect(controller.presentationPhase == .playing)
@@ -146,7 +146,7 @@ struct SokobanTutorialFlowTests {
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)
         awaitOutcome(controller)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.tutorial.002"))
 
         controller.setFocusedOutcomeAction(.again)
         _ = controller.router.route(TestKeyEvent.keyUp(KeyCode.rightArrow))
@@ -164,8 +164,8 @@ struct SokobanTutorialFlowTests {
         controller.dismissLevelIntro()
         playMoves(controller, SokobanTutorialSolutions.level001)
         awaitOutcome(controller)
-        #expect(controller.focusedOutcomeAction == .primary)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+        #expect(controller.menuFocus.outcome == .primary)
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.tutorial.002"))
 
         controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return))
         #expect(controller.currentLevelID == "sokoban.tutorial.002")

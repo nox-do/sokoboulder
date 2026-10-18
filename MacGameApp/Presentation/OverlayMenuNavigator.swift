@@ -2,12 +2,12 @@ import Foundation
 
 /// Current keyboard focus across overlay menus.
 struct OverlayFocusState: Equatable, Sendable {
-    var gameSelection: GameSelectionAction
-    var launch: LaunchMenuAction
-    var pause: PauseMenuAction
-    var levelSelectionID: String
-    var settingsID: String
-    var outcome: OutcomeFocusedAction
+    var gameSelection: GameSelectionAction = .sokoban
+    var launch: LaunchMenuAction = .continueCampaign
+    var pause: PauseMenuAction = .resume
+    var levelSelectionID: String = "navigation.back"
+    var settingsID: String = SettingsFocusID.back
+    var outcome: OutcomeFocusedAction = .primary
 }
 
 /// Phase-specific lists needed to move focus.

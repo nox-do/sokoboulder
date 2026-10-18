@@ -175,7 +175,7 @@ struct GameSessionRevisionTests {
         #expect(emission.render.snapshot.metrics.sokoban?.pushCount == 0)
         #expect(emission.render.snapshot.player.position == GridPosition(column: 3, row: 2))
         #expect(emission.render.snapshot.entities.first?.position == GridPosition(column: 4, row: 2))
-        #expect(emission.render.events == [.movementBlocked(at: GridPosition(column: 3, row: 2))])
+        #expect(emission.render.events == [.movementBlocked(at: GridPosition(column: 4, row: 2))])
     }
 
     @Test("moves in outcomePresenting are rejected at the session boundary")

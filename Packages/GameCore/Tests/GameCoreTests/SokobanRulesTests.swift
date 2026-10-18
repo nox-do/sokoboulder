@@ -11,6 +11,31 @@ struct SokobanRulesTests {
         return try rules.start(level: level)
     }
 
+    @Test("deadlock assistance rejects a push before changing state")
+    func assistedPush() throws {
+        let level = try SokobanLevelValidator.level(fromASCII: "#######\n#     #\n# # $ #\n# @ . #\n#######")
+        let deadSquares = SokobanStaticDeadlockAnalyzer.staticDeadSquares(in: level)
+        var state = try rules.start(level: level)
+        state = try rules.move(.right, in: state).state
+        state = try rules.move(.up, in: state).state
+        let blocked = try rules.move(.right, in: state, avoidingStaticDeadSquares: deadSquares)
+        #expect(blocked.outcome == .blocked)
+        #expect(blocked.blockReason == .staticDeadlock)
+        #expect(blocked.state == state)
+        #expect(blocked.events == [.movementBlocked(at: GridPosition(column: 4, row: 2))])
+
+        let unassisted = try rules.move(.right, in: state)
+        #expect(unassisted.outcome == .changed)
+        #expect(unassisted.state.pushCount == 1)
+        #expect(unassisted.state.grid[GridPosition(column: 5, row: 2)].occupant != nil)
+
+        let wall = try rules.move(.left, in: state, avoidingStaticDeadSquares: deadSquares)
+        #expect(wall.blockReason == .obstacle)
+        let safe = try rules.move(.down, in: state, avoidingStaticDeadSquares: deadSquares)
+        #expect(safe.outcome == .changed)
+        #expect(safe.blockReason == nil)
+    }
+
     @Test("start assigns deterministic player and crate IDs")
     func deterministicStart() throws {
         let ascii = """

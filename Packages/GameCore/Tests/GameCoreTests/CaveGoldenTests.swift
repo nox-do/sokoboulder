@@ -198,6 +198,47 @@ struct CaveGoldenTests {
         #expect(motion(at: GridPosition(column: 3, row: 2), in: state) == .falling)
     }
 
+    @Test("rolling requires an empty diagonal destination", arguments: [false, true])
+    func rollCannotEnterPlayerCell(playerOnRight: Bool) throws {
+        let ascii =
+            playerOnRight
+            ? "#####\n##O #\n##OP#\n#XXE#\n#####"
+            : "#####\n# O##\n#PO##\n#EXX#\n#####"
+        let state = try start(ascii, requiredDiamonds: 0)
+        let result = try rules.tick(input: .wait, state: state)
+        #expect(result.state.status == .playing)
+        #expect(result.state.player == state.player)
+        #expect(
+            result.state.grid[GridPosition(column: 2, row: 1)].occupant
+                == state.grid[GridPosition(column: 2, row: 1)].occupant)
+    }
+
+    @Test("rolling chooses the free side when the other diagonal contains the player")
+    func rollAvoidsPlayer() throws {
+        let state = try start("#####\n# O #\n#PO #\n#XXE#\n#####", requiredDiamonds: 0)
+        let result = try rules.tick(input: .wait, state: state)
+        #expect(result.state.status == .playing)
+        #expect(result.state.player == state.player)
+        #expect(
+            result.state.grid[GridPosition(column: 3, row: 2)].occupant?.id
+                == state.grid[GridPosition(column: 2, row: 1)].occupant?.id)
+    }
+
+    @Test("expired time prevents exit entry, but the last available tick can win", arguments: [0, 1])
+    func exitAtTimeBoundary(remainingTicks: Int) throws {
+        let state = try start("####\n#PE#\n####", requiredDiamonds: 0, timeLimitTicks: remainingTicks)
+        let result = try rules.tick(input: .move(.right), state: state)
+        #expect(result.state.tick == 1)
+        if remainingTicks == 0 {
+            #expect(result.outcome == .terminal(.failed))
+            #expect(result.state.player == .dead(at: GridPosition(column: 1, row: 1)))
+            #expect(result.events == [.timeExpired, .playerDied(at: GridPosition(column: 1, row: 1))])
+        } else {
+            #expect(result.outcome == .terminal(.completed))
+            #expect(result.events.contains(.levelCompleted))
+        }
+    }
+
     @Test("object updates at most once per tick while falling")
     func updateOnceSameTick() throws {
         var state = try start(

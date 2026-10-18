@@ -18,10 +18,8 @@ final class CaveSession {
 
     private var accumulator: TimeInterval = 0
     private var lastAdvanceTime: TimeInterval?
-    /// First intent waiting to leave Ready (consumed exactly once as Tick 1).
-    private var readyIntent: CaveInput?
-    private var pressLatch: Direction?
-    private var pendingWait = false
+    /// Latest explicit input wins until the next tick, including the Ready tick.
+    private var pendingInput: CaveInput?
 
     private(set) var bootstrapEmission: SessionEmission?
 
@@ -68,24 +66,16 @@ final class CaveSession {
 
     func noteDirectionDown(_ direction: Direction) {
         guard canAcceptInput else { return }
-        pressLatch = direction
-        if phase == .ready {
-            readyIntent = .move(direction)
-        }
+        pendingInput = .move(direction)
     }
 
     func noteWait() {
         guard canAcceptInput else { return }
-        pendingWait = true
-        if phase == .ready {
-            readyIntent = .wait
-        }
+        pendingInput = .wait
     }
 
     func clearInputState() {
-        pressLatch = nil
-        pendingWait = false
-        readyIntent = nil
+        pendingInput = nil
     }
 
     /// Advances simulation using the shared monotonic clock reading `now`.
@@ -109,13 +99,11 @@ final class CaveSession {
     ) throws(EngineFault) -> SessionEmission? {
         switch phase {
         case .ready:
-            guard let intent = readyIntent else { return nil }
-            readyIntent = nil
+            guard let intent = pendingInput else { return nil }
+            clearInputState()
             phase = .playing
             lastAdvanceTime = now
             accumulator = 0
-            pressLatch = nil
-            pendingWait = false
             let events = try runTick(input: intent)
             return tickEmission(events: events)
         case .playing:
@@ -150,7 +138,6 @@ final class CaveSession {
         clearInputState()
         accumulator = 0
         lastAdvanceTime = nil
-        readyIntent = nil
     }
 
     func resume() {
@@ -198,14 +185,9 @@ final class CaveSession {
     }
 
     private func resolveTickInput(heldDirection: Direction?) -> CaveInput {
-        if pendingWait {
-            pendingWait = false
-            pressLatch = nil
-            return .wait
-        }
-        if let latch = pressLatch {
-            pressLatch = nil
-            return .move(latch)
+        if let input = pendingInput {
+            pendingInput = nil
+            return input
         }
         if let heldDirection {
             return .move(heldDirection)

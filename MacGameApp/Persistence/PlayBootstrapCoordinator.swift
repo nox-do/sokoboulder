@@ -33,31 +33,6 @@ enum SokobanRunRestoreMessages {
     }
 }
 
-/// Decides whether a content-hash mismatch may restart the level in place.
-enum SokobanRunContentChangePolicy {
-    static func canRestartAfterContentChange(
-        file: SokobanRunFileV1,
-        error: Error,
-        levelExists: Bool,
-        restartableSupersededHashes: [String: Set<String>]
-    ) -> Bool {
-        guard let failure = error as? SokobanRunRestoreFailure,
-            failure == .contentHashMismatch,
-            levelExists
-        else { return false }
-
-        if restartableSupersededHashes[file.levelID]?.contains(file.contentHash) == true {
-            return true
-        }
-
-        return file.commands.isEmpty
-            && file.cursor == 0
-            && file.checkpoint.moveCount == 0
-            && file.checkpoint.pushCount == 0
-            && file.checkpoint.status == .playing
-    }
-}
-
 /// Boot decision after reading the run store (before mutating the shell).
 enum PlayBootstrapDecision: Equatable, Sendable {
     case openGameSelection

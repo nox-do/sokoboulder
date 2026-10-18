@@ -4,7 +4,7 @@
 /// explosion drains after each phase → exit / time / terminal checks.
 /// Intents are simultaneous from each phase snapshot.
 public struct CaveRules: Sendable {
-    public static let ruleVersion: Int = 3
+    public static let ruleVersion: Int = 4
     public static let fixedStepSeconds: Double = 0.10
 
     /// BDCFF slow / fast amoeba random factors (`GetRandomNumber(0, factor) < 4`).
@@ -94,6 +94,14 @@ public struct CaveRules: Sendable {
         var events: [GameEvent] = []
         var explosions: [PendingExplosion] = []
 
+        // An already expired clock never grants another player action.
+        if working.remainingTicks == 0 {
+            expireTime(in: &working, events: &events)
+            working.tick += 1
+            try working.validateEssentials()
+            return Transition(state: working, events: events, outcome: .terminal(.failed))
+        }
+
         let pushedEntity = applyPlayer(input: input ?? .wait, to: &working, events: &events, explosions: &explosions)
         explodeEnemiesNextToPlayer(in: &working, explosions: &explosions)
         drainExplosions(&explosions, in: &working, events: &events)
@@ -144,16 +152,9 @@ public struct CaveRules: Sendable {
             return Transition(state: working, events: events, outcome: .terminal(.completed))
         }
 
-        // Consume one tick of time after physics. Expiry clamps to 0 so
-        // `timeLimitTicks == 0` fails cleanly instead of going negative.
-        if working.remainingTicks <= 1 {
-            working.remainingTicks = 0
-            if case .alive(let position) = working.player {
-                working.player = .dead(at: position)
-            }
-            working.status = .failed
-            events.append(.timeExpired)
-            events.append(.playerDied(at: deathSite(of: working)))
+        // The last available tick may still win; otherwise its end expires time.
+        if working.remainingTicks == 1 {
+            expireTime(in: &working, events: &events)
             working.tick += 1
             try working.validateEssentials()
             return Transition(state: working, events: events, outcome: .terminal(.failed))
@@ -406,7 +407,7 @@ public struct CaveRules: Sendable {
             let left = from.neighbor(in: .left)
             let leftDown = left.neighbor(in: .down)
             if CaveWorldQuery.presence(in: state, at: left) == .empty,
-                CaveWorldQuery.canFallInto(in: state, at: leftDown, motion: .falling)
+                CaveWorldQuery.presence(in: state, at: leftDown) == .empty
             {
                 return GravityIntent(
                     from: from,
@@ -418,7 +419,7 @@ public struct CaveRules: Sendable {
             let right = from.neighbor(in: .right)
             let rightDown = right.neighbor(in: .down)
             if CaveWorldQuery.presence(in: state, at: right) == .empty,
-                CaveWorldQuery.canFallInto(in: state, at: rightDown, motion: .falling)
+                CaveWorldQuery.presence(in: state, at: rightDown) == .empty
             {
                 return GravityIntent(
                     from: from,
@@ -942,10 +943,11 @@ public struct CaveRules: Sendable {
         events.append(.playerDied(at: position))
     }
 
-    private func deathSite(of state: CaveState) -> GridPosition {
-        switch state.player {
-        case .alive(let position), .dead(let position):
-            return position
+    private func expireTime(in state: inout CaveState, events: inout [GameEvent]) {
+        state.remainingTicks = 0
+        events.append(.timeExpired)
+        if case .alive(let position) = state.player {
+            killPlayer(at: position, causingOccupant: nil, in: &state, events: &events)
         }
     }
 

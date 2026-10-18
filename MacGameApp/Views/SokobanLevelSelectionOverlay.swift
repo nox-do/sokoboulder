@@ -31,7 +31,7 @@ struct SokobanLevelSelectionOverlay: View {
                     // height on macOS instead of expanding to its ideal content size.
                     .frame(minHeight: 0, maxHeight: 360)
                     .scrollIndicators(.visible)
-                    .onChange(of: controller.focusedLevelSelectionID) { _, focusedID in
+                    .onChange(of: controller.menuFocus.levelSelectionID) { _, focusedID in
                         guard focusedID != Self.backID else { return }
                         withAnimation(.easeInOut(duration: 0.15)) {
                             proxy.scrollTo(focusedID, anchor: .center)
@@ -45,7 +45,7 @@ struct SokobanLevelSelectionOverlay: View {
                 }
                 .buttonStyle(.plain)
                 .themedFocus(
-                    isFocused: controller.focusedLevelSelectionID == Self.backID,
+                    isFocused: controller.menuFocus.levelSelectionID == Self.backID,
                     isPrimary: true
                 )
                 .frame(maxWidth: .infinity)
@@ -79,7 +79,7 @@ struct SokobanLevelSelectionOverlay: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .themedFocus(
-            isFocused: controller.focusedLevelSelectionID == row.id,
+            isFocused: controller.menuFocus.levelSelectionID == row.id,
             isEnabled: enabled,
             isPrimary: false
         )

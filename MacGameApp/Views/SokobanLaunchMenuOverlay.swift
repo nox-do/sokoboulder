@@ -82,7 +82,7 @@ struct SokobanLaunchMenuOverlay: View {
         }
         .buttonStyle(.plain)
         .themedFocus(
-            isFocused: controller.focusedLaunchAction == action,
+            isFocused: controller.menuFocus.launch == action,
             isPrimary: primary
         )
         .frame(maxWidth: .infinity)

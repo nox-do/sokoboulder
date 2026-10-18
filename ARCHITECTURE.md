@@ -1063,9 +1063,8 @@ werden.
 Persistenztypen wie `ProgressFileV1`, `ReplayFileV1` und `SokobanRunFileV1` sind
 eigene DTOs. Laufzeitzustände sind kein implizit stabiles Dateiformat.
 Bestleistungen werden mit Level-ID, Inhalts-Hash und relevanter Regelversion
-verknüpft, damit veränderte Level keine alten Rekorde übernehmen. Bekannte alte
-Schemaversionen werden explizit migriert; unbekannte neuere Versionen werden
-sicher abgelehnt.
+verknüpft, damit veränderte Level keine alten Rekorde übernehmen. Spielstände werden nicht migriert. Nicht passende Inhalts- oder
+Regelversionen beginnen ein neues Level; ungültige Dateien werden abgelehnt.
 
 `SokobanRunFileV1` speichert Level-ID, Inhalts-Hash, Regelversion, einen
 versionierten `SokobanCheckpointV1`, höchstens 1.000 tatsächlich verändernde

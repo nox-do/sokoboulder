@@ -220,15 +220,15 @@ struct Phase33PresentationTests {
             audioDirector: AudioDirector(backend: spy),
             markIntroDismissed: true
         )
-        bundle.controller.updateMusicVolume(2.5)
+        bundle.controller.settings.updateMusicVolume(2.5)
         #expect(bundle.settings.musicVolume == 1)
         #expect(spy.lastOutputSettings?.musicVolume == 1)
 
-        bundle.controller.updateEffectsVolume(-0.2)
+        bundle.controller.settings.updateEffectsVolume(-0.2)
         #expect(bundle.settings.effectsVolume == 0)
         #expect(spy.lastOutputSettings?.effectsVolume == 0)
 
-        bundle.controller.updateMusicVolume(0.5)
+        bundle.controller.settings.updateMusicVolume(0.5)
         #expect(spy.lastOutputSettings?.musicVolume == 0.5)
     }
 
@@ -240,11 +240,11 @@ struct Phase33PresentationTests {
             publicationCount += 1
         }
 
-        bundle.controller.updateMusicVolume(0.35)
+        bundle.controller.settings.updateMusicVolume(0.35)
 
         #expect(publicationCount > 0)
-        #expect(bundle.controller.settingsSnapshot.musicVolume == 0.35)
-        #expect(bundle.controller.settingsPresentation.musicVolume == 0.35)
+        #expect(bundle.controller.settings.snapshot.musicVolume == 0.35)
+        #expect(bundle.controller.settings.presentation.musicVolume == 0.35)
         withExtendedLifetime(observation) {}
     }
 
@@ -255,9 +255,9 @@ struct Phase33PresentationTests {
             audioDirector: AudioDirector(backend: spy),
             markIntroDismissed: true
         )
-        bundle.controller.updateMusicVolume(0.8)
-        bundle.controller.updateEffectsVolume(1.0)
-        bundle.controller.updateMuted(true)
+        bundle.controller.settings.updateMusicVolume(0.8)
+        bundle.controller.settings.updateEffectsVolume(1.0)
+        bundle.controller.settings.updateMuted(true)
         let settings = try #require(spy.lastOutputSettings)
         #expect(settings.isMuted)
         #expect(settings.effectiveMusicGain == 0)
@@ -267,16 +267,16 @@ struct Phase33PresentationTests {
     @Test("13 effective reduce motion is system OR app toggle")
     func reduceMotionIsOr() throws {
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
-        #expect(bundle.controller.reduceMotionProvider.isReduceMotionEffective == false)
+        #expect(bundle.controller.settings.reduceMotionProvider.isReduceMotionEffective == false)
         #expect(bundle.controller.scene.prefersReducedMotion == false)
 
-        bundle.controller.updateReduceMotionEnabled(true)
-        #expect(bundle.controller.reduceMotionProvider.isReduceMotionEffective == true)
+        bundle.controller.settings.updateReduceMotionEnabled(true)
+        #expect(bundle.controller.settings.reduceMotionProvider.isReduceMotionEffective == true)
         #expect(bundle.controller.scene.prefersReducedMotion == true)
 
-        bundle.controller.updateReduceMotionEnabled(false)
+        bundle.controller.settings.updateReduceMotionEnabled(false)
         bundle.reduceMotion.systemReduceMotionEnabled = true
-        #expect(bundle.controller.reduceMotionProvider.isReduceMotionEffective == true)
+        #expect(bundle.controller.settings.reduceMotionProvider.isReduceMotionEffective == true)
         #expect(bundle.controller.scene.prefersReducedMotion == true)
     }
 
@@ -286,7 +286,7 @@ struct Phase33PresentationTests {
         let before = try #require(bundle.controller.session).revision
         let moveCount = bundle.controller.metrics.sokoban?.moveCount
 
-        bundle.controller.updateReduceMotionEnabled(true)
+        bundle.controller.settings.updateReduceMotionEnabled(true)
         #expect(bundle.controller.scene.prefersReducedMotion == true)
         #expect(bundle.controller.session?.revision == before)
         #expect(bundle.controller.metrics.sokoban?.moveCount == moveCount)

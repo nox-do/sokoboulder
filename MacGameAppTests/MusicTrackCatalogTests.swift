@@ -110,27 +110,27 @@ struct MusicTrackSettingsTests {
             audioDirector: director,
             markIntroDismissed: true
         )
-        #expect(bundle.controller.settingsPresentation.musicTrackGroups.count == 2)
+        #expect(bundle.controller.settings.presentation.musicTrackGroups.count == 2)
         #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.puzzlingID)
         #expect(bundle.settings.caveMusicTrackID == MusicTrack.caveWonderID)
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-puzzling.mp3")
 
-        bundle.controller.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
+        bundle.controller.settings.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
         #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.preludeID)
         #expect(director.selectedMusicTrackIDs[.sokoban] == MusicTrack.preludeID)
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-prelude.mp3")
         let sokobanGroup = try #require(
-            bundle.controller.settingsPresentation.musicTrackGroups.first { $0.game == .sokoban }
+            bundle.controller.settings.presentation.musicTrackGroups.first { $0.game == .sokoban }
         )
         #expect(
             sokobanGroup.attributionNotice
                 == "Alexandr Zhelanov, https://soundcloud.com/alexandr-zhelanov"
         )
 
-        bundle.controller.cycleMusicTrack(for: .sokoban, by: 1)
+        bundle.controller.settings.cycleMusicTrack(for: .sokoban, by: 1)
         #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.puzzlingID)
 
-        bundle.controller.updateMusicTrackID(MusicTrack.caveTinkeringID, for: .cave)
+        bundle.controller.settings.updateMusicTrackID(MusicTrack.caveTinkeringID, for: .cave)
         #expect(bundle.settings.caveMusicTrackID == MusicTrack.caveTinkeringID)
         #expect(director.selectedMusicTrackIDs[.cave] == MusicTrack.caveTinkeringID)
         // Active theme is still sokoban while playing Sokoban.
@@ -155,7 +155,7 @@ struct MusicTrackSettingsTests {
 
         bundle.controller.togglePause()
         bundle.controller.openSettingsFromPause()
-        bundle.controller.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
+        bundle.controller.settings.updateMusicTrackID(MusicTrack.preludeID, for: .sokoban)
         #expect(bundle.settings.sokobanMusicTrackID == MusicTrack.preludeID)
         #expect(spy.lastMusicPath == "Audio/Music/sokoban-prelude.mp3")
         #expect(director.activeTheme.musicPlayingPath == "Audio/Music/sokoban-prelude.mp3")

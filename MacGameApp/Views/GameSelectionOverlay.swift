@@ -92,7 +92,7 @@ struct GameSelectionOverlay: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .themedFocus(
-            isFocused: controller.focusedGameSelectionAction == action,
+            isFocused: controller.menuFocus.gameSelection == action,
             isPrimary: primary
         )
         .opacity(enabled ? 1 : 0.45)

@@ -76,17 +76,17 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .paused)
         controller.setFocusedPauseAction(.settings)
         controller.handleAppActivation()
-        #expect(controller.focusedPauseAction == .resume)
+        #expect(controller.menuFocus.pause == .resume)
     }
 
     @Test("pause menu arrows and return are owned by the controller")
     func pauseMenuKeyboardOwnedByController() {
         let controller = makeController()
         controller.togglePause()
-        #expect(controller.focusedPauseAction == .resume)
+        #expect(controller.menuFocus.pause == .resume)
 
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
-        #expect(controller.focusedPauseAction == .restart)
+        #expect(controller.menuFocus.pause == .restart)
 
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return)))
         #expect(controller.presentationPhase == .playing)
@@ -115,20 +115,20 @@ struct SokobanPlayControllerTests {
             settingsStore: AppSettingsStore.ephemeral()
         )
         #expect(controller.presentationPhase == .gameSelection)
-        #expect(controller.focusedGameSelectionAction == .sokoban)
+        #expect(controller.menuFocus.gameSelection == .sokoban)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
-        #expect(controller.focusedGameSelectionAction == .cave)
+        #expect(controller.menuFocus.gameSelection == .cave)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
-        #expect(controller.focusedGameSelectionAction == .help)
+        #expect(controller.menuFocus.gameSelection == .help)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.upArrow)))
-        #expect(controller.focusedGameSelectionAction == .cave)
+        #expect(controller.menuFocus.gameSelection == .cave)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.upArrow)))
-        #expect(controller.focusedGameSelectionAction == .sokoban)
+        #expect(controller.menuFocus.gameSelection == .sokoban)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.return)))
         #expect(controller.presentationPhase == .launchMenu)
-        #expect(controller.focusedLaunchAction == .continueCampaign)
+        #expect(controller.menuFocus.launch == .continueCampaign)
         #expect(controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.downArrow)))
-        #expect(controller.focusedLaunchAction == .selectLevel)
+        #expect(controller.menuFocus.launch == .selectLevel)
     }
 
     @Test("completed campaign progress without a run opens game selection")
@@ -267,8 +267,8 @@ struct SokobanPlayControllerTests {
         )
     }
 
-    @Test("run from a known superseded tutorial layout restarts without recovery")
-    func supersededTutorialRunRestarts() async throws {
+    @Test("incompatible level content starts fresh without migration")
+    func incompatibleRunStartsFresh() async throws {
         let runPersistence = try SokobanRunPersistence.ephemeral()
         let catalog = try BundleContentLoader.loadSokobanCatalog(
             from: Bundle(for: SokobanPlayController.self)
@@ -277,7 +277,7 @@ struct SokobanPlayControllerTests {
         let oldRun = SokobanRunFileV1(
             schemaVersion: SokobanRunFileV1.currentSchemaVersion,
             levelID: catalog.first.id,
-            contentHash: "d951ac0c0b9114dae245aecabc5befdac913614a096a21f3fd303f0777cfd594",
+            contentHash: "outdated-content",
             ruleVersion: SokobanRules.ruleVersion,
             checkpoint: SokobanCheckpointV1(
                 schemaVersion: SokobanCheckpointV1.currentSchemaVersion,
@@ -312,12 +312,12 @@ struct SokobanPlayControllerTests {
         )
 
         await runPersistence.flush()
-        guard case .loaded(let migrated) = runPersistence.load() else {
-            Issue.record("expected migrated run")
+        guard case .loaded(let fresh) = runPersistence.load() else {
+            Issue.record("expected fresh run")
             return
         }
-        #expect(migrated.contentHash == catalog.first.contentHash)
-        #expect(migrated.commands.isEmpty)
+        #expect(fresh.contentHash == catalog.first.contentHash)
+        #expect(fresh.commands.isEmpty)
     }
 
     @Test("better second completion after undo updates records")
@@ -339,8 +339,8 @@ struct SokobanPlayControllerTests {
 
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
-        #expect(controller.outcomeNewBestMoves)
-        #expect(controller.outcomeNewBestPushes)
+        #expect(controller.outcome.records[0].isNewRecord)
+        #expect(controller.outcome.records[1].isNewRecord)
         #expect(
             progress.file.record(
                 levelID: catalog.first.id,
@@ -351,8 +351,8 @@ struct SokobanPlayControllerTests {
 
         controller.undoFromOutcomeOverlay()
         #expect(controller.presentationPhase == .playing)
-        #expect(controller.outcomeNewBestMoves == false)
-        #expect(controller.outcomeBestMoveCount == nil)
+        #expect(!controller.outcome.records.contains { $0.isNewRecord })
+        #expect(controller.outcome.records.isEmpty)
 
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
@@ -364,8 +364,8 @@ struct SokobanPlayControllerTests {
         )
         #expect(record?.bestMoveCount == 3)
         // Second terminal transition must run after undo cleared the session gate.
-        #expect(controller.outcomeBestMoveCount == 3)
-        #expect(controller.outcomeNewBestMoves == false)
+        #expect(controller.outcome.records.first?.value == "3")
+        #expect(!controller.outcome.records.contains { $0.isNewRecord })
     }
 
     @Test("better completion after restart updates records")
@@ -389,11 +389,11 @@ struct SokobanPlayControllerTests {
         awaitOutcomeChoice(controller)
         controller.restartFromOutcomeOverlay()
         #expect(controller.presentationPhase == .playing)
-        #expect(controller.outcomeBestMoveCount == nil)
+        #expect(controller.outcome.records.isEmpty)
 
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
-        #expect(controller.outcomeBestMoveCount == 3)
+        #expect(controller.outcome.records.first?.value == "3")
     }
 
     @Test("next level updates lastSelectedLevelID")
@@ -533,7 +533,7 @@ struct SokobanPlayControllerTests {
         let controller = makeController()
         completeDemoLevel(controller)
         awaitOutcomeChoice(controller)
-        #expect(controller.outcomePrimaryAction == .nextLevel(id: "sokoban.tutorial.002"))
+        #expect(controller.outcome.primaryAction == .nextLevel(id: "sokoban.tutorial.002"))
 
         releaseOutcomeConfirmKeys(controller)
 
@@ -567,6 +567,27 @@ struct SokobanPlayControllerTests {
         #expect(controller.presentationPhase == .playing)
         #expect(controller.session?.phase == .playing)
         #expect(controller.router.mode == .gameplay)
+    }
+
+    @Test("undo and redo from pause synchronize session, presentation, and input")
+    func historyCommandsResumeTogether() throws {
+        let controller = makeController()
+        controller.handleKeyEvent(TestKeyEvent.keyDown(KeyCode.leftArrow))
+        controller.handleKeyEvent(TestKeyEvent.keyUp(KeyCode.leftArrow))
+        controller.togglePause()
+        #expect(controller.canUndo)
+        controller.undo()
+        #expect(controller.presentationPhase == .playing)
+        #expect(controller.session?.phase == .playing)
+        #expect(controller.router.mode == .gameplay)
+        #expect(controller.canRedo)
+
+        controller.togglePause()
+        controller.redo()
+        #expect(controller.presentationPhase == .playing)
+        #expect(controller.session?.phase == .playing)
+        #expect(controller.router.mode == .gameplay)
+        #expect(controller.scene.currentSnapshot?.metrics.sokoban?.moveCount == 1)
     }
 
     @Test("restart from pause hard-resyncs")

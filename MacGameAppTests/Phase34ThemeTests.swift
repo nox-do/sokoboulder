@@ -375,25 +375,25 @@ struct Phase34ThemeIntegrationTests {
 
         DevVisualThemeSwitch.forceVectorStandard = false
         let bundle = try TestPlayControllerFactory.make(markIntroDismissed: true)
-        #expect(bundle.controller.visualTheme.id == VisualTheme.dungeonID)
+        #expect(bundle.controller.settings.visualTheme.id == VisualTheme.dungeonID)
         #expect(bundle.controller.scene.themeIDForTesting == VisualTheme.dungeonID)
         #expect(bundle.controller.scene.renderingProfileForTesting == .pixelNearest)
-        #expect(bundle.controller.settingsPresentation.themeOptions.count == 2)
+        #expect(bundle.controller.settings.presentation.themeOptions.count == 2)
 
-        bundle.controller.updateThemeID("theme.missing")
+        bundle.controller.settings.updateThemeID("theme.missing")
         #expect(bundle.settings.themeID == "theme.missing")
-        #expect(bundle.controller.visualTheme.id == VisualTheme.dungeonID)
+        #expect(bundle.controller.settings.visualTheme.id == VisualTheme.dungeonID)
 
-        bundle.controller.cycleTheme(by: 1)
-        #expect(bundle.controller.visualTheme.id == VisualTheme.kenneyID)
+        bundle.controller.settings.cycleTheme(by: 1)
+        #expect(bundle.controller.settings.visualTheme.id == VisualTheme.kenneyID)
         #expect(bundle.controller.scene.renderingProfileForTesting == .pixelNearest)
 
-        bundle.controller.cycleTheme(by: 1)
-        #expect(bundle.controller.visualTheme.id == VisualTheme.dungeonID)
+        bundle.controller.settings.cycleTheme(by: 1)
+        #expect(bundle.controller.settings.visualTheme.id == VisualTheme.dungeonID)
 
         DevVisualThemeSwitch.forceVectorStandard = true
         let forced = try TestPlayControllerFactory.make(markIntroDismissed: true)
-        #expect(forced.controller.visualTheme.id == VisualTheme.standardID)
+        #expect(forced.controller.settings.visualTheme.id == VisualTheme.standardID)
         #expect(forced.controller.scene.renderingProfileForTesting == .vectorContinuous)
     }
 
